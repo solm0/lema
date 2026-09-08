@@ -1,8 +1,7 @@
 import hashlib
 import math
-import random
 import os
-from datetime import date
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Dict
 
@@ -118,6 +117,9 @@ def find_match_indices(tokens, lemma, pos):
 
 
 KWIC_EXAMPLE_LIMIT = 12
+KWIC_SIMILARITY_THRESHOLD = 0.85
+
+_SIMILARITY_IGNORED_POS = {"PUNCT", "SPACE", "SYM"}
 
 
 def _scorable_units(token):
@@ -131,6 +133,38 @@ def _scorable_units(token):
     if token.get("lemma") and token.get("pos"):
         return [token]
     return []
+
+
+def _similarity_signature(line, lemma, pos):
+    signature = []
+
+    for token in line["tokens"]:
+        units = token.get("morphs") or [token]
+
+        for unit in units:
+            unit_lemma = unit.get("lemma")
+            unit_pos = unit.get("pos")
+
+            # Every candidate contains the lookup target, so including it would
+            # artificially inflate similarity, especially for short sentences.
+            if unit_lemma == lemma and unit_pos == pos:
+                continue
+            if unit_pos in _SIMILARITY_IGNORED_POS:
+                continue
+
+            value = unit_lemma or unit.get("surface")
+            if not isinstance(value, str):
+                continue
+
+            value = " ".join(value.casefold().split())
+            if value and any(character.isalnum() for character in value):
+                signature.append(value)
+
+    return tuple(signature)
+
+
+def _sentence_similarity(left, right):
+    return SequenceMatcher(None, left, right, autojunk=False).ratio()
 
 
 def _line_metrics(line, target_key, lang, user_lemma_states, frequency_ranks):
@@ -226,37 +260,21 @@ def sample_kwic(
     if pack_db is None:
         return []
 
-    # Only a small candidate pool is needed to return ``max_k`` examples.
-    # Sampling IDs first avoids loading and decoding every matching corpus line.
-    candidate_limit = max(max_k * 10, max_k)
-    candidate_ids = line_ids
-
-    if len(line_ids) > candidate_limit:
-        daily_seed = f"{lang}/{lemma}/{pos}/{date.today().isoformat()}"
-        candidate_ids = random.Random(daily_seed).sample(line_ids, candidate_limit)
-
-    short, mid, long = [], [], []
+    candidates = []
     target_key = f"{lemma}_{pos}"
 
-    for line in pack_db.get_lines(candidate_ids):
+    for line in pack_db.get_lines(line_ids):
         tokens = line["tokens"]
-        length = len(tokens)
 
         indices = find_match_indices(tokens, lemma, pos)
         if not indices:
             continue
         line["match_indices"] = indices
-
-        if length <= 8:
-            short.append(line)
-        elif length <= 15:
-            mid.append(line)
-        else:
-            long.append(line)
+        candidates.append(line)
 
     states = user_lemma_states or {}
-    frequency_ranks = _frequency_ranks(pack_db, short + mid + long)
-    for line in short + mid + long:
+    frequency_ranks = _frequency_ranks(pack_db, candidates)
+    for line in candidates:
         line["selection_debug"] = _line_metrics(
             line,
             target_key,
@@ -265,23 +283,28 @@ def sample_kwic(
             frequency_ranks,
         )
 
-    def ranked(bucket):
-        return sorted(
-            bucket,
-            key=lambda line: line["selection_debug"]["score"],
-            reverse=True,
-        )
-
     result = []
-    per_bucket = max_k // 3
+    selected_signatures = []
 
-    result.extend(ranked(short)[:per_bucket])
-    result.extend(ranked(mid)[:per_bucket])
-    result.extend(ranked(long)[:per_bucket])
+    for line in sorted(
+        candidates,
+        key=lambda candidate: (
+            len(candidate["tokens"]),
+            candidate["line_id"],
+        ),
+    ):
+        signature = _similarity_signature(line, lemma, pos)
+        if any(
+            _sentence_similarity(signature, selected) >= KWIC_SIMILARITY_THRESHOLD
+            for selected in selected_signatures
+        ):
+            continue
 
-    if len(result) < max_k:
-        remaining = ranked([l for l in (short + mid + long) if l not in result])
-        result.extend(remaining[:max_k - len(result)])
+        result.append(line)
+        selected_signatures.append(signature)
+
+        if len(result) >= max_k:
+            break
 
     kwic = []
 
