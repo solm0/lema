@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import threading
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -12,22 +13,103 @@ from typing import Any, Iterator
 
 
 SCHEMA_VERSION = 1
+_MIGRATION_LOCK = threading.Lock()
 
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def get_library_db_path() -> Path:
+def _library_root() -> Path:
+    override = os.getenv("LEMA_LIBRARY_ROOT")
+    if override:
+        return Path(override).expanduser().resolve()
+    legacy_override = os.getenv("LEMA_LIBRARY_DB_PATH")
+    if legacy_override:
+        return Path(legacy_override).expanduser().resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def _validated_user_id(user_id: str) -> str:
+    value = str(user_id).strip()
+    if not value.isdecimal() or int(value) <= 0:
+        raise ValueError("a valid library user id is required")
+    return value
+
+
+def get_library_db_path(user_id: str) -> Path:
+    return _library_root() / "users" / _validated_user_id(user_id) / "lema.sqlite"
+
+
+def _legacy_library_db_path() -> Path:
     override = os.getenv("LEMA_LIBRARY_DB_PATH")
     if override:
         return Path(override).expanduser().resolve()
-    return Path(__file__).resolve().parent / "lema.sqlite"
+    return _library_root() / "lema.sqlite"
+
+
+def _check_database(path: Path) -> None:
+    with sqlite3.connect(path) as connection:
+        result = connection.execute("PRAGMA quick_check").fetchone()
+    if not result or result[0] != "ok":
+        raise sqlite3.DatabaseError(f"library database check failed: {path}")
+
+
+def _remove_obsolete_migration_meta(path: Path) -> None:
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """
+            DELETE FROM library_meta
+            WHERE key LIKE 'central_migration_v%'
+               OR key = 'legacy_nautilus_offline_library_v1'
+            """
+        )
+        connection.commit()
+
+
+def prepare_user_library(user_id: str) -> Path:
+    """Claim the old device-wide DB once, then use only the account DB.
+
+    No migration marker is needed: successful migration removes the legacy DB.
+    """
+    target = get_library_db_path(user_id)
+    legacy = _legacy_library_db_path()
+    with _MIGRATION_LOCK:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not legacy.exists():
+            return target
+
+        created_target = not target.exists()
+        temporary = target.with_name("lema.migrating.sqlite")
+        try:
+            if created_target:
+                for suffix in ("", "-wal", "-shm"):
+                    Path(f"{temporary}{suffix}").unlink(missing_ok=True)
+                with sqlite3.connect(legacy) as source, sqlite3.connect(temporary) as destination:
+                    source.backup(destination)
+                _check_database(temporary)
+                os.replace(temporary, target)
+                for suffix in ("-wal", "-shm"):
+                    Path(f"{temporary}{suffix}").unlink(missing_ok=True)
+
+            _check_database(target)
+            _remove_obsolete_migration_meta(target)
+        except Exception:
+            for suffix in ("-wal", "-shm", ""):
+                Path(f"{temporary}{suffix}").unlink(missing_ok=True)
+            if created_target:
+                target.unlink(missing_ok=True)
+            raise
+        for suffix in ("-wal", "-shm", ""):
+            Path(f"{legacy}{suffix}").unlink(missing_ok=True)
+    return target
 
 
 class LibraryStore:
-    def __init__(self, path: Path | None = None) -> None:
-        self.path = path or get_library_db_path()
+    def __init__(self, path: Path | None = None, user_id: str | None = None) -> None:
+        if path is None and user_id is None:
+            raise ValueError("user_id is required when no library path is supplied")
+        self.path = path or prepare_user_library(str(user_id))
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
 

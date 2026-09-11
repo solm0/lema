@@ -1,6 +1,13 @@
 package com.solmi.lema;
 
 import android.content.Context;
+import android.database.Cursor;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.channels.FileChannel;
 
 import androidx.annotation.NonNull;
 import androidx.room.Dao;
@@ -30,23 +37,112 @@ import java.util.List;
     exportSchema = false
 )
 public abstract class LemaLibraryDatabase extends RoomDatabase {
+    private static final String LEGACY_DATABASE_NAME = "lema.sqlite";
     private static volatile LemaLibraryDatabase INSTANCE;
+    private static String activeUserId;
 
     public abstract LibraryDao libraryDao();
 
-    public static LemaLibraryDatabase get(Context context) {
-        if (INSTANCE == null) {
-            synchronized (LemaLibraryDatabase.class) {
-                if (INSTANCE == null) {
-                    INSTANCE = Room.databaseBuilder(
-                        context.getApplicationContext(),
-                        LemaLibraryDatabase.class,
-                        "lema.sqlite"
-                    ).build();
+    public static synchronized LemaLibraryDatabase get(Context context, String userId) {
+        if (userId == null || !userId.matches("[1-9][0-9]*")) {
+            throw new IllegalArgumentException("a valid library user id is required");
+        }
+        if (INSTANCE != null && userId.equals(activeUserId)) return INSTANCE;
+
+        if (INSTANCE != null) {
+            INSTANCE.close();
+            INSTANCE = null;
+        }
+
+        Context applicationContext = context.getApplicationContext();
+        String databaseName = "lema-user-" + userId + ".sqlite";
+        migrateLegacyDatabase(applicationContext, databaseName);
+        INSTANCE = Room.databaseBuilder(
+            applicationContext,
+            LemaLibraryDatabase.class,
+            databaseName
+        ).build();
+        INSTANCE.getOpenHelper().getWritableDatabase();
+        activeUserId = userId;
+        return INSTANCE;
+    }
+
+    private static void migrateLegacyDatabase(Context context, String targetName) {
+        File legacy = context.getDatabasePath(LEGACY_DATABASE_NAME);
+        if (!legacy.exists()) return;
+
+        File target = context.getDatabasePath(targetName);
+        if (!target.exists()) {
+            String temporaryName = targetName + ".migrating";
+            context.deleteDatabase(temporaryName);
+            try {
+                copyDatabaseFiles(context, LEGACY_DATABASE_NAME, temporaryName);
+                LemaLibraryDatabase validation = Room.databaseBuilder(
+                    context,
+                    LemaLibraryDatabase.class,
+                    temporaryName
+                ).build();
+                validation.getOpenHelper().getWritableDatabase();
+                validation.libraryDao().listPages();
+                try (Cursor cursor = validation.getOpenHelper().getWritableDatabase()
+                    .query("PRAGMA wal_checkpoint(FULL)")) {
+                    cursor.moveToFirst();
                 }
+                validation.close();
+
+                File temporary = context.getDatabasePath(temporaryName);
+                target.getParentFile().mkdirs();
+                if (!temporary.renameTo(target)) {
+                    copyFile(temporary, target);
+                    if (!temporary.delete()) throw new IOException("could not remove migration file");
+                }
+                context.deleteDatabase(temporaryName);
+            } catch (Exception error) {
+                context.deleteDatabase(temporaryName);
+                context.deleteDatabase(targetName);
+                throw new IllegalStateException("could not migrate the device library", error);
             }
         }
-        return INSTANCE;
+
+        LemaLibraryDatabase validation = Room.databaseBuilder(
+            context,
+            LemaLibraryDatabase.class,
+            targetName
+        ).build();
+        try {
+            validation.getOpenHelper().getWritableDatabase();
+            validation.libraryDao().listPages();
+        } finally {
+            validation.close();
+        }
+        if (!context.deleteDatabase(LEGACY_DATABASE_NAME)) {
+            throw new IllegalStateException("could not remove the old device library");
+        }
+    }
+
+    private static void copyDatabaseFiles(Context context, String sourceName, String targetName)
+        throws IOException {
+        File source = context.getDatabasePath(sourceName);
+        File target = context.getDatabasePath(targetName);
+        target.getParentFile().mkdirs();
+        copyFile(source, target);
+        for (String suffix : new String[]{"-wal", "-shm"}) {
+            File sidecar = new File(source.getPath() + suffix);
+            if (sidecar.exists()) copyFile(sidecar, new File(target.getPath() + suffix));
+        }
+    }
+
+    private static void copyFile(File source, File target) throws IOException {
+        try (
+            FileChannel input = new FileInputStream(source).getChannel();
+            FileChannel output = new FileOutputStream(target).getChannel()
+        ) {
+            long position = 0;
+            while (position < input.size()) {
+                position += output.transferFrom(input, position, input.size() - position);
+            }
+            output.force(true);
+        }
     }
 
     @Entity(tableName = "library_meta")
@@ -230,6 +326,9 @@ public abstract class LemaLibraryDatabase extends RoomDatabase {
 
         @Query("SELECT value FROM library_meta WHERE `key` = :key LIMIT 1")
         String getMeta(String key);
+
+        @Query("DELETE FROM library_meta WHERE `key` LIKE 'central_migration_v%' OR `key` = 'legacy_nautilus_offline_library_v1'")
+        void removeObsoleteMigrationMeta();
 
         @Query("UPDATE pages SET name = :name, updatedAt = :updatedAt WHERE id = :id")
         int renamePage(String id, String name, String updatedAt);

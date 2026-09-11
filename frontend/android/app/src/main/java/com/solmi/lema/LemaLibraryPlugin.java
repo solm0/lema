@@ -35,9 +35,13 @@ import java.util.concurrent.Executors;
 @CapacitorPlugin(name = "LemaLibrary")
 public class LemaLibraryPlugin extends Plugin {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private volatile String activeUserId;
 
     private LemaLibraryDatabase.LibraryDao dao() {
-        return LemaLibraryDatabase.get(getContext()).libraryDao();
+        if (activeUserId == null) {
+            throw new IllegalStateException("library profile is not active");
+        }
+        return LemaLibraryDatabase.get(getContext(), activeUserId).libraryDao();
     }
 
     private void run(PluginCall call, Runnable work) {
@@ -62,6 +66,25 @@ public class LemaLibraryPlugin extends Plugin {
 
     private String now() {
         return Instant.now().toString();
+    }
+
+    @PluginMethod
+    public void activateProfile(PluginCall call) {
+        String userId = call.getString("user_id");
+        executor.execute(() -> {
+            try {
+                LemaLibraryDatabase.get(getContext(), userId);
+                activeUserId = userId;
+                ensureMeta();
+                dao().removeObsoleteMigrationMeta();
+                call.resolve();
+            } catch (Exception error) {
+                call.reject(
+                    error.getMessage() != null ? error.getMessage() : "Could not activate library profile",
+                    error
+                );
+            }
+        });
     }
 
     @PluginMethod

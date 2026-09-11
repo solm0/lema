@@ -1,6 +1,7 @@
 import { registerPlugin } from "@capacitor/core";
 import type { Annotation, PageSource, TextAnalysisResult } from "./components/pageTypes";
 import type { TimelineItem } from "./types";
+import { getStoredUser } from "./authSession";
 import { isCapacitorApp, isElectronApp } from "./platform";
 
 export type LibraryId = string;
@@ -46,6 +47,7 @@ export type ImportResult = {
 };
 
 type LemaLibraryPlugin = {
+  activateProfile: (options: { user_id: string }) => Promise<void>;
   listPages: () => Promise<{ items: LocalPageSummary[] }>;
   listNotebooks: () => Promise<{ items: LocalNotebook[] }>;
   getPage: (options: { id: string }) => Promise<LocalPageDetail>;
@@ -68,12 +70,41 @@ type LemaLibraryPlugin = {
 
 const NativeLibrary = registerPlugin<LemaLibraryPlugin>("LemaLibrary");
 const ELECTRON_LIBRARY_API = "http://localhost:8010/api/library";
+let activeMobileUserId: string | null = null;
+let mobileActivation: Promise<void> | null = null;
+
+function currentLibraryUserId() {
+  const id = getStoredUser()?.id;
+  if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
+    throw new Error("A verified user is required to access the local library.");
+  }
+  return String(id);
+}
+
+async function prepareLocalLibrary() {
+  if (!isCapacitorApp()) return;
+  const userId = currentLibraryUserId();
+  if (activeMobileUserId === userId) return;
+  if (!mobileActivation) {
+    mobileActivation = NativeLibrary.activateProfile({ user_id: userId })
+      .then(() => {
+        activeMobileUserId = userId;
+      })
+      .finally(() => {
+        mobileActivation = null;
+      });
+  }
+  await mobileActivation;
+  if (activeMobileUserId !== userId) await prepareLocalLibrary();
+}
 
 async function electronRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const userId = currentLibraryUserId();
   const response = await fetch(`${ELECTRON_LIBRARY_API}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      "X-Lema-User-Id": userId,
       ...(init?.headers ?? {}),
     },
   });
@@ -92,18 +123,21 @@ function assertNativePlatform() {
 
 export async function listLocalPages(): Promise<LocalPageSummary[]> {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) return electronRequest<LocalPageSummary[]>("/pages");
   return (await NativeLibrary.listPages()).items;
 }
 
 export async function listLocalNotebooks(): Promise<LocalNotebook[]> {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) return electronRequest<LocalNotebook[]>("/notebooks");
   return (await NativeLibrary.listNotebooks()).items;
 }
 
 export async function getLocalPage(id: string): Promise<LocalPageDetail> {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) return electronRequest<LocalPageDetail>(`/pages/${encodeURIComponent(id)}`);
   return NativeLibrary.getPage({ id });
 }
@@ -117,6 +151,7 @@ export async function createLocalPage(input: {
   metadata?: string[];
 }): Promise<string> {
   assertNativePlatform();
+  await prepareLocalLibrary();
   const page = {
     result: input.result,
     name: input.name,
@@ -136,6 +171,7 @@ export async function createLocalPage(input: {
 
 export async function createLocalNotebook(name: string): Promise<LocalNotebook> {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     return electronRequest<LocalNotebook>("/notebooks", {
       method: "POST",
@@ -151,6 +187,7 @@ export async function renameLocalItem(
   name: string,
 ) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     await electronRequest(type === "page" ? `/pages/${id}` : `/notebooks/${id}`, {
       method: "PATCH",
@@ -163,6 +200,7 @@ export async function renameLocalItem(
 
 export async function deleteLocalItem(type: "page" | "notebook", id: string) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     await electronRequest(type === "page" ? `/pages/${id}` : `/notebooks/${id}`, {
       method: "DELETE",
@@ -174,6 +212,7 @@ export async function deleteLocalItem(type: "page" | "notebook", id: string) {
 
 export async function moveLocalPages(pageIds: string[], notebookId: string | null) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     await electronRequest("/pages/move", {
       method: "POST",
@@ -186,6 +225,7 @@ export async function moveLocalPages(pageIds: string[], notebookId: string | nul
 
 export async function setLocalPageMetadata(id: string, metadata: string[]) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     return electronRequest<{ metadata: string[] }>(`/pages/${id}/metadata`, {
       method: "PUT",
@@ -197,6 +237,7 @@ export async function setLocalPageMetadata(id: string, metadata: string[]) {
 
 export async function listLocalAnnotations(): Promise<TimelineItem[]> {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     return (await electronRequest<{ items: TimelineItem[] }>("/annotations")).items;
   }
@@ -205,6 +246,7 @@ export async function listLocalAnnotations(): Promise<TimelineItem[]> {
 
 export async function createLocalAnnotation(annotation: Annotation) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     return electronRequest<Annotation>("/annotations", {
       method: "POST",
@@ -216,6 +258,7 @@ export async function createLocalAnnotation(annotation: Annotation) {
 
 export async function updateLocalAnnotation(id: string, content: string) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     return electronRequest<Annotation>(`/annotations/${id}`, {
       method: "PATCH",
@@ -227,6 +270,7 @@ export async function updateLocalAnnotation(id: string, content: string) {
 
 export async function deleteLocalAnnotation(id: string) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     await electronRequest(`/annotations/${id}`, { method: "DELETE" });
     return;
@@ -236,6 +280,7 @@ export async function deleteLocalAnnotation(id: string) {
 
 export async function getLocalLibraryMeta(key: string) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     return (await electronRequest<{ value: string | null }>(`/meta/${encodeURIComponent(key)}`)).value;
   }
@@ -244,6 +289,7 @@ export async function getLocalLibraryMeta(key: string) {
 
 export async function setLocalLibraryMeta(key: string, value: string) {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     await electronRequest(`/meta/${encodeURIComponent(key)}`, {
       method: "PUT",
@@ -256,6 +302,7 @@ export async function setLocalLibraryMeta(key: string, value: string) {
 
 export async function mergeLibraryBundle(bundle: LibraryBundle): Promise<ImportResult> {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     return electronRequest<ImportResult>("/import", {
       method: "POST",
@@ -267,6 +314,7 @@ export async function mergeLibraryBundle(bundle: LibraryBundle): Promise<ImportR
 
 export async function exportLocalLibrary() {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     const bundle = await electronRequest<LibraryBundle>("/export");
     return window.electronAPI?.saveLibraryExport?.(bundle);
@@ -276,6 +324,7 @@ export async function exportLocalLibrary() {
 
 export async function importLocalLibrary(): Promise<ImportResult | null> {
   assertNativePlatform();
+  await prepareLocalLibrary();
   if (isElectronApp()) {
     const bundle = await window.electronAPI?.openLibraryImport?.();
     if (!bundle) return null;

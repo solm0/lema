@@ -356,7 +356,8 @@ async function startBackend() {
   const dataStaticRoot = path.join(userDataRoot, "language-data", "static");
   const stanzaModelRoot = path.join(userDataRoot, "language-models", "stanza");
   const classlaModelRoot = path.join(userDataRoot, "language-models", "classla");
-  const libraryDbPath = path.join(userDataRoot, "library", "lema.sqlite");
+  const libraryRoot = path.join(userDataRoot, "library");
+  const libraryDbPath = path.join(libraryRoot, "lema.sqlite");
 
   const env = {
     ...process.env,
@@ -383,6 +384,7 @@ async function startBackend() {
       ? path.join(backendCwd, "frontend")
       : path.join(__dirname, "..", "frontend", "dist"),
     LEMA_LIBRARY_DB_PATH: libraryDbPath,
+    LEMA_LIBRARY_ROOT: libraryRoot,
   };
 
   if (isPackaged && process.platform === "darwin") {
