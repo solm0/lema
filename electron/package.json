@@ -1,6 +1,6 @@
 {
   "name": "lema-electron",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Lema desktop app",
   "main": "main.js",
   "scripts": {
@@ -19,7 +19,9 @@
     "protocols": [
       {
         "name": "Lema",
-        "schemes": ["lema"]
+        "schemes": [
+          "lema"
+        ]
       }
     ],
     "directories": {

@@ -1,199 +1,106 @@
-# Electron 빌드 가이드
+# 데스크톱 앱 배포
 
-## 기본 방향
+`app-desktop-v*` 태그를 push하면 GitHub Actions가 macOS, Windows, Linux 설치 파일을 자동으로 빌드하고 Hugging Face에 업로드합니다.
 
-이 프로젝트의 Electron 앱은 로컬에서 직접 빌드하기보다 GitHub Actions로 빌드하는 것을 기본 경로로 가정합니다.
+아래 예시는 `1.0.2`에서 `1.0.3`으로 배포하는 경우입니다.
 
-GitHub Actions는 아래 3개 환경에서 각각 빌드합니다.
+## 1. 버전 올리기
 
-- macOS
-- Windows
-- Linux
+저장소 루트에서 실행합니다.
 
-즉 각 OS에서 직접 명령을 실행한 것처럼 빌드됩니다.
+```bash
+npm --prefix electron version 1.0.3 --no-git-tag-version --allow-same-version
+node scripts/sync-app-version.mjs
+```
 
-워크플로우 파일:
+다음 파일의 데스크톱 버전이 맞춰집니다.
 
-- `.github/workflows/electron-build.yml`
+- `electron/package.json`
+- `electron/package-lock.json`
+- `central/static/latest-version-desktop.json`
 
-## GitHub Actions 실행 방법
+Android 버전은 `frontend/package.json`에서 별도로 관리하므로 데스크톱 배포 때 올리지 않습니다.
 
-GitHub 저장소 웹사이트에서 아래 순서로 실행할 수 있습니다.
+## 2. 변경 확인
 
-1. `Actions` 탭으로 이동
-2. `Build Electron Apps` 선택
-3. `Run workflow` 클릭
+```bash
+git diff -- \
+  electron/package.json \
+  electron/package-lock.json \
+  central/static/latest-version-desktop.json
 
-자동 실행 조건은 아래와 같습니다.
+git status --short
+```
 
-- `app-desktop-v*` 형식 태그 push
-- 예: `app-desktop-v1.0.0`
+세 파일의 버전이 모두 같고, 이번 배포에 들어가면 안 되는 변경이 없는지 확인합니다.
 
-## 결과물 위치
+## 3. 커밋하고 main push
 
-빌드가 끝나면 결과물은 GitHub Actions 실행 화면의 `Artifacts`에 업로드됩니다.
+버전 파일과 이번 릴리스에 포함할 변경을 커밋합니다.
 
-이 아티팩트는 임시 보관용입니다. 현재 워크플로우에서는 `7일` 보관되도록 설정했습니다.
+```bash
+git add -A
+git commit -m "데스크톱 1.0.3 릴리스"
+git push origin main
+```
 
-업로드되는 파일:
+## 4. 태그 push
+
+커밋 후 동일한 버전으로 태그를 만듭니다.
+
+```bash
+git tag -a app-desktop-v1.0.3 -m "Desktop 1.0.3"
+git push origin app-desktop-v1.0.3
+```
+
+태그 이름은 반드시 다음 형식이어야 합니다.
+
+```text
+app-desktop-v<electron/package.json의 버전>
+```
+
+태그를 로컬에 만들기만 해서는 배포되지 않습니다. 태그 push까지 해야 합니다.
+
+## 5. 빌드 결과 확인
+
+GitHub 저장소의 `Actions` 탭에서 `Build Electron Apps`가 성공했는지 확인합니다.
+
+생성되는 파일:
 
 - macOS: `.dmg`
 - Windows: `.exe`
 - Linux: `.AppImage`
 
-아티팩트 이름:
-
-- `lema-electron-macos`
-- `lema-electron-windows`
-- `lema-electron-linux`
-
-## Hugging Face 업로드
-
-`app-desktop-v*` 태그로 실행된 경우에는 결과물이 `Hugging Face`에도 업로드됩니다.
-
-즉 흐름은 아래와 같습니다.
-
-- `Run workflow` 수동 실행:
-  - Actions `Artifacts`에만 업로드
-- `app-desktop-v1.0.0` 같은 태그 push:
-  - Actions `Artifacts`에 업로드
-  - `Hugging Face dataset repo`의 `releases/desktop/app-desktop-v1.0.0/` 경로에 `.dmg`, `.exe`, `.AppImage` 업로드
-
-필요한 GitHub 설정:
-
-- `Settings -> Secrets and variables -> Actions -> Secrets`
-  - `HF_TOKEN`
-- `Settings -> Secrets and variables -> Actions -> Variables`
-  - `HF_REPO_ID`
-  - `HF_REPO_TYPE=dataset`
-
-권장 Hugging Face 저장소:
-
-- 타입: `Dataset`
-- 공개 범위: `Public`
-- 예: `yourname/nautilus-releases`
-
-소개 페이지의 다운로드 버튼은 보통 아래 형태의 Hugging Face URL에 연결하면 됩니다.
+태그 빌드가 성공하면 결과물이 Hugging Face의 다음 경로에도 업로드됩니다.
 
 ```text
-https://huggingface.co/datasets/<HF_REPO_ID>/resolve/main/releases/desktop/<tag>/<artifact-folder>/<filename>
+releases/desktop/app-desktop-v1.0.3/
 ```
 
-예:
+## 6. 중앙 서버에 최신 버전 반영
 
-```text
-https://huggingface.co/datasets/yourname/nautilus-releases/resolve/main/releases/desktop/app-desktop-v1.0.0/lema-electron-windows/Lema%20Setup%201.0.0.exe
-```
-
-## 로컬 빌드 명령
-
-정말 필요할 때만 `electron` 폴더에서 아래 명령을 사용할 수 있습니다.
+앱의 업데이트 확인 API가 새 버전을 표시하도록 운영 서버도 최신 커밋으로 갱신합니다.
 
 ```bash
-npm run build:bundle:mac
-npm run build:bundle:win
-npm run build:bundle:linux
+cd /srv/capstone/nautilus
+git pull
+sudo systemctl restart nautilus
 ```
 
-이 명령은 아래를 한 번에 수행합니다.
+확인:
 
-1. `frontend` 빌드
-2. `backend` 패키징
-3. Electron 설치 파일 생성
+```bash
+curl "https://nautilus.solmi.wiki/api/latest-version?platform=desktop"
+```
 
-## 로컬 빌드 산출물
+응답의 `version`이 배포한 버전과 같으면 완료입니다.
 
-로컬 빌드를 하면 아래 경로가 생성될 수 있습니다.
+## 로컬 빌드가 필요한 경우만
 
-- `.build`
-- `backend-dist`
-- `electron/dist-electron`
+보통은 태그를 push해 GitHub Actions로 빌드합니다. 로컬 macOS 설치 파일이 필요할 때만 다음을 실행합니다.
 
-이 경로들은 모두 빌드 산출물이므로, 현재 사용 중인 빌드가 아니라면 삭제해도 됩니다.
+```bash
+npm --prefix electron run build:bundle:mac
+```
 
-## 언어팩/모델 경로 정책
-
-Electron 데스크톱 앱은 개발 실행과 배포 실행에서 언어 데이터 경로를 다르게 사용합니다.
-
-- 개발 실행:
-  - `backend/data/static`
-  - `backend/models`
-  - `backend/classla_models`
-- 배포된 Electron 앱:
-  - 앱 번들 안에 언어팩/모델을 기본 포함하지 않음
-  - 사용자별 app data 경로에 설치
-  - runtime 상태와 refcount도 사용자별 app data 경로에 기록
-
-즉 배포 앱에서는 언어팩과 NLP 모델이 필요할 때 내려받아지고, 같은 언어의 마지막 lemma pack이 제거되면 해당 언어 모델도 함께 제거됩니다.
-
-현재 배포 앱 기준 주요 경로는 아래와 같습니다.
-
-- 언어팩 데이터: `.../language-data/static`
-- 모델 데이터: `.../language-models/stanza`, `.../language-models/classla`
-- runtime 상태 파일: `.../runtime/state`
-
-경로를 직접 하드코딩하지 말고 `backend/runtime_paths.py`를 통해 접근해야 개발/배포 경로가 꼬이지 않습니다.
-
-## 사람이 관리할 부분
-
-언어 런타임/모델/언어팩 관련해서 사람이 직접 수정해야 하는 기준 파일은 아래입니다.
-
-- 런타임 manifest 원본:
-  - `shared/manifests/language_packs.py`
-- 중앙 서버 언어팩 프리웜:
-  - `central/install_packs.py`
-- 배포 앱 빌드/백엔드 패키징:
-  - `scripts/build-electron.sh`
-
-실무적으로는 아래만 기억하면 됩니다.
-
-1. 새 언어를 추가할 때
-   - `shared/manifests/language_packs.py`의 `RUNTIME_MANIFESTS`에 새 언어를 추가합니다.
-   - 그 언어가 `stanza`를 쓰는지 `classla`를 쓰는지, 어떤 패키지/리소스를 쓰는지 여기서 정합니다.
-   - 같은 파일의 `PACK_RELEASES`에도 해당 언어의 언어팩 버전 정보를 넣어야 합니다.
-
-2. 기존 언어의 런타임 구성을 바꿀 때
-   - 예: `classla` 대신 다른 라이브러리 사용, `obeliks` 추가/제거, `kiwipiepy_model` 추가
-   - `shared/manifests/language_packs.py`의 해당 언어 manifest만 수정합니다.
-   - 순서는 코드가 `shared dependency -> language package/resource -> model -> pack` 순서로 처리하므로, 사람이 설치 순서를 따로 코드에 하드코딩할 필요는 없습니다.
-
-3. 기존 언어의 새 데이터 버전을 추가할 때
-   - `shared/manifests/language_packs.py`의 `PACK_RELEASES`에 새 버전을 추가합니다.
-   - `central`은 언어별 최신 1개 버전을 유지하려는 구조라서, 가장 최신 항목이 먼저 오도록 관리하는 것이 안전합니다.
-
-4. 배포 앱 용량을 줄이거나 번들 포함 대상을 바꿀 때
-   - `scripts/build-electron.sh`를 수정합니다.
-   - 지금 구조에서는 배포 backend만 user runtime overlay를 사용하고, 개발 서버와 central은 기존 환경을 그대로 씁니다.
-
-5. state/refcount 파일에 대해서
-   - `runtime/state` 아래 파일은 사람이 편집하는 파일이 아닙니다.
-   - 설치기와 런타임이 자동으로 관리하므로 git에 넣지 않습니다.
-
-정리하면, 사람이 자주 만질 곳은 거의 `shared/manifests/language_packs.py` 하나이고, 빌드 정책까지 바꿀 때만 `scripts/build-electron.sh`를 같이 보면 됩니다.
-
-## 주의사항
-
-`build:bundle:win`과 `build:bundle:linux`는 각 대상 OS에서 실행될 때 가장 자연스럽습니다.
-
-즉:
-
-- macOS용은 macOS runner
-- Windows용은 Windows runner
-- Linux용은 Linux runner
-
-GitHub Actions를 쓰는 이유도 바로 이 점 때문입니다.
-
-## 버전 관리 메모
-
-현재 릴리스 버전은 플랫폼별로 따로 관리합니다.
-
-- Desktop 버전: `electron/package.json`
-- Android 버전: `frontend/package.json`
-
-`scripts/sync-app-version.mjs`를 실행하면:
-
-- Desktop 최신 버전 정보는 `central/static/latest-version-desktop.json`에 반영됩니다.
-- Android 최신 버전 정보는 `central/static/latest-version-android.json`에 반영됩니다.
-- Android 네이티브 버전은 `frontend/android/app/build.gradle`에 반영됩니다.
-
-Electron 빌드 시에는 `scripts/build-electron.sh`가 `APP_VERSION_OVERRIDE`를 사용해서 데스크톱 버전 번호가 프론트 설정 페이지에도 보이도록 맞춥니다.
+결과물은 `electron/dist-electron`에 생성됩니다.

@@ -345,7 +345,8 @@ function LandingApp() {
                 <div className="flex gap-4">
                   <p className="text-sm font-medium text-neutral-600 w-30">Android App</p>
                   <div className="flex flex-col gap-3">
-                    {releaseCatalog.android.map((androidVersion) => (
+                    <p>플레이스토어 출시 예정</p>
+                    {/* {releaseCatalog.android.map((androidVersion) => (
                       <div key={androidVersion.version} className="flex flex-col gap-1.5">
                         <p className="text-xs font-medium text-neutral-500">
                           v{androidVersion.version}
@@ -362,7 +363,7 @@ function LandingApp() {
                           </a>
                         </div>
                       </div>
-                    ))}
+                    ))} */}
                   </div>
                 </div>
 
