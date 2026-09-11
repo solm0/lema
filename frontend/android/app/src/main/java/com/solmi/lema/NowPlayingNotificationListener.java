@@ -1,4 +1,4 @@
-package com.solmi.lema.mobile;
+package com.solmi.lema;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;

@@ -11,7 +11,7 @@ def hasReleaseSigning =
     releaseKeyPassword
 
 android {
-    namespace "com.solmi.lema.mobile"
+    namespace "com.solmi.lema"
     compileSdk rootProject.ext.compileSdkVersion
     signingConfigs {
         release {
@@ -24,11 +24,11 @@ android {
         }
     }
     defaultConfig {
-        applicationId "com.solmi.lema.mobile"
+        applicationId "com.solmi.lema"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10000
-        versionName "1.0.0"
+        versionCode 10002
+        versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
