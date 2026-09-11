@@ -10,15 +10,11 @@ import os
 from dotenv import load_dotenv
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy import or_
 from datetime import date
 from db import get_db
 from models import (
   User,
-  Page,
-  Notebook,
   UserLemma,
-  Annotation,
 )
 from typing import Optional
 
@@ -525,22 +521,7 @@ def update_name(
 def delete_user_account(current_user: User, db: Session):
     user_id = current_user.id
 
-    owned_page_ids = [
-      row[0]
-      for row in db.query(Page.id).filter(Page.user_id == user_id).all()
-    ]
-
-    annotation_filters = [
-      Annotation.user_id == user_id,
-    ]
-
-    if owned_page_ids:
-      annotation_filters.append(Annotation.page_id.in_(owned_page_ids))
-
-    db.query(Annotation).filter(or_(*annotation_filters)).delete(synchronize_session=False)
     db.query(UserLemma).filter(UserLemma.user_id == user_id).delete(synchronize_session=False)
-    db.query(Page).filter(Page.user_id == user_id).delete(synchronize_session=False)
-    db.query(Notebook).filter(Notebook.user_id == user_id).delete(synchronize_session=False)
     db.delete(current_user)
     db.commit()
 

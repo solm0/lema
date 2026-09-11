@@ -9,13 +9,11 @@
 - `main.py`: app boot, model download, schema setup, router registration, landing mount
 - `routers/auth_router.py`: authentication flows
 - `routers/mobile_router.py`: mobile analyze and lookup APIs
-- `routers/pages_router.py`: shared content features
 - `db.py`, `models.py`: persistence layer
 
 ## When to use this folder
 
 - Login, signup, password reset, account flows
-- Shared pages
 - Mobile app calls that should hit the cloud API
 - Landing page hosting from `static/landing`
 

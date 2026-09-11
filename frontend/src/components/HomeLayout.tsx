@@ -5,10 +5,6 @@ import { File, MessageSquareMore, Settings2, Star } from "lucide-react";
 import type { User } from "../types";
 import { clearStoredSession, getOfflineSessionUser } from "../authSession";
 import { syncOfflineOutbox } from "../offlineData";
-import {
-  migrateCentralLibraryOnce,
-  migrateLegacyElectronOfflineLibraryOnce,
-} from "../libraryMigration";
 import { IconButton } from "./util/Button";
 import { MiniPopup } from "./util/MiniPopup";
 import { SettingToggle } from "./util/ToggleButton";
@@ -161,14 +157,10 @@ export default function HomeLayout() {
     let reconnectTimer: number | null = null;
 
     const loadUser = async () => {
-      await migrateLegacyElectronOfflineLibraryOnce().catch(() => null);
       const nextUser = await verifyToken();
 
       if (nextUser) {
         await syncOfflineOutbox().catch(() => false);
-        await migrateCentralLibraryOnce().catch((error) => {
-          console.warn("Could not migrate the central library yet.", error);
-        });
       }
 
       if (cancelled) {
