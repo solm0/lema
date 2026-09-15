@@ -49,7 +49,7 @@ export default function ResetPassword(){
           placeholder={t("password")}
           value={pw}
           onChange={e=>setPw(e.target.value)}
-          className="w-full border-2 border-neutral-50 text-neutral-50 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
+          className="w-full border-2 border-neutral-900 text-neutral-900 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
           autoCapitalize="none"
         />
 

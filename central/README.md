@@ -1,2 +1,2 @@
 - 언어팩 새로운 버전 올렸으면 `shared/language_packs.py`에서 버전 하나씩 올려주고
-- `central/install_packs`로 일괄 설치
+- `central/install_packs.py`로 일괄 설치

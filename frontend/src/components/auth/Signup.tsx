@@ -47,7 +47,7 @@ export default function Signup(){
           placeholder={t("name")}
           value={name}
           onChange={e => setName(e.target.value)}
-          className="w-full border-2 border-neutral-50 text-neutral-50 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
+          className="w-full border-2 border-neutral-900 text-neutral-900 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
           autoFocus
           autoCapitalize="none"
         />
@@ -57,7 +57,7 @@ export default function Signup(){
           placeholder={t("email")}
           value={email}
           onChange={e=>setEmail(e.target.value)}
-          className="w-full border-2 border-neutral-50 text-neutral-50 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
+          className="w-full border-2 border-neutral-900 text-neutral-900 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
           autoCapitalize="none"
         />
 
@@ -66,7 +66,7 @@ export default function Signup(){
           placeholder={t("password")}
           value={password}
           onChange={e=>setPassword(e.target.value)}
-          className="w-full border-2 border-neutral-50 text-neutral-50 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-50 transition-opacity"
+          className="w-full border-2 border-neutral-900 text-neutral-900 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-50 transition-opacity"
           autoCapitalize="none"
         />
 
@@ -77,7 +77,7 @@ export default function Signup(){
       </div>
 
 
-      <div className="flex flex-col gap-2 text-neutral-50">
+      <div className="flex flex-col gap-2 text-neutral-900">
         <LinkButton text={t("Already have an account?")} link="/login" />
       </div>
     </>

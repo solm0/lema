@@ -29,6 +29,7 @@ import OfflineState from "../util/OfflineState";
 import { isNetworkError } from "../../network";
 import { ANDROID_PRIVACY_POLICY_URL } from "../../config";
 import { exportLocalLibrary, importLocalLibrary } from "../../localLibrary";
+import ThemeLogo from "../ThemeLogo";
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -73,6 +74,11 @@ function AppVersionSection() {
     <section className="w-full flex flex-col gap-6 items-start">
       <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! w-full pb-1">{t("App version")}</h3>
       <div className="flex items-center gap-2 text-sm">
+        <ThemeLogo
+          variant="transparent"
+          alt="Lema"
+          className="size-8 object-contain select-none"
+        />
         <span>{APP_VERSION}</span>
         {!hasNewVersion && latestVersionInfo && (
           <span className="rounded-full bg-green-200/60 px-2 py-0.5 text-xs text-green-700">
@@ -547,8 +553,6 @@ export default function Setting() {
           </section>
         )}
 
-        <LocalLibrarySection />
-
         <section className="w-full flex flex-col gap-6">
           <h3 ref={languagePacksRef} className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Language packs")}</h3>
           <p className="text-sm">
@@ -558,6 +562,8 @@ export default function Setting() {
           </p>
           <PackTable />
         </section>
+
+        <LocalLibrarySection />
 
         <section className="w-full flex flex-col gap-6 items-start">
           <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Profile")}</h3>

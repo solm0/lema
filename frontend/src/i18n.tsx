@@ -118,6 +118,7 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "Get lyrics": "가사 가져오기",
     "Go to page": "페이지로 이동",
     "Go to base": "기준 단어로 이동",
+    "Go back": "뒤로가기",
     "hide": "숨기기",
     "Install ": "설치 ",
     "Install": "설치",

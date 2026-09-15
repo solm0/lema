@@ -5,7 +5,7 @@ export default function SystemMessage({msg}:{msg:string}){
   const successMsg=['email sent.', "your password was reset."]
   return (
     <div
-      className={`${!successMsg.includes(msg) ? 'text-red-400' : 'text-neutral-200'} max-w-[25em] text-sm font-medium`}
+      className={`${!successMsg.includes(msg) ? 'text-red-500' : 'text-neutral-600'} max-w-[25em] text-sm font-medium`}
     >
       {t(msg)}
     </div>

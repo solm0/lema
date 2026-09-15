@@ -36,6 +36,11 @@ export default function LanguagePackRequiredModal({
     navigate("/setting", { state: { scrollTo: "language-packs" } });
   };
 
+  const handleGoBack = () => {
+    handleClose();
+    navigate("/");
+  };
+
   const handleActivate = async () => {
     if (!language || activationStatus === "activating" || activationStatus === "activated") {
       return;
@@ -84,17 +89,26 @@ export default function LanguagePackRequiredModal({
         {activationStatus === "error" ? (
           <p className="text-sm text-red-600">{t("Failed to activate language.")}</p>
         ) : null}
-        {mobileApp ? (
-          <Button
-            text={buttonText}
-            onClick={() => void handleActivate()}
-            disabled={activationStatus === "activating" || activationStatus === "activated"}
-            fit
-            black
-          />
-        ) : (
-          <Button text={t("Settings")} onClick={handleOpenSettings} fit black />
-        )}
+        <div className="flex flex-col gap-3">
+          {mobileApp ? (
+            <Button
+              text={buttonText}
+              onClick={() => void handleActivate()}
+              disabled={activationStatus === "activating" || activationStatus === "activated"}
+              fit
+              black
+            />
+          ) : (
+            <Button text={t("Settings")} onClick={handleOpenSettings} fit black />
+          )}
+          <button
+            type="button"
+            className="text-neutral-500 text-sm cursor-pointer"
+            onClick={handleGoBack}
+          >
+            {t("Go back")}
+          </button>
+        </div>
       </div>
     </ResponsiveModal>
   );

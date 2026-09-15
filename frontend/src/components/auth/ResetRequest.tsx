@@ -46,7 +46,7 @@ export default function ResetRequest(){
           placeholder={t("email")}
           value={email}
           onChange={e=>setEmail(e.target.value)}
-          className="w-full border-2 border-neutral-50 text-neutral-50 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
+          className="w-full border-2 border-neutral-900 text-neutral-900 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
           autoFocus
           autoCapitalize="none"
         />
@@ -57,7 +57,7 @@ export default function ResetRequest(){
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 text-neutral-50">
+      <div className="flex flex-col gap-2 text-neutral-900">
         <LinkButton text={t("Back to login")} link="/login" />
       </div>
     </>
