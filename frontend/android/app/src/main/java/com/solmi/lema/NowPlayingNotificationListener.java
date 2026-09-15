@@ -226,13 +226,23 @@ public class NowPlayingNotificationListener extends NotificationListenerService 
         }
 
         for (MediaController controller : controllers) {
+            if (!MusicAppAllowlist.contains(controller.getPackageName())) {
+                continue;
+            }
+
             PlaybackState state = controller.getPlaybackState();
             if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
                 return controller;
             }
         }
 
-        return controllers.isEmpty() ? null : controllers.get(0);
+        for (MediaController controller : controllers) {
+            if (MusicAppAllowlist.contains(controller.getPackageName())) {
+                return controller;
+            }
+        }
+
+        return null;
     }
 
     private void postNowPlayingNotification(String title, String artist) {
