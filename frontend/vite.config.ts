@@ -11,7 +11,7 @@ const electronPackageJson = JSON.parse(
   readFileSync(path.resolve(__dirname, '../electron/package.json'), 'utf-8'),
 ) as { version?: string }
 
-export default defineConfig(({ command }) => {
+export default defineConfig(({ command, mode }) => {
   const defaultAppVersion = command === 'serve'
     ? electronPackageJson.version
     : frontendPackageJson.version
@@ -36,7 +36,7 @@ export default defineConfig(({ command }) => {
       },
     },
     build: {
-      outDir: "../frontend/dist",
+      outDir: mode === 'gradshow' ? "../frontend/dist-gradshow" : "../frontend/dist",
       emptyOutDir: true,
     },
   }

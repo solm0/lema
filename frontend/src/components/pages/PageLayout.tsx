@@ -11,6 +11,7 @@ import { Toolbar } from "./Toolbar";
 
 import Button from "../util/Button";
 import OfflineState from "../util/OfflineState";
+import { GRADSHOW_MODE } from "../../gradshow/mode";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import { useLayout } from "../RootLayout";
 import { isNetworkError } from "../../network";
@@ -860,6 +861,7 @@ export default function PageLayout() {
   };
 
   const startMobilePageExit = useCallback(() => {
+    if (GRADSHOW_MODE) return;
     if (!isMobileLike || currentPageId === null || mobilePageExiting) return;
 
     setMobilePageDragging(false);
@@ -896,6 +898,7 @@ export default function PageLayout() {
   }, [currentPageId]);
 
   const onPageTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (GRADSHOW_MODE) return;
     if (!isMobileLike || currentPageId === null || mobilePageExiting) return;
 
     const touch = event.touches[0];

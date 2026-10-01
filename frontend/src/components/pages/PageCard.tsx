@@ -17,6 +17,7 @@ import { MiniPopup } from "../util/MiniPopup";
 import { IconButtonEvent } from "../util/Button";
 import { useI18n } from "../../i18n";
 import { renameLocalItem } from "../../localLibrary";
+import { GRADSHOW_MODE, GRADSHOW_PAGE_ID } from "../../gradshow/mode";
 
 const LONG_PRESS_MS = 420;
 const MOVE_CANCEL_DISTANCE = 10;
@@ -290,7 +291,7 @@ export default function PageCard({
         icon={<Trash2 size={13} />}
         label={t("Delete")}
         danger
-        disabled={disableServerActions}
+        disabled={disableServerActions || (GRADSHOW_MODE && page?.id === GRADSHOW_PAGE_ID)}
         onClick={() => {
           onDelete();
           setOpenPopupId(null);

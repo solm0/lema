@@ -3,6 +3,8 @@ import type { Annotation, PageSource, TextAnalysisResult } from "./components/pa
 import type { TimelineItem } from "./types";
 import { getStoredUser } from "./authSession";
 import { isCapacitorApp, isElectronApp } from "./platform";
+import { GRADSHOW_MODE, GRADSHOW_PAGE_ID, GRADSHOW_USER } from "./gradshow/mode";
+import { GRADSHOW_PAGE } from "./gradshow/page";
 
 export type LibraryId = string;
 
@@ -72,8 +74,10 @@ const NativeLibrary = registerPlugin<LemaLibraryPlugin>("LemaLibrary");
 const ELECTRON_LIBRARY_API = "http://localhost:8010/api/library";
 let activeMobileUserId: string | null = null;
 let mobileActivation: Promise<void> | null = null;
+let gradshowSeedPromise: Promise<void> | null = null;
 
 function currentLibraryUserId() {
+  if (GRADSHOW_MODE) return String(GRADSHOW_USER.id);
   const id = getStoredUser()?.id;
   if (typeof id !== "number" || !Number.isInteger(id) || id <= 0) {
     throw new Error("A verified user is required to access the local library.");
@@ -96,6 +100,17 @@ async function prepareLocalLibrary() {
   }
   await mobileActivation;
   if (activeMobileUserId !== userId) await prepareLocalLibrary();
+  if (GRADSHOW_MODE && !gradshowSeedPromise) {
+    gradshowSeedPromise = (async () => {
+      const pages = (await NativeLibrary.listPages()).items;
+      if (pages.some((page) => page.id === GRADSHOW_PAGE.id)) return;
+      await NativeLibrary.createPage({ page: GRADSHOW_PAGE });
+    })().catch((error) => {
+      gradshowSeedPromise = null;
+      throw error;
+    });
+  }
+  if (gradshowSeedPromise) await gradshowSeedPromise;
 }
 
 async function electronRequest<T>(path: string, init?: RequestInit): Promise<T> {
@@ -150,6 +165,7 @@ export async function createLocalPage(input: {
   source?: PageSource;
   metadata?: string[];
 }): Promise<string> {
+  if (GRADSHOW_MODE) throw new Error("Page creation is disabled in exhibition mode.");
   assertNativePlatform();
   await prepareLocalLibrary();
   const page = {
@@ -170,6 +186,7 @@ export async function createLocalPage(input: {
 }
 
 export async function createLocalNotebook(name: string): Promise<LocalNotebook> {
+  if (GRADSHOW_MODE) throw new Error("Notebook creation is disabled in exhibition mode.");
   assertNativePlatform();
   await prepareLocalLibrary();
   if (isElectronApp()) {
@@ -199,6 +216,9 @@ export async function renameLocalItem(
 }
 
 export async function deleteLocalItem(type: "page" | "notebook", id: string) {
+  if (GRADSHOW_MODE && type === "page" && id === GRADSHOW_PAGE_ID) {
+    throw new Error("The exhibition page cannot be deleted.");
+  }
   assertNativePlatform();
   await prepareLocalLibrary();
   if (isElectronApp()) {

@@ -44,6 +44,8 @@ import {
   setLocalPageMetadata,
   updateLocalAnnotation,
 } from "./localLibrary";
+import { GRADSHOW_MODE, GRADSHOW_USER } from "./gradshow/mode";
+import { lookupGradshowLemmas } from "./gradshow/languagePack";
 
 const DEFAULT_CENTRAL_API = "https://nautilus.solmi.wiki/api";
 const DEFAULT_ELECTRON_LOCAL_API = "http://localhost:8010/api";
@@ -233,6 +235,7 @@ export async function verifyToken({
 }: {
   throwOnNetworkError?: boolean;
 } = {}) {
+  if (GRADSHOW_MODE) return GRADSHOW_USER;
   const token = getStoredToken();
 
   if (!token) {
@@ -445,6 +448,9 @@ export async function lemmaLookup(
   items: { lemma: string; pos: string }[],
   language: string
 ) {
+  if (GRADSHOW_MODE) {
+    return lookupGradshowLemmas(items, language, await getOfflineLemmaProfile());
+  }
   const headers = authHeaders() ?? {}
 
   const normalizedItems =
@@ -476,6 +482,23 @@ export async function lemmaLookupOne(
   item: { lemma:string; pos:string; },
   language: string
 ) {
+  if (GRADSHOW_MODE) {
+    const items = await lookupGradshowLemmas(
+      [item],
+      language,
+      await getOfflineLemmaProfile(),
+    );
+    const localKey = `${item.lemma}_${item.pos}`;
+    return items[localKey] ?? {
+      key: localKey,
+      global_key: `${item.lemma}/${item.pos}/${language}`,
+      found: false,
+      kwic: [],
+      furigana: null,
+      is_interested: false,
+      is_favorite: false,
+    };
+  }
   const headers = authHeaders() ?? {}
 
   const res = await fetch(`${LOCAL_API}/lookup`, {
@@ -496,6 +519,10 @@ export async function setInterest(
   key: string,
   next: boolean
 ) {
+  if (GRADSHOW_MODE) {
+    await queueOfflineInterestToggle(key, next);
+    return { ok: true, offline: true };
+  }
   const headers = authHeaders();
 
   if (!headers) {
@@ -541,6 +568,7 @@ async function invalidateLocalLemmaProfileCache() {
 }
 
 export async function getLemmaProfile(): Promise<Record<string, UserLemmaState>> {
+  if (GRADSHOW_MODE) return getOfflineLemmaProfile();
   const headers = authHeaders();
   if (!headers) throw new Error("not authenticated");
 
@@ -563,6 +591,10 @@ export async function updateLemmaState(
   key: string,
   update: { exposure_count?: number; is_known?: boolean },
 ): Promise<UserLemmaState> {
+  if (GRADSHOW_MODE) {
+    await queueOfflineLemmaStateUpdate(key, update);
+    return (await getOfflineLemmaProfile())[key];
+  }
   const headers = authHeaders();
   if (!headers) throw new Error("not authenticated");
 
@@ -574,6 +606,7 @@ export async function updateLemmaState(
 }
 
 export async function getInterests(): Promise<string[]> {
+  if (GRADSHOW_MODE) return getOfflineInterestedKeys();
   const headers = authHeaders()
   if (!headers) throw new Error("no token")
 
@@ -638,6 +671,16 @@ export async function createAnnotation(annotation: Annotation) {
 
 // packs 목록
 export async function getPacks() {
+  if (GRADSHOW_MODE) {
+    return [{
+      lang: "en",
+      version: "1.1.2",
+      lemma_filename: "en-v1.1.2-lemma.zip",
+      lemma_download_url: "",
+      tag: "gradshow",
+      corpus: [{ "Data source": "Bundled exhibition pack" }, { "Corpora used": "English" }],
+    }];
+  }
   const res = await centralFetch(`${CENTRAL_API}/lang/packs`);
 
   if (!res.ok) {
@@ -656,6 +699,15 @@ export async function getPacks() {
 
 // 설치 상태
 export async function getInstalled() {
+  if (GRADSHOW_MODE) {
+    return [{
+      lang: "en",
+      version: "1.1.2",
+      installed: true,
+      lemma_installed: true,
+      model_installed: false,
+    }];
+  }
   if (isCapacitorApp()) {
     const enabledLangs = await getEnabledMobileLanguages();
     let packs = readPackCatalogSnapshot();

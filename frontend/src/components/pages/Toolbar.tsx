@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { createLocalNotebook } from "../../localLibrary";
 import { isCapacitorApp } from "../../platform";
 import { useI18n } from "../../i18n";
+import { GRADSHOW_MODE } from "../../gradshow/mode";
 
 function CreateNotebookContent({
   onCreate,
@@ -140,7 +141,7 @@ export function Toolbar({
               setOpenFilePopup((v) => !v);
             }}
             title={t("Create")}
-            disabled={disabled}
+            disabled={disabled || GRADSHOW_MODE}
           />
           <MiniPopup
             open={openFilePopup}

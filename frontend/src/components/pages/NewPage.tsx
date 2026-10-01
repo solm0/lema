@@ -4,10 +4,11 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { useNowPlaying } from "../lyric/useNowPlaying";
 import { useI18n } from "../../i18n";
 import LanguageSelect from "../util/LanguageSelect";
+import { GRADSHOW_MODE } from "../../gradshow/mode";
 
 export function NewPage() {
   const navigate = useNavigate();
-  const { hasTrack } = useNowPlaying();
+  const { hasTrack } = useNowPlaying({ enabled: !GRADSHOW_MODE });
   const { t } = useI18n();
   const [pasteText, setPasteText] = useState("");
   const [language, setLanguage] = useState<string | null>(null);
@@ -47,7 +48,8 @@ export function NewPage() {
       <button
         type="button"
         onClick={() => navigate("/lyric")}
-        className="fixed right-4 bottom-20 md:right-6 md:bottom-6 z-20 isolate flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 hover:opacity-70 transition-opacity"
+        disabled={GRADSHOW_MODE}
+        className="fixed right-4 bottom-20 md:right-6 md:bottom-6 z-20 isolate flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 hover:opacity-70 transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
         title={t("Lyrics")}
       >
         {hasTrack ? (
@@ -69,17 +71,19 @@ export function NewPage() {
           placeholder={t("Paste text")}
           className="min-h-[1lh] max-h-[10lh] w-full resize-none bg-transparent px-1 text-base leading-6 outline-none placeholder:text-neutral-400"
           spellCheck={false}
+          disabled={GRADSHOW_MODE}
         />
 
         <div className="mt-3 flex items-end justify-between gap-3">
           <LanguageSelect
             language={language}
             setLanguage={(nextLanguage) => setLanguage(nextLanguage?.lang ?? null)}
+            disabled={GRADSHOW_MODE}
           />
           <button
             type="button"
             onClick={handleAnalyze}
-            disabled={!canAnalyze}
+            disabled={GRADSHOW_MODE || !canAnalyze}
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
               canAnalyze
                 ? "bg-neutral-900 text-neutral-50 hover:bg-neutral-700"

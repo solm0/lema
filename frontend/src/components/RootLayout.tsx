@@ -28,6 +28,7 @@ import {
   setNowPlayingNotificationsEnabled,
 } from "../notificationPreferences";
 import { useI18n } from "../i18n";
+import { GRADSHOW_MODE } from "../gradshow/mode";
 
 
 // ======================================
@@ -115,6 +116,7 @@ export default function RootLayout() {
   }, [pageSidebarOpen]);
 
   useEffect(() => {
+    if (GRADSHOW_MODE) return;
     void setNowPlayingNotificationsEnabled(settings.now_playing_notifications);
   }, [settings.now_playing_notifications]);
 
@@ -127,6 +129,7 @@ export default function RootLayout() {
     const attach = async () => {
       try {
         listenerHandle = await CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+          if (GRADSHOW_MODE) return;
           if (panelOpen) {
             setPanelOpen(false);
             return;
@@ -168,6 +171,7 @@ export default function RootLayout() {
   }, [isPagePath, location.pathname, navigate, pageSidebarOpen, panelOpen]);
 
   useEffect(() => {
+    if (GRADSHOW_MODE) return;
     let isCancelled = false;
     let urlListenerHandle: Awaited<ReturnType<typeof CapacitorApp.addListener>> | null = null;
     let removeElectronListener: (() => void) | void;
@@ -234,6 +238,7 @@ export default function RootLayout() {
   }, [navigate]);
 
   useEffect(() => {
+    if (GRADSHOW_MODE) return;
     if (!isCapacitorApp()) return;
     if (!settings.now_playing_notifications) return;
     if (hasSeenNotificationPrompt()) return;

@@ -3,6 +3,7 @@ import { getStoredToken, getStoredUser } from "./authSession";
 import { getAppPlatform, isCapacitorApp, isElectronApp } from "./platform";
 import { centralFetch } from "./network";
 import type { UserLemmaState } from "./components/pageTypes";
+import { GRADSHOW_MODE, GRADSHOW_USER } from "./gradshow/mode";
 
 type PendingInterestToggle = {
   id: string;
@@ -71,6 +72,7 @@ function resolveCentralApi() {
 const CENTRAL_API = resolveCentralApi();
 
 function currentUserId() {
+  if (GRADSHOW_MODE) return String(GRADSHOW_USER.id);
   const id = getStoredUser()?.id;
   return typeof id === "number" ? String(id) : null;
 }
@@ -301,6 +303,7 @@ export async function queueOfflineLemmaStateUpdate(
 }
 
 async function syncVocabularyOutboxOnce() {
+  if (GRADSHOW_MODE) return true;
   if (typeof navigator !== "undefined" && !navigator.onLine) return false;
   const userId = currentUserId();
   const token = getStoredToken();

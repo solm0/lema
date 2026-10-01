@@ -79,6 +79,7 @@ export default function LanguageSelect({
   background = false,
   options,
   allowUnselected = false,
+  disabled = false,
 }: {
   language: string | null;
   setLanguage: (l: { lang: string } | null) => void;
@@ -87,6 +88,7 @@ export default function LanguageSelect({
   background?: boolean;
   options?: { lang: string }[];
   allowUnselected?: boolean;
+  disabled?: boolean;
 }) {
   const mobileApp = isCapacitorApp();
   const { t } = useI18n();
@@ -155,21 +157,28 @@ export default function LanguageSelect({
           {loading && <p className="px-2 text-sm text-neutral-400">{t("Loading...")}</p>}
 
           {!loading && languages.length === 0 && (
-            <Link
-              to="/setting"
-              state={{ scrollTo: "language-packs" }}
-              className="px-2 text-sm text-neutral-500 border border-neutral-300 hover:bg-neutral-200 transition-colors"
-            >
-              {mobileApp
-                ? t("Activate a language to continue.")
-                : t("Install languages to continue.")}
-            </Link>
+            disabled ? (
+              <span className="px-2 text-sm text-neutral-400">
+                {t("Activate a language to continue.")}
+              </span>
+            ) : (
+              <Link
+                to="/setting"
+                state={{ scrollTo: "language-packs" }}
+                className="px-2 text-sm text-neutral-500 border border-neutral-300 hover:bg-neutral-200 transition-colors"
+              >
+                {mobileApp
+                  ? t("Activate a language to continue.")
+                  : t("Install languages to continue.")}
+              </Link>
+            )
           )}
 
           {!loading && languages.map((l) => (
             <button
               key={l.lang}
               onClick={() => handleLanguageChange(l)}
+              disabled={disabled}
               className={`
                 px-2 h-full rounded text-sm transition-colors
                 ${language === l.lang

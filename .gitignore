@@ -25,6 +25,7 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-gradshow
 dist-ssr
 *.local
 

@@ -30,6 +30,7 @@ import { isNetworkError } from "../../network";
 import { ANDROID_PRIVACY_POLICY_URL } from "../../config";
 import { exportLocalLibrary, importLocalLibrary } from "../../localLibrary";
 import ThemeLogo from "../ThemeLogo";
+import { GRADSHOW_MODE, GRADSHOW_USER } from "../../gradshow/mode";
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -39,6 +40,7 @@ function AppVersionSection() {
     useState<LatestVersionInfo | null>(null);
 
   useEffect(() => {
+    if (GRADSHOW_MODE) return;
     let cancelled = false;
 
     const loadLatestVersion = async () => {
@@ -110,7 +112,7 @@ function AppVersionSection() {
   );
 }
 
-function LocalLibrarySection() {
+function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState<"export" | "import" | null>(null);
   const [message, setMessage] = useState("");
@@ -155,12 +157,12 @@ function LocalLibrarySection() {
         <Button
           text={busy === "export" ? t("Exporting...") : t("Export library")}
           onClick={() => void handleExport()}
-          disabled={busy !== null}
+          disabled={disabled || busy !== null}
         />
         <Button
           text={busy === "import" ? t("Importing...") : t("Import and merge")}
           onClick={() => void handleImport()}
-          disabled={busy !== null}
+          disabled={disabled || busy !== null}
         />
       </div>
       <p className="text-xs text-neutral-500">
@@ -175,18 +177,24 @@ export function UserProfile() {
   const { t } = useI18n();
   const mobileApp = isCapacitorApp();
   const [editing, setEditing] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(GRADSHOW_MODE ? GRADSHOW_USER : null);
   const [value, setValue] = useState("");
   const [openLogoutModal, setOpenLogoutModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [offline, setOffline] = useState(
-    mobileApp && typeof navigator !== "undefined" ? !navigator.onLine : false,
+    mobileApp && !GRADSHOW_MODE && typeof navigator !== "undefined" ? !navigator.onLine : false,
   );
   const navigate = useNavigate();
 
   const loadProfile = useCallback(async () => {
+    if (GRADSHOW_MODE) {
+      setUser(GRADSHOW_USER);
+      setValue(GRADSHOW_USER.name);
+      setOffline(false);
+      return;
+    }
     if (mobileApp && typeof navigator !== "undefined" && !navigator.onLine) {
       setOffline(true);
       return;
@@ -209,7 +217,7 @@ export function UserProfile() {
   useEffect(() => {
     const initialLoadTimer = window.setTimeout(() => void loadProfile(), 0);
 
-    if (!mobileApp) {
+    if (!mobileApp || GRADSHOW_MODE) {
       return () => window.clearTimeout(initialLoadTimer);
     }
 
@@ -263,7 +271,7 @@ export function UserProfile() {
 
   return (
     <>
-      {mobileApp && offline ? (
+      {mobileApp && offline && !GRADSHOW_MODE ? (
         <OfflineState
           onRetry={() => void loadProfile()}
         />
@@ -500,7 +508,7 @@ export default function Setting() {
           </div>
         </section>
 
-        {mobileApp && (
+        {mobileApp && !GRADSHOW_MODE && (
           <section className="w-full flex flex-col gap-7 items-start">
             <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10">{t("Notifications")}</h3>
             <div className="flex items-center gap-2 text-sm">
@@ -560,14 +568,24 @@ export default function Setting() {
               ? t("Activate only the languages you want to use on this device.")
               : t("To reduce storage, keep a single language version.")}
           </p>
-          <PackTable />
+          <fieldset
+            disabled={GRADSHOW_MODE}
+            className={GRADSHOW_MODE ? "min-w-0 border-0 p-0 opacity-45 pointer-events-none" : "min-w-0 border-0 p-0"}
+          >
+            <PackTable />
+          </fieldset>
         </section>
 
-        <LocalLibrarySection />
+        <LocalLibrarySection disabled={GRADSHOW_MODE} />
 
         <section className="w-full flex flex-col gap-6 items-start">
           <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Profile")}</h3>
-          <UserProfile />
+          <fieldset
+            disabled={GRADSHOW_MODE}
+            className={GRADSHOW_MODE ? "min-w-0 border-0 p-0 opacity-45 pointer-events-none" : "min-w-0 border-0 p-0"}
+          >
+            <UserProfile />
+          </fieldset>
         </section>
       </div>
 

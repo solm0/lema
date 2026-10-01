@@ -14,7 +14,12 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(NowPlayingPlugin.class);
+        if (!BuildConfig.GRADSHOW_MODE) {
+            registerPlugin(NowPlayingPlugin.class);
+        }
+        if (BuildConfig.GRADSHOW_MODE) {
+            registerPlugin(GradshowLanguagePackPlugin.class);
+        }
         registerPlugin(LemaLibraryPlugin.class);
         super.onCreate(savedInstanceState);
         handleDeepLinkIntent(getIntent());

@@ -26,6 +26,7 @@ import { useI18n } from "../../i18n";
 import { isNetworkError } from "../../network";
 import LanguagePackRequiredModal from "../util/LanguagePackRequiredModal";
 import OfflineState from "../util/OfflineState";
+import { GRADSHOW_MODE } from "../../gradshow/mode";
 
 const lemmaInfoCache = new Map<string, Record<string, LemmaData>>();
 const lemmaAttemptedKeysCache = new Map<string, Set<string>>();
@@ -77,7 +78,7 @@ export default function PageView() {
 
   const lastPanelRef = useRef<SidePanelState>(null);
   const { progressMs, track } = useNowPlaying({
-    enabled: Boolean(result?.blocks?.some((block) => block.timestamp_ms != null)),
+    enabled: !GRADSHOW_MODE && Boolean(result?.blocks?.some((block) => block.timestamp_ms != null)),
   });
 
   useEffect(() => {

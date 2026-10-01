@@ -13,6 +13,7 @@ import OfflineState from "../util/OfflineState";
 import { hasLemmaPackInstalled } from "../util/LanguageSelect";
 import { isCapacitorApp } from "../../platform";
 import { LanguageFilter } from "../pages/PageFilters";
+import { GRADSHOW_MODE } from "../../gradshow/mode";
 
 function groupLemmas(interests: Set<string>) {
   const groups: Record<string, string[]> = {}
@@ -81,7 +82,7 @@ export default function Lemmas(){
   useEffect(() => {
     const loadInterests = () => getInterests()
       .then((res) => {
-        setOffline(typeof navigator !== "undefined" ? !navigator.onLine : false);
+        setOffline(GRADSHOW_MODE ? false : typeof navigator !== "undefined" ? !navigator.onLine : false);
         setInterests(new Set(res))
       })
       .catch((error) => {
@@ -90,7 +91,7 @@ export default function Lemmas(){
 
     void loadInterests();
 
-    if (!mobileApp) return;
+    if (!mobileApp || GRADSHOW_MODE) return;
 
     const handleOffline = () => setOffline(true);
     const handleOnline = () => void loadInterests();

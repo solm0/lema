@@ -13,6 +13,14 @@ def hasReleaseSigning =
 android {
     namespace "com.solmi.lema"
     compileSdk rootProject.ext.compileSdkVersion
+    flavorDimensions "distribution"
+    sourceSets {
+        main.assets.setSrcDirs([])
+        standard.assets.srcDir("src/main/assets")
+    }
+    buildFeatures {
+        buildConfig true
+    }
     signingConfigs {
         release {
             if (hasReleaseSigning) {
@@ -27,13 +35,25 @@ android {
         applicationId "com.solmi.lema"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 10003
-        versionName "1.0.3"
+        versionCode 10004
+        versionName "1.0.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    productFlavors {
+        standard {
+            dimension "distribution"
+            buildConfigField "boolean", "GRADSHOW_MODE", "false"
+        }
+        gradshow {
+            dimension "distribution"
+            applicationIdSuffix ".gradshow"
+            versionNameSuffix "-gradshow"
+            buildConfigField "boolean", "GRADSHOW_MODE", "true"
         }
     }
     buildTypes {
@@ -44,6 +64,32 @@ android {
             }
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+    }
+}
+
+def gradshowAssetsDir = file("$buildDir/generated/gradshowAssets")
+
+tasks.register("prepareGradshowAssets", Sync) {
+    from(file("src/main/assets")) {
+        include "capacitor.plugins.json"
+    }
+    from(file("src/gradshow")) {
+        include "capacitor.config.json"
+    }
+    from(rootProject.file("../dist-gradshow")) {
+        into "public"
+    }
+    from(rootProject.file("../../releases/en/en-v1.1.2/en-v1.1.2-lemma.zip")) {
+        into "packs"
+    }
+    into gradshowAssetsDir
+}
+
+android.sourceSets.gradshow.assets.srcDir(gradshowAssetsDir)
+
+tasks.configureEach { task ->
+    if (task.name != "prepareGradshowAssets" && task.name.contains("Gradshow")) {
+        task.dependsOn("prepareGradshowAssets")
     }
 }
 

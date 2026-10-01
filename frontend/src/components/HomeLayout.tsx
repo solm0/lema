@@ -11,6 +11,7 @@ import { SettingToggle } from "./util/ToggleButton";
 import { useSettings } from "./useSettings";
 import { useI18n } from "../i18n";
 import { CENTRAL_RESTORED_EVENT } from "../network";
+import { GRADSHOW_MODE, GRADSHOW_USER } from "../gradshow/mode";
 
 const LAST_PAGE_PATH_STORAGE_KEY = "last-page-path";
 const ONLINE_RECONNECT_GRACE_MS = 3000;
@@ -135,6 +136,7 @@ export function Side() {
 
 export default function HomeLayout() {
   const [user, setUser] = useState<User | null | undefined>(() => {
+    if (GRADSHOW_MODE) return GRADSHOW_USER;
     const offlineUser = getOfflineSessionUser();
     return offlineUser ?? undefined;
   });
@@ -153,6 +155,7 @@ export default function HomeLayout() {
   }, [location.hash, location.pathname, location.search]);
 
   useEffect(() => {
+    if (GRADSHOW_MODE) return;
     let cancelled = false;
     let reconnectTimer: number | null = null;
 
@@ -200,6 +203,7 @@ export default function HomeLayout() {
   }, []);
 
   useEffect(() => {
+    if (GRADSHOW_MODE) return;
     if (user === undefined) return; // 아직 로딩 중
     if (!user) {
       clearStoredSession();
