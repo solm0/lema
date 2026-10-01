@@ -86,6 +86,15 @@ function writeStoredSession(session: StoredAuthSession | null) {
   window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
 }
 
+function syncElectronLibraryUser(session: StoredAuthSession | null) {
+  if (!isElectronApp()) return;
+
+  const userId = session?.user?.id;
+  void window.electronAPI?.setActiveLibraryUser?.(
+    typeof userId === "number" && Number.isInteger(userId) && userId > 0 ? userId : null,
+  ).catch(() => undefined);
+}
+
 export function isTokenExpired(token: string) {
   const payload = decodeJwtPayload(token);
   const exp = payload?.exp;
@@ -127,19 +136,23 @@ export function hasStoredSession() {
 export function storeAccessToken(token: string) {
   const current = readStoredSession();
 
-  writeStoredSession({
+  const session = {
     token,
     user: current?.user ?? null,
     lastVerifiedAt: current?.lastVerifiedAt ?? null,
-  });
+  };
+  writeStoredSession(session);
+  syncElectronLibraryUser(session);
 }
 
 export function storeVerifiedSession(token: string, user: User) {
-  writeStoredSession({
+  const session = {
     token,
     user,
     lastVerifiedAt: new Date().toISOString(),
-  });
+  };
+  writeStoredSession(session);
+  syncElectronLibraryUser(session);
 }
 
 export function updateStoredUser(user: User) {
@@ -151,15 +164,18 @@ export function updateStoredUser(user: User) {
 
   const current = readStoredSession();
 
-  writeStoredSession({
+  const session = {
     token,
     user,
     lastVerifiedAt: current?.lastVerifiedAt ?? null,
-  });
+  };
+  writeStoredSession(session);
+  syncElectronLibraryUser(session);
 }
 
 export function clearStoredSession() {
   writeStoredSession(null);
+  syncElectronLibraryUser(null);
 }
 
 export function getOfflineSessionUser() {
@@ -173,5 +189,11 @@ export function getOfflineSessionUser() {
     return null;
   }
 
-  return getStoredUser();
+  const user = getStoredUser();
+  syncElectronLibraryUser({
+    token,
+    user,
+    lastVerifiedAt: readStoredSession()?.lastVerifiedAt ?? null,
+  });
+  return user;
 }

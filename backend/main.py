@@ -9,6 +9,7 @@ from routers.lemmas_router import router as lemmas_router
 from routers.lang_router import router as lang_router
 from routers.content_router import router as content_router
 from routers.library_router import router as library_router
+from routers.extension_router import router as extension_router
 from runtime_paths import get_frontend_dist_dir
 
 app = FastAPI()
@@ -34,6 +35,7 @@ app.include_router(content_router)
 app.include_router(lemmas_router)
 app.include_router(lang_router)
 app.include_router(library_router)
+app.include_router(extension_router)
 
 
 @app.get("/", include_in_schema=False)

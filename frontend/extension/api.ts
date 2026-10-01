@@ -75,6 +75,11 @@ export type InstalledPack = {
   installed: boolean;
 };
 
+export type ExtensionStatus = {
+  running: true;
+  signed_in: boolean;
+};
+
 let activeLocalApi: string | null = null;
 
 function isExtensionContextInvalidatedError(error: unknown) {
@@ -198,6 +203,12 @@ async function extensionFetchWithLocalFallback<T>(
       activeLocalApi = candidate;
       return result;
     } catch (error) {
+      // A response from the local API is authoritative. Trying another port
+      // after a 4xx/5xx response would hide that useful error behind a later
+      // connection failure from an inactive fallback port.
+      if (error instanceof ExtensionRequestError && error.status !== 0) {
+        throw error;
+      }
       lastError = error;
     }
   }
@@ -233,6 +244,12 @@ export async function analyzeTextBlocks(blocks: string[], language: string) {
 
 export async function getInstalledLanguages() {
   return extensionFetchWithLocalFallback<InstalledPack[]>("/lang/installed", () => ({
+    method: "GET",
+  }));
+}
+
+export async function getExtensionStatus() {
+  return extensionFetchWithLocalFallback<ExtensionStatus>("/extension/status", () => ({
     method: "GET",
   }));
 }
@@ -292,7 +309,7 @@ export async function saveAnalyzedPage(
   language: string,
   sourceUrl: string,
 ) {
-  return extensionFetchWithLocalFallback<{ id: string }>("/library/pages", () => ({
+  return extensionFetchWithLocalFallback<{ id: string }>("/extension/pages", () => ({
     method: "POST",
     headers: {
       "Content-Type": "application/json",

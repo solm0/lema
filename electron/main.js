@@ -2,6 +2,7 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn, execFile } = require("child_process");
 const path = require("path");
 const http = require("http");
+const crypto = require("crypto");
 const { exec } = require("child_process");
 const fs = require("fs/promises");
 
@@ -13,6 +14,35 @@ const DEEP_LINK_PROTOCOL = "lema";
 const LEGACY_DEEP_LINK_PROTOCOL = "nautilus";
 const pendingDeepLinks = [];
 const DEV_BACKEND_PORT = 8010;
+const desktopSessionToken = crypto.randomBytes(32).toString("hex");
+
+function setBackendActiveUser(userId) {
+  const body = JSON.stringify({ user_id: userId });
+
+  return new Promise((resolve, reject) => {
+    const request = http.request({
+      hostname: "127.0.0.1",
+      port: DEV_BACKEND_PORT,
+      path: "/api/extension/session",
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+        "X-Lema-Desktop-Token": desktopSessionToken,
+      },
+    }, (response) => {
+      response.resume();
+      if (response.statusCode && response.statusCode < 300) {
+        resolve();
+        return;
+      }
+      reject(new Error(`Unable to update the local Lema session (HTTP ${response.statusCode || 0})`));
+    });
+
+    request.on("error", reject);
+    request.end(body);
+  });
+}
 
 function getOfflineStatePath() {
   return path.join(app.getPath("userData"), "offline", "offline-state.json");
@@ -385,6 +415,7 @@ async function startBackend() {
       : path.join(__dirname, "..", "frontend", "dist"),
     LEMA_LIBRARY_DB_PATH: libraryDbPath,
     LEMA_LIBRARY_ROOT: libraryRoot,
+    LEMA_DESKTOP_SESSION_TOKEN: desktopSessionToken,
   };
 
   if (isPackaged && process.platform === "darwin") {
@@ -622,6 +653,11 @@ app.whenReady().then(async () => {
     return;
   }
 
+  ipcMain.handle("library:set-active-user", async (_event, userId) => {
+    const normalizedUserId = Number.isInteger(userId) && userId > 0 ? userId : null;
+    await setBackendActiveUser(normalizedUserId);
+  });
+
   await createWindow();
 
   ipcMain.handle("now-playing:get", async () => getMacNowPlaying());
@@ -633,7 +669,6 @@ app.whenReady().then(async () => {
   ipcMain.handle("offline-state:write", async (_event, value) => writeOfflineStateFile(value));
   ipcMain.handle("library:export", async (_event, value) => saveLibraryExport(value));
   ipcMain.handle("library:import", async () => openLibraryImport());
-
   dispatchDeepLink(extractDeepLink(process.argv));
 
   app.on("activate", async () => {

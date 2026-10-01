@@ -8,6 +8,7 @@ import {
   analyzeTextBlocks,
   EXTENSION_DEEPLINK_BASE,
   ExtensionRequestError,
+  getExtensionStatus,
   getInstalledLanguages,
   type InstalledPack,
   openInstallPage,
@@ -80,9 +81,10 @@ function saveErrorMessage(error: unknown) {
     if (error.status === 413) {
       return "There’s too much text to save at once. Select less text and try again.";
     }
-    if (error.status === 400 || error.status === 422) {
-      return "Check the selected text and try again.";
+    if (error.status === 422 && error.message === "Field required") {
+      return "A signed-in Lema user is required to save to the local library.";
     }
+    if (error.message && error.message !== "request failed") return error.message;
   }
   return "Couldn’t save this page. Please try again.";
 }
@@ -248,8 +250,8 @@ function makeOverlayStyle(rect: DOMRect, kind: "hover" | "selected"): CSSPropert
     width: `${Math.max(0, rect.width + 4)}px`,
     height: `${Math.max(0, rect.height + 4)}px`,
     borderRadius: "12px",
-    border: kind === "hover" ? "2px solid rgba(59, 130, 246, 0.9)" : "2px solid rgba(37, 99, 235, 0.95)",
-    background: kind === "hover" ? "rgba(96, 165, 250, 0.18)" : "rgba(59, 130, 246, 0.16)",
+    border: kind === "hover" ? "2px solid rgba(201, 238, 187, 0.9)" : "2px solid rgba(143, 215, 162, 0.95)",
+    background: kind === "hover" ? "rgba(201, 238, 187, 0.18)" : "rgba(143, 215, 162, 0.16)",
     boxShadow: kind === "hover" ? "0 0 0 1px rgba(255,255,255,0.5)" : "0 0 0 1px rgba(255,255,255,0.72)",
     pointerEvents: "none",
     zIndex: 2147483646,
@@ -678,8 +680,6 @@ function OverlayApp() {
   const ensureLocalAppAvailable = async () => {
     const ready = await waitForLocalApiReady();
     if (ready) return true;
-
-    await openInstallPage();
     return false;
   };
 
@@ -702,7 +702,13 @@ function OverlayApp() {
     try {
       const ready = await ensureLocalAppAvailable();
       if (!ready) {
-        setMessage("Desktop app or local server was not available. Opened the install page.");
+        setMessage("Open Lema, then try saving again.");
+        return;
+      }
+
+      const status = await getExtensionStatus();
+      if (!status.signed_in) {
+        setMessage("Sign in to Lema before saving a page from Chrome.");
         return;
       }
 
@@ -1032,8 +1038,8 @@ const collapsedDotStyle: CSSProperties = {
   width: "7px",
   height: "7px",
   borderRadius: "999px",
-  background: "rgba(59, 130, 246, 0.92)",
-  boxShadow: "0 0 0 4px rgba(59, 130, 246, 0.14)",
+  background: "#c9eebb",
+  boxShadow: "0 0 0 4px rgba(201, 238, 187, 0.14)",
 };
 
 const collapsedLabelStyle: CSSProperties = {
@@ -1155,16 +1161,16 @@ const selectionItemStyle: CSSProperties = {
 
 const draggingSelectionItemStyle: CSSProperties = {
   opacity: 0.55,
-  background: "rgba(37, 99, 235, 0.18)",
-  border: "1px solid rgba(96, 165, 250, 0.4)",
+  background: "rgba(201, 238, 187, 0.18)",
+  border: "1px solid rgba(201, 238, 187, 0.4)",
 };
 
 const selectionIndexStyle: CSSProperties = {
   width: "20px",
   height: "20px",
   borderRadius: "999px",
-  background: "rgba(37, 99, 235, 0.2)",
-  color: "#dbeafe",
+  background: "rgba(201, 238, 187, 0.2)",
+  color: "#c9eebb",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
@@ -1225,7 +1231,7 @@ const iconGhostButtonStyle: CSSProperties = {
 const linkButtonStyle: CSSProperties = {
   border: "none",
   background: "transparent",
-  color: "#bfdbfe",
+  color: "#c9eebb",
   padding: 0,
   fontSize: "12px",
   cursor: "pointer",

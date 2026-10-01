@@ -28,6 +28,7 @@ declare global {
       writeOfflineState?: (value: unknown) => Promise<boolean>;
       saveLibraryExport?: (value: unknown) => Promise<{ ok: boolean; path?: string } | null>;
       openLibraryImport?: () => Promise<unknown | null>;
+      setActiveLibraryUser?: (userId: number | null) => Promise<void>;
     };
   }
 }

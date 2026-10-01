@@ -9,7 +9,12 @@ from library_store import LibraryStore
 router = APIRouter(prefix="/api/library", tags=["local-library"])
 
 
-def store(x_lema_user_id: str = Header(alias="X-Lema-User-Id")) -> LibraryStore:
+def store(x_lema_user_id: str | None = Header(default=None, alias="X-Lema-User-Id")) -> LibraryStore:
+    if not x_lema_user_id:
+        raise HTTPException(
+            401,
+            "A signed-in Lema user is required to save to the local library.",
+        )
     try:
         return LibraryStore(user_id=x_lema_user_id)
     except ValueError as error:

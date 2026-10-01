@@ -16,10 +16,6 @@ declare namespace chrome {
     function connect(connectInfo?: { name?: string }): Port;
     function sendMessage(message: unknown): Promise<unknown>;
 
-    const onInstalled: {
-      addListener(callback: () => void): void;
-    };
-
     const onMessage: {
       addListener(
         callback: (
@@ -47,11 +43,4 @@ declare namespace chrome {
     }): Promise<unknown>;
   }
 
-  namespace storage {
-    namespace local {
-      function get(keys?: string | string[] | Record<string, unknown> | null): Promise<Record<string, unknown>>;
-      function set(items: Record<string, unknown>): Promise<void>;
-      function remove(keys: string | string[]): Promise<void>;
-    }
-  }
 }

@@ -1,11 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Lema",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Analyze page text in place with Lema.",
   "permissions": [
-    "storage",
-    "tabs",
     "activeTab",
     "scripting"
   ],
