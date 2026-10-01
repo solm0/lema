@@ -75,7 +75,7 @@ type PrivacyCopy = Record<
 const chromePrivacyCopy: PrivacyCopy = {
   en: {
     title: "Lema Chrome Extension Privacy Policy",
-    updatedAt: "Last updated: September 5, 2026",
+    updatedAt: "Last updated: October 1, 2026",
     intro:
       "The Lema Chrome Extension (the \"Extension\") works with the Lema desktop app to analyze and save text selected from web pages. This Privacy Policy explains what information the Extension processes, why it is used, and with whom it may be shared.",
     sections: [
@@ -83,14 +83,14 @@ const chromePrivacyCopy: PrivacyCopy = {
         heading: "1. Information We Process",
         paragraphs: [
           "The Extension may process text that the user directly selects on a web page, the title and language chosen by the user, and the current page URL at the time the user chooses to save it.",
-          "The Extension may read the list of language packs installed in the Lema desktop app so the user can choose an available language.",
+          "The Extension may read whether the Lema desktop app is running and signed in, and the list of language packs installed in the app, so the user can save to the correct local library and choose an available language. The Extension does not receive or store account IDs, passwords, or authentication tokens.",
         ],
       },
       {
         heading: "2. When Information Is Processed",
         paragraphs: [
           "Selected text and the current page URL are processed only when the user explicitly runs the save action.",
-          "Installed language-pack information is read when the Extension opens or refreshes its available languages.",
+          "The Extension checks whether the Lema desktop app is running and signed in when the user starts a save. Installed language-pack information is read when the Extension opens or refreshes its available languages.",
         ],
       },
       {
@@ -105,7 +105,7 @@ const chromePrivacyCopy: PrivacyCopy = {
       {
         heading: "4. Sharing and Disclosure",
         paragraphs: [
-          "The Extension communicates with Lema's local desktop service for text analysis, installed-language lookup, and page storage. The Extension does not send account credentials, selected text, or saved-page data to Lema's remote servers.",
+          "The Extension sends selected text, its title and language, and the current page URL only to Lema's local desktop service for text analysis and storage in the user's local library. The Extension does not send account credentials, selected text, page URLs, or saved-page data to Lema's remote servers.",
           "We do not sell user information and do not use it for personalized advertising or third-party advertising purposes.",
         ],
       },
@@ -118,14 +118,14 @@ const chromePrivacyCopy: PrivacyCopy = {
       {
         heading: "6. Retention and Deletion",
         paragraphs: [
-          "The Extension does not retain selected text, page URLs, account credentials, or authentication tokens in browser extension storage. Any authentication token stored by an earlier version is deleted when the Extension is updated.",
+          "The Extension does not retain selected text, page URLs, account credentials, or authentication tokens in browser extension storage.",
           "Saved pages remain in the desktop app's local library until the user deletes them or clears the app data.",
         ],
       },
       {
         heading: "7. User Choice",
         paragraphs: [
-          "The Extension does not require account creation or sign-in.",
+          "The Extension does not provide account creation or sign-in. Saving a page requires the user to be signed in to the Lema desktop app.",
           "The save function runs only when the user explicitly triggers it.",
           "Users may remove the Extension at any time.",
         ],
@@ -138,7 +138,7 @@ const chromePrivacyCopy: PrivacyCopy = {
   },
   ko: {
     title: "Lema Chrome 확장 프로그램 개인정보처리방침",
-    updatedAt: "최종 업데이트: 2026년 9월 5일",
+    updatedAt: "최종 업데이트: 2026년 10월 1일",
     intro:
       "Lema Chrome 확장 프로그램(이하 \"확장 프로그램\")은 Lema 데스크톱 앱과 연동하여 웹페이지의 선택 텍스트를 분석하고 로컬에 저장하는 기능을 제공합니다. 본 개인정보처리방침은 확장 프로그램이 어떤 정보를 처리하는지, 어떤 목적으로 사용하는지, 누구와 공유하는지를 설명합니다.",
     sections: [
@@ -146,14 +146,14 @@ const chromePrivacyCopy: PrivacyCopy = {
         heading: "1. 처리하는 정보",
         paragraphs: [
           "확장 프로그램은 사용자가 직접 선택한 웹페이지 텍스트, 사용자가 선택한 제목과 언어, 저장을 실행한 시점의 현재 페이지 URL을 처리할 수 있습니다.",
-          "확장 프로그램은 사용 가능한 언어를 표시하기 위해 Lema 데스크톱 앱에 설치된 언어팩 목록을 읽을 수 있습니다.",
+          "확장 프로그램은 올바른 로컬 라이브러리에 저장하고 사용 가능한 언어를 표시하기 위해 Lema 데스크톱 앱의 실행 및 로그인 상태와 설치된 언어팩 목록을 읽을 수 있습니다. 확장 프로그램은 계정 ID, 비밀번호, 인증 토큰을 받거나 저장하지 않습니다.",
         ],
       },
       {
         heading: "2. 정보를 처리하는 시점",
         paragraphs: [
           "사용자가 저장 기능을 실행할 때만 선택한 텍스트와 현재 페이지 URL을 처리합니다.",
-          "확장 프로그램을 열거나 사용 가능한 언어를 새로고침할 때 설치된 언어팩 정보를 읽습니다.",
+          "사용자가 저장을 시작할 때 Lema 데스크톱 앱의 실행 및 로그인 상태를 확인합니다. 확장 프로그램을 열거나 사용 가능한 언어를 새로고침할 때 설치된 언어팩 정보를 읽습니다.",
         ],
       },
       {
@@ -168,7 +168,7 @@ const chromePrivacyCopy: PrivacyCopy = {
       {
         heading: "4. 정보 공유 및 제공",
         paragraphs: [
-          "확장 프로그램은 텍스트 분석, 설치된 언어 확인, 페이지 저장을 위해 Lema 로컬 서비스와 통신합니다. 확장 프로그램은 계정 인증 정보, 선택한 텍스트, 저장한 페이지 데이터를 Lema 원격 서버로 전송하지 않습니다.",
+          "확장 프로그램은 텍스트 분석과 사용자의 로컬 라이브러리 저장을 위해 선택한 텍스트, 제목과 언어, 현재 페이지 URL을 Lema 로컬 데스크톱 서비스에만 전송합니다. 확장 프로그램은 계정 인증 정보, 선택한 텍스트, 페이지 URL, 저장한 페이지 데이터를 Lema 원격 서버로 전송하지 않습니다.",
           "당사는 사용자의 정보를 판매하지 않으며, 개인 맞춤 광고 또는 제3자 광고 목적에 사용하지 않습니다.",
         ],
       },
@@ -181,14 +181,14 @@ const chromePrivacyCopy: PrivacyCopy = {
       {
         heading: "6. 보관 및 삭제",
         paragraphs: [
-          "확장 프로그램은 선택한 텍스트, 페이지 URL, 계정 인증 정보, 인증 토큰을 브라우저의 확장 프로그램 저장소에 보관하지 않습니다. 이전 버전에서 저장된 인증 토큰은 확장 프로그램 업데이트 시 삭제됩니다.",
+          "확장 프로그램은 선택한 텍스트, 페이지 URL, 계정 인증 정보, 인증 토큰을 브라우저의 확장 프로그램 저장소에 보관하지 않습니다.",
           "저장한 페이지는 사용자가 삭제하거나 앱 데이터를 지울 때까지 데스크톱 로컬 라이브러리에 유지됩니다.",
         ],
       },
       {
         heading: "7. 이용자의 선택",
         paragraphs: [
-          "확장 프로그램은 계정 생성이나 로그인을 요구하지 않습니다.",
+          "확장 프로그램은 계정 생성이나 로그인 기능을 제공하지 않습니다. 페이지를 저장하려면 Lema 데스크톱 앱에 로그인되어 있어야 합니다.",
           "저장 기능은 사용자의 명시적인 실행이 있을 때만 동작합니다.",
           "사용자는 언제든지 확장 프로그램을 제거할 수 있습니다.",
         ],
