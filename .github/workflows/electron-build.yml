@@ -231,7 +231,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Hugging Face upload dependencies
-        run: python -m pip install --upgrade huggingface_hub hf-xet
+        run: python -m pip install --upgrade huggingface_hub hf-xet httpx
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v5

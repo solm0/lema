@@ -756,7 +756,7 @@ function OverlayApp() {
             title="Open Lema"
           >
             <span style={collapsedDotStyle} />
-            <span style={collapsedLabelStyle}>N</span>
+            <span style={collapsedLabelStyle}>L</span>
           </button>
         ) : null}
 
