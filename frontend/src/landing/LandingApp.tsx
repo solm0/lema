@@ -41,6 +41,7 @@ const HF_API_TREE_URL = `https://huggingface.co/api/datasets/${HF_REPO_ID}/tree/
 const HF_RESOLVE_BASE = `https://huggingface.co/datasets/${HF_REPO_ID}/resolve/main`;
 const CHROME_EXTENSION_URL =
   "https://chromewebstore.google.com/detail/nautilus/fedaaafnilhpkoknpbkkppicjkalgflk?hl=en-US&utm_source=ext_sidebar";
+const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.solmi.lema&pli=1";
 
 type HfTreeEntry = {
   path?: string;
@@ -345,25 +346,14 @@ function LandingApp() {
                 <div className="flex gap-4">
                   <p className="text-sm font-medium text-neutral-600 w-30">Android App</p>
                   <div className="flex flex-col gap-3">
-                    <p>플레이스토어 출시 예정</p>
-                    {/* {releaseCatalog.android.map((androidVersion) => (
-                      <div key={androidVersion.version} className="flex flex-col gap-1.5">
-                        <p className="text-xs font-medium text-neutral-500">
-                          v{androidVersion.version}
-                        </p>
-                        <div className="flex flex-wrap gap-3 items-center">
-                          <a
-                            href={androidVersion.href}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-sm border border-transparent bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-200 transition-colors hover:border-neutral-300 hover:bg-neutral-200 hover:text-neutral-900 flex items-center gap-1"
-                          >
-                            APK Download
-                            <Download size={14}/>
-                          </a>
-                        </div>
-                      </div>
-                    ))} */}
+                    <a
+                      href={GOOGLE_PLAY_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-sm border border-transparent bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-200 transition-colors hover:border-neutral-300 hover:bg-neutral-200 hover:text-neutral-900"
+                    >
+                      Google Play에서 다운로드
+                    </a>
                   </div>
                 </div>
 
