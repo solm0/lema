@@ -317,7 +317,13 @@ export default function LyricPage() {
         return;
       }
 
-      setSaveError("Saving lyrics failed.");
+      if (error instanceof Error && error.message === "analysis_busy") {
+        setSaveError(t("The analysis server is busy. Try again shortly."));
+      } else if (error instanceof Error && error.message === "analysis_rate_limited") {
+        setSaveError(t("Too many analysis requests. Try again later."));
+      } else {
+        setSaveError(t("Saving lyrics failed."));
+      }
     } finally {
       setSaving(false);
       setSaveProgress(null);

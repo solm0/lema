@@ -3,6 +3,7 @@ import type { FooterAction } from "./New";
 import type { TextAnalysisResult } from "../pageTypes";
 import { analyzeBlocks } from "../../api";
 import { useI18n } from "../../i18n";
+import { useNavigate } from "react-router-dom";
 
 export default function PasteReader({
   language,
@@ -20,8 +21,10 @@ export default function PasteReader({
   autoAnalyze?: boolean;
 }) {
   const [pasteText, setPasteText] = useState(initialText);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const autoAnalyzeStartedRef = useRef(false);
   const { t } = useI18n();
+  const navigate = useNavigate();
 
   function textToBlocks(text: string) {
     return text.split("\n").map(line => ({
@@ -31,6 +34,7 @@ export default function PasteReader({
 
   const handlePasteAnalyze = useCallback(async () => {
     setAnalyzing(true);
+    setAnalysisError(null);
 
     try {
       const blocks = textToBlocks(pasteText);
@@ -40,10 +44,22 @@ export default function PasteReader({
         text: pasteText,
         blocks: data.blocks
       });
+    } catch (error) {
+      if (error instanceof Error && error.message === "unauthorized") {
+        navigate("/login");
+        return;
+      }
+
+      const message = error instanceof Error && error.message === "analysis_busy"
+        ? t("The analysis server is busy. Try again shortly.")
+        : error instanceof Error && error.message === "analysis_rate_limited"
+          ? t("Too many analysis requests. Try again later.")
+          : t("Analysis failed. Try again.");
+      setAnalysisError(message);
     } finally {
       setAnalyzing(false);
     }
-  }, [language, pasteText, setAnalyzing, setResult]);
+  }, [language, navigate, pasteText, setAnalyzing, setResult, t]);
 
   useEffect(() => {
     setFooterAction({
@@ -64,7 +80,7 @@ export default function PasteReader({
 
 
   return (
-    <>
+    <div className="flex h-full w-full flex-col gap-2">
       <textarea
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
@@ -72,6 +88,9 @@ export default function PasteReader({
         placeholder={t("Paste text here\n\nTip !!!\n\nAccuracy improves when punctuation and line breaks are used properly in sentences.")}
         spellCheck={false}
       />
-    </>
+      {analysisError ? (
+        <p className="shrink-0 text-sm text-red-600">{analysisError}</p>
+      ) : null}
+    </div>
   );
 }

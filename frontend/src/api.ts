@@ -316,11 +316,19 @@ async function analyzeBlocksBatch(
   blocks: AnalyzeBlockInput[],
   language: string,
 ) {
-  const res = await fetch(`${LOCAL_API}/analyze`, {
+  const remoteAnalysis = !isElectronApp();
+  const headers = remoteAnalysis
+    ? authHeaders()
+    : { "Content-Type": "application/json" };
+
+  if (!headers) {
+    throw new Error("unauthorized");
+  }
+
+  const request = remoteAnalysis ? centralFetch : fetch;
+  const res = await request(`${LOCAL_API}/analyze`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({
       blocks,
       language,
@@ -328,8 +336,17 @@ async function analyzeBlocksBatch(
   });
 
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    throw new Error(detail || `analyze failed (${res.status})`);
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("unauthorized");
+    }
+
+    const payload = await res.json().catch(() => null) as {
+      detail?: ApiErrorDetail;
+    } | null;
+    const detail = parseApiErrorDetail(payload?.detail);
+    throw new Error(
+      detail?.code || detail?.message || `analyze failed (${res.status})`,
+    );
   }
 
   return res.json() as Promise<{

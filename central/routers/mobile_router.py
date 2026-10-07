@@ -2,14 +2,15 @@ import logging
 import time
 import unicodedata
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from db import get_db
 from language_config.sr import cyr_to_lat
 from models import User, UserLemma
-from routers.auth_router import get_current_user_optional
+from routers.auth_router import get_current_user
+from services.analysis_access import AnalysisLease, acquire_analysis_lease
 from services import lemma_service
 from services.nlp_service import analyze_text
 
@@ -62,11 +63,8 @@ def to_global_key(lemma: str, pos: str, lang: str) -> str:
 
 def fetch_user_lemma_states(
     db: Session,
-    user: User | None,
+    user: User,
 ):
-    if not user:
-        return {}
-
     rows = db.query(UserLemma).filter(
         UserLemma.user_id == user.id,
     ).all()
@@ -82,70 +80,83 @@ def fetch_user_lemma_states(
 
 
 @router.post("/analyze")
-def analyze(req: AnalyzeRequest):
+def analyze(
+    req: AnalyzeRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+):
+    lease: AnalysisLease = acquire_analysis_lease(
+        user_id=current_user.id,
+        request=request,
+    )
     started_at = time.perf_counter()
     logger.info(
-        "[mobile.analyze] start language=%s blocks=%s",
+        "[mobile.analyze] start user_id=%s language=%s blocks=%s",
+        current_user.id,
         req.language,
         len(req.blocks),
     )
 
-    out_blocks = []
+    try:
+        out_blocks = []
 
-    for index, block in enumerate(req.blocks):
-        text = block.text.strip()
+        for index, block in enumerate(req.blocks):
+            text = block.text.strip()
 
-        if not text:
+            if not text:
+                out_blocks.append({
+                    "text": block.text,
+                    "tokens": [],
+                })
+                continue
+
+            if req.language == "sr":
+                text = normalize_sr(text)
+
+            block_started_at = time.perf_counter()
+
+            try:
+                logger.info(
+                    "[mobile.analyze] block=%s chars=%s running_nlp",
+                    index,
+                    len(text),
+                )
+                tokens_all = analyze_text(text, req.language)
+                logger.info(
+                    "[mobile.analyze] block=%s nlp_done elapsed=%.2fs",
+                    index,
+                    time.perf_counter() - block_started_at,
+                )
+            except Exception:
+                logger.exception(
+                    "[mobile.analyze] block=%s nlp failed chars=%s",
+                    index,
+                    len(text),
+                )
+                raise
+
             out_blocks.append({
                 "text": block.text,
-                "tokens": [],
+                "tokens": tokens_all or [],
             })
-            continue
 
-        if req.language == "sr":
-            text = normalize_sr(text)
-
-        block_started_at = time.perf_counter()
-
-        try:
-            logger.info(
-                "[mobile.analyze] block=%s chars=%s running_nlp",
-                index,
-                len(text),
-            )
-            tokens_all = analyze_text(text, req.language)
-            logger.info(
-                "[mobile.analyze] block=%s nlp_done elapsed=%.2fs",
-                index,
-                time.perf_counter() - block_started_at,
-            )
-        except Exception:
-            logger.exception(
-                "[mobile.analyze] block=%s nlp failed chars=%s",
-                index,
-                len(text),
-            )
-            raise
-
-        out_blocks.append({
-            "text": block.text,
-            "tokens": tokens_all or [],
-        })
-
-    logger.info(
-        "[mobile.analyze] done language=%s blocks=%s elapsed=%.2fs",
-        req.language,
-        len(out_blocks),
-        time.perf_counter() - started_at,
-    )
-    return {"blocks": out_blocks}
+        logger.info(
+            "[mobile.analyze] done user_id=%s language=%s blocks=%s elapsed=%.2fs",
+            current_user.id,
+            req.language,
+            len(out_blocks),
+            time.perf_counter() - started_at,
+        )
+        return {"blocks": out_blocks}
+    finally:
+        lease.release()
 
 
 @router.post("/lookup")
 def lookup(
     req: LookupRequest,
     db: Session = Depends(get_db),
-    user: User | None = Depends(get_current_user_optional),
+    user: User = Depends(get_current_user),
 ):
     global_key = to_global_key(req.lemma, req.pos, req.language)
     local_key = to_local_key(req.lemma, req.pos)
@@ -189,7 +200,7 @@ def lookup(
 def lookup_batch(
     req: BatchLookupRequest,
     db: Session = Depends(get_db),
-    user: User | None = Depends(get_current_user_optional),
+    user: User = Depends(get_current_user),
 ):
     lang = req.language
     result = {}

@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 from packs import PACKS
 
 from db import get_db
-from models import UserLemma
+from models import User, UserLemma
+from routers.auth_router import get_current_user
 
 router = APIRouter(prefix="/api")
 
@@ -27,13 +28,17 @@ class BatchInterestCheckResponse(BaseModel):
 @router.post("/user-lemmas/batch-check", response_model=BatchInterestCheckResponse)
 def batch_check_interests(
     req: BatchInterestCheckRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
+    if req.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="forbidden")
+
     if not req.lemma_keys:
         return {"interests": [], "favorites": []}
 
     rows = db.query(UserLemma.lemma_key).filter(
-        UserLemma.user_id == req.user_id,
+        UserLemma.user_id == current_user.id,
         UserLemma.is_interested.is_(True),
         UserLemma.lemma_key.in_(req.lemma_keys)
     ).all()

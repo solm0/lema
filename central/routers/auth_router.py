@@ -16,7 +16,6 @@ from models import (
   User,
   UserLemma,
 )
-from typing import Optional
 
 # -----------------------------
 # config
@@ -467,28 +466,6 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise api_error(401, "user_not_found", "user not found")
-    return user
-
-security_optional = HTTPBearer(auto_error=False)
-
-def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
-    db: Session = Depends(get_db)
-) -> Optional[User]:
-    if credentials is None:
-        return None
-
-    token = credentials.credentials
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("user_id")
-        if not user_id:
-            return None
-    except JWTError:
-        return None
-
-    user = db.query(User).filter(User.id == user_id).first()
     return user
 
 @router.get("/me")
