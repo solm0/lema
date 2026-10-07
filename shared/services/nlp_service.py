@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import gc
 import threading
 import unicodedata
 
@@ -24,11 +23,20 @@ LANGUAGE_STOP_POS = {
 }
 
 
-# NLP pipelines are large (some languages require multiple GiB).  Keep the
-# entire activation/inference path serialized so two first requests cannot
-# construct duplicate pipelines, and retain at most one language per process.
-_analysis_lock = threading.Lock()
-_active_language: str | None = None
+# A pipeline instance is not safe to initialize or execute concurrently. Keep
+# one lock per language so requests for different languages can proceed in
+# parallel while requests for the same language remain ordered.
+_language_locks_guard = threading.Lock()
+_language_locks: dict[str, threading.Lock] = {}
+
+
+def _get_language_lock(language: str) -> threading.Lock:
+    with _language_locks_guard:
+        lock = _language_locks.get(language)
+        if lock is None:
+            lock = threading.Lock()
+            _language_locks[language] = lock
+        return lock
 
 
 def normalize_lemma(lemma: str | None) -> str | None:
@@ -127,17 +135,9 @@ def align_tokens(sent, language: str):
 
 
 def analyze_text(text: str, language: str):
-    global _active_language
-
     from language_config import get_config
-    from language_config.registry import invalidate_language
 
-    with _analysis_lock:
-        if _active_language is not None and _active_language != language:
-            invalidate_language(_active_language)
-            _active_language = None
-            gc.collect()
-
+    with _get_language_lock(language):
         cfg = get_config(language)
         analyze = cfg.get("analyze_text")
 
@@ -151,5 +151,4 @@ def analyze_text(text: str, language: str):
             for sent in doc.sentences:
                 tokens.extend(align_tokens(sent, language))
 
-        _active_language = language
         return tokens

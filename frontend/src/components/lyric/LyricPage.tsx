@@ -317,7 +317,9 @@ export default function LyricPage() {
         return;
       }
 
-      if (error instanceof Error && error.message === "analysis_busy") {
+      if (error instanceof Error && (
+        error.message === "analysis_busy" || error.message === "analysis_queue_full"
+      )) {
         setSaveError(t("The analysis server is busy. Try again shortly."));
       } else if (error instanceof Error && error.message === "analysis_rate_limited") {
         setSaveError(t("Too many analysis requests. Try again later."));

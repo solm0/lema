@@ -1,3 +1,19 @@
+## 로컬 디버그 실행
+
+`frontend`에서 실행:
+
+```sh
+npx cap run android
+```
+
+Capacitor sync 직전에 웹 번들을 다시 빌드한다. 디버그 빌드는
+`com.solmi.lema.debug` / **Lema Dev**를 사용해 Play 스토어 앱
+(`com.solmi.lema`)과 동시에 설치할 수 있다.
+`capacitor.config.ts`에서 기본 Android flavor를 `standard`로 고정했으므로,
+예전 `app-debug.apk`가 남아 있어도 실행 대상으로 선택되지 않는다.
+
+## 릴리스
+
 ./gradlew bundleStandardRelease
 
 # 안드로이드 새 버전 만들기(signed가 아님)

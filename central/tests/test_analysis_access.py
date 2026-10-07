@@ -1,7 +1,5 @@
 import os
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
 
 from starlette.requests import Request
@@ -26,18 +24,23 @@ class FakeClock:
 
 class AnalysisAccessControllerTests(unittest.TestCase):
     def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
         self.clock = FakeClock()
 
-    def tearDown(self):
-        self.temp_dir.cleanup()
-
-    def make_controller(self, *, user_limit=2, ip_limit=2, window=60):
+    def make_controller(
+        self,
+        *,
+        user_limit=2,
+        ip_limit=2,
+        user_concurrent_limit=1,
+        ip_concurrent_limit=5,
+        window=60,
+    ):
         return AnalysisAccessController(
             user_rate_limit=user_limit,
             ip_rate_limit=ip_limit,
             window_seconds=window,
-            lock_path=str(Path(self.temp_dir.name) / "analysis.lock"),
+            user_concurrent_limit=user_concurrent_limit,
+            ip_concurrent_limit=ip_concurrent_limit,
             clock=self.clock,
         )
 
@@ -73,32 +76,39 @@ class AnalysisAccessControllerTests(unittest.TestCase):
 
         self.acquire_and_release(controller, user_id=1, client_ip="192.0.2.1")
 
-    def test_rejects_a_second_concurrent_analysis(self):
+    def test_rejects_a_second_concurrent_analysis_for_the_same_user(self):
         controller = self.make_controller(user_limit=10, ip_limit=10)
         first_lease = controller.acquire(user_id=1, client_ip="192.0.2.1")
 
         with self.assertRaises(AnalysisAccessRejected) as raised:
-            controller.acquire(user_id=2, client_ip="192.0.2.2")
+            controller.acquire(user_id=1, client_ip="192.0.2.2")
 
         self.assertEqual(raised.exception.code, "analysis_busy")
         first_lease.release()
 
-        second_lease = controller.acquire(user_id=2, client_ip="192.0.2.2")
+        second_lease = controller.acquire(user_id=1, client_ip="192.0.2.2")
         second_lease.release()
 
-    def test_global_lock_rejects_an_analysis_from_another_controller(self):
-        first_controller = self.make_controller(user_limit=10, ip_limit=10)
-        second_controller = self.make_controller(user_limit=10, ip_limit=10)
-        first_lease = first_controller.acquire(
-            user_id=1,
-            client_ip="192.0.2.1",
-        )
+    def test_allows_different_users_to_run_concurrently(self):
+        controller = self.make_controller(user_limit=10, ip_limit=10)
+        first_lease = controller.acquire(user_id=1, client_ip="192.0.2.1")
+        second_lease = controller.acquire(user_id=2, client_ip="192.0.2.2")
 
+        first_lease.release()
+        second_lease.release()
+
+    def test_rejects_the_sixth_concurrent_user_from_one_ip(self):
+        controller = self.make_controller(user_limit=10, ip_limit=20)
+        leases = [
+            controller.acquire(user_id=user_id, client_ip="192.0.2.1")
+            for user_id in range(1, 6)
+        ]
         with self.assertRaises(AnalysisAccessRejected) as raised:
-            second_controller.acquire(user_id=2, client_ip="192.0.2.2")
+            controller.acquire(user_id=6, client_ip="192.0.2.1")
 
         self.assertEqual(raised.exception.code, "analysis_busy")
-        first_lease.release()
+        for lease in leases:
+            lease.release()
 
     def test_release_is_idempotent(self):
         controller = self.make_controller(user_limit=10, ip_limit=10)

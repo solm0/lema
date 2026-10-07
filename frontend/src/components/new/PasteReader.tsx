@@ -50,7 +50,9 @@ export default function PasteReader({
         return;
       }
 
-      const message = error instanceof Error && error.message === "analysis_busy"
+      const message = error instanceof Error && (
+        error.message === "analysis_busy" || error.message === "analysis_queue_full"
+      )
         ? t("The analysis server is busy. Try again shortly.")
         : error instanceof Error && error.message === "analysis_rate_limited"
           ? t("Too many analysis requests. Try again later.")

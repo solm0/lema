@@ -2,7 +2,7 @@ import logging
 import time
 import unicodedata
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,7 @@ from models import User, UserLemma
 from routers.auth_router import get_current_user
 from services.analysis_access import AnalysisLease, acquire_analysis_lease
 from services import lemma_service
-from services.nlp_service import analyze_text
+from services.nlp_service import AnalysisQueueFull, analyze_text
 
 router = APIRouter(prefix="/api/mobile", tags=["mobile"])
 logger = logging.getLogger(__name__)
@@ -127,6 +127,20 @@ def analyze(
                     index,
                     time.perf_counter() - block_started_at,
                 )
+            except AnalysisQueueFull as exc:
+                logger.info(
+                    "[mobile.analyze] block=%s language=%s queue_full",
+                    index,
+                    req.language,
+                )
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "code": "analysis_queue_full",
+                        "message": "analysis queue is full for this language",
+                    },
+                    headers={"Retry-After": "5"},
+                ) from exc
             except Exception:
                 logger.exception(
                     "[mobile.analyze] block=%s nlp failed chars=%s",

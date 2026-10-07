@@ -5,17 +5,16 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Callable
 
-import fcntl
 from fastapi import HTTPException, Request
 
 
 DEFAULT_USER_RATE_LIMIT = 20
 DEFAULT_IP_RATE_LIMIT = 40
 DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60
-DEFAULT_LOCK_PATH = "/tmp/lema-central-analysis.lock"
+DEFAULT_USER_CONCURRENT_LIMIT = 1
+DEFAULT_IP_CONCURRENT_LIMIT = 5
 
 
 def _positive_int_env(name: str, default: int) -> int:
@@ -95,21 +94,30 @@ class AnalysisAccessController:
         user_rate_limit: int,
         ip_rate_limit: int,
         window_seconds: int,
-        lock_path: str,
+        user_concurrent_limit: int,
+        ip_concurrent_limit: int,
         clock: Callable[[], float] = time.monotonic,
     ):
-        if user_rate_limit <= 0 or ip_rate_limit <= 0 or window_seconds <= 0:
+        if (
+            user_rate_limit <= 0
+            or ip_rate_limit <= 0
+            or window_seconds <= 0
+            or user_concurrent_limit <= 0
+            or ip_concurrent_limit <= 0
+        ):
             raise ValueError("analysis access limits must be greater than zero")
 
         self.user_rate_limit = user_rate_limit
         self.ip_rate_limit = ip_rate_limit
         self.window_seconds = window_seconds
-        self.lock_path = Path(lock_path)
+        self.user_concurrent_limit = user_concurrent_limit
+        self.ip_concurrent_limit = ip_concurrent_limit
         self.clock = clock
         self._guard = threading.Lock()
         self._requests: dict[str, deque[float]] = {}
-        self._active_token: object | None = None
-        self._active_lock_fd: int | None = None
+        self._active_users: dict[str, int] = {}
+        self._active_ips: dict[str, int] = {}
+        self._active_leases: dict[object, tuple[str, str]] = {}
         self._request_count = 0
 
     def _prune(self, key: str, now: float) -> deque[float]:
@@ -131,15 +139,6 @@ class AnalysisAccessController:
 
     def _retry_after(self, timestamps: deque[float], now: float) -> int:
         return max(1, math.ceil(timestamps[0] + self.window_seconds - now))
-
-    def _open_global_lock(self) -> int:
-        self.lock_path.parent.mkdir(parents=True, exist_ok=True)
-        flags = os.O_CREAT | os.O_RDWR
-        if hasattr(os, "O_CLOEXEC"):
-            flags |= os.O_CLOEXEC
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= os.O_NOFOLLOW
-        return os.open(self.lock_path, flags, 0o600)
 
     def acquire(self, *, user_id: int, client_ip: str) -> AnalysisLease:
         now = self.clock()
@@ -172,43 +171,43 @@ class AnalysisAccessController:
             user_requests.append(now)
             ip_requests.append(now)
 
-            if self._active_token is not None:
+            if self._active_users.get(user_key, 0) >= self.user_concurrent_limit:
                 raise AnalysisAccessRejected(
                     "analysis_busy",
-                    "another analysis is already running",
+                    "another analysis is already running for this user",
                     1,
                 )
 
-            lock_fd = self._open_global_lock()
-            try:
-                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError as exc:
-                os.close(lock_fd)
+            if self._active_ips.get(ip_key, 0) >= self.ip_concurrent_limit:
                 raise AnalysisAccessRejected(
                     "analysis_busy",
-                    "another analysis is already running",
+                    "too many analyses are already running for this IP address",
                     1,
-                ) from exc
+                )
 
             token = object()
-            self._active_token = token
-            self._active_lock_fd = lock_fd
+            self._active_users[user_key] = self._active_users.get(user_key, 0) + 1
+            self._active_ips[ip_key] = self._active_ips.get(ip_key, 0) + 1
+            self._active_leases[token] = (user_key, ip_key)
             return AnalysisLease(controller=self, token=token)
 
     def release(self, token: object) -> None:
         with self._guard:
-            if token is not self._active_token:
+            keys = self._active_leases.pop(token, None)
+            if keys is None:
                 return
 
-            lock_fd = self._active_lock_fd
-            self._active_token = None
-            self._active_lock_fd = None
+            user_key, ip_key = keys
+            self._decrement_active(self._active_users, user_key)
+            self._decrement_active(self._active_ips, ip_key)
 
-            if lock_fd is not None:
-                try:
-                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
-                finally:
-                    os.close(lock_fd)
+    @staticmethod
+    def _decrement_active(active: dict[str, int], key: str) -> None:
+        count = active.get(key, 0)
+        if count <= 1:
+            active.pop(key, None)
+        else:
+            active[key] = count - 1
 
 
 analysis_access_controller = AnalysisAccessController(
@@ -224,7 +223,14 @@ analysis_access_controller = AnalysisAccessController(
         "ANALYZE_RATE_LIMIT_WINDOW_SECONDS",
         DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
     ),
-    lock_path=os.getenv("ANALYZE_LOCK_PATH", DEFAULT_LOCK_PATH),
+    user_concurrent_limit=_positive_int_env(
+        "ANALYZE_USER_CONCURRENT_LIMIT",
+        DEFAULT_USER_CONCURRENT_LIMIT,
+    ),
+    ip_concurrent_limit=_positive_int_env(
+        "ANALYZE_IP_CONCURRENT_LIMIT",
+        DEFAULT_IP_CONCURRENT_LIMIT,
+    ),
 )
 
 

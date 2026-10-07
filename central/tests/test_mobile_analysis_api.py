@@ -1,7 +1,5 @@
 import os
-import tempfile
 import unittest
-from pathlib import Path
 from unittest.mock import patch
 
 
@@ -17,6 +15,7 @@ from models import User
 from routers.auth_router import create_token
 from routers.mobile_router import router
 from services.analysis_access import AnalysisAccessController
+from services.nlp_service import AnalysisQueueFull
 
 
 class FakeQuery:
@@ -40,7 +39,6 @@ class FakeDb:
 
 class MobileAnalysisApiTests(unittest.TestCase):
     def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
         self.user = User(id=7, email="test@example.com", name="Test")
         self.app = FastAPI()
         self.app.include_router(router)
@@ -54,14 +52,13 @@ class MobileAnalysisApiTests(unittest.TestCase):
 
     def tearDown(self):
         self.client.close()
-        self.temp_dir.cleanup()
-
     def make_controller(self, *, user_limit=20, ip_limit=40):
         return AnalysisAccessController(
             user_rate_limit=user_limit,
             ip_rate_limit=ip_limit,
             window_seconds=60,
-            lock_path=str(Path(self.temp_dir.name) / "analysis.lock"),
+            user_concurrent_limit=1,
+            ip_concurrent_limit=5,
         )
 
     def post_analysis(self, *, token=None):
@@ -131,6 +128,24 @@ class MobileAnalysisApiTests(unittest.TestCase):
             "analysis_rate_limited",
         )
         self.assertEqual(limited_response.headers["retry-after"], "60")
+
+    def test_returns_429_when_the_language_queue_is_full(self):
+        controller = self.make_controller()
+        with (
+            patch(
+                "services.analysis_access.analysis_access_controller",
+                controller,
+            ),
+            patch(
+                "routers.mobile_router.analyze_text",
+                side_effect=AnalysisQueueFull(),
+            ),
+        ):
+            response = self.post_analysis(token=self.token)
+
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response.json()["detail"]["code"], "analysis_queue_full")
+        self.assertEqual(response.headers["retry-after"], "5")
 
 
 if __name__ == "__main__":
