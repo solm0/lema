@@ -24,9 +24,11 @@ export default function ResetPassword(){
       try {
         const res=await resetPassword(token,pw);
 
-        if (res.detail) {
+        if (res.httpStatus === 429) {
+          setMsg(t("Too many requests. Please wait and try again."))
+        } else if (res.detail) {
           setMsg(t(resolveAuthMessage(res.detail)))
-        } else setMsg("your password was reset.")
+        } else setMsg(t("your password was reset."))
       } catch (error) {
         setMsg(
           isNetworkError(error)
@@ -37,7 +39,7 @@ export default function ResetPassword(){
         setSubmitting(false)
       }
     } else {
-      setMsg('enter your new password.')
+      setMsg(t("enter your new password."))
     }
   }
 
@@ -55,12 +57,12 @@ export default function ResetPassword(){
 
         <div className="flex flex-col gap-2 w-full">
           <SystemMessage msg={msg} />
-          <Button text={submitting ? "..." : t("Change password")} onClick={submit} disabled={submitting} fit />
+          <Button text={submitting ? t("Updating password...") : t("Change password")} onClick={submit} disabled={submitting} fit />
         </div>
 
       </div>
 
-      {msg === 'your password was reset.' && <LinkButton link="/login" text={t("Login")} />}
+      {msg === t("your password was reset.") && <LinkButton link="/login" text={t("Login")} />}
     </>
   )
 }

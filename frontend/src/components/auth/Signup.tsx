@@ -22,9 +22,13 @@ export default function Signup(){
       try {
         const res=await signup(email,password,name);
 
-        if (res.detail) {
+        if (res.httpStatus === 429) {
+          setMsg(t("Too many requests. Please wait and try again."))
+        } else if (res.detail) {
           setMsg(t(resolveAuthMessage(res.detail)))
-        } else setMsg("email sent.")
+        } else {
+          setMsg(t("Check your inbox for a verification link. It may take a few minutes."))
+        }
       } catch (error) {
         setMsg(
           isNetworkError(error)
@@ -35,7 +39,7 @@ export default function Signup(){
         setSubmitting(false)
       }
     } else {
-      setMsg("enter your name, email, and password.")
+      setMsg(t("enter your name, email, and password."))
     }
   }
 
@@ -72,7 +76,7 @@ export default function Signup(){
 
         <div className="flex flex-col gap-2 w-full">
           <SystemMessage msg={msg} />
-          <Button text={submitting ? "..." : t("Sign up")} onClick={submit} disabled={submitting} fit />
+          <Button text={submitting ? t("Creating account...") : t("Sign up")} onClick={submit} disabled={submitting} fit />
         </div>
       </div>
 

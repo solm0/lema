@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 import secrets
 import datetime
+import logging
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import os
 from dotenv import load_dotenv
@@ -15,6 +17,11 @@ from db import get_db
 from models import (
   User,
   UserLemma,
+)
+from services.auth_rate_limits import (
+  email_send_limiter,
+  login_attempt_limiter,
+  normalize_email,
 )
 
 # -----------------------------
@@ -29,6 +36,8 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "http://localhost:8000/api")
 
 pwd_context = CryptContext(schemes=["bcrypt"])
+DUMMY_PASSWORD_HASH = pwd_context.hash(secrets.token_urlsafe(32))
+logger = logging.getLogger(__name__)
 
 conf = ConnectionConfig(
   MAIL_USERNAME=os.getenv('MAIL_USERNAME'),
@@ -79,6 +88,30 @@ def api_error(status_code: int, code: str, message: str) -> HTTPException:
     },
   )
 
+def rate_limit_error(code: str, message: str, retry_after: int) -> HTTPException:
+  retry_after = max(1, retry_after)
+  return HTTPException(
+    status_code=429,
+    detail={
+      "code": code,
+      "message": message,
+      "retry_after_seconds": retry_after,
+    },
+    headers={"Retry-After": str(retry_after)},
+  )
+
+def email_service_error(code: str, message: str, retry_after: int) -> HTTPException:
+  retry_after = max(1, retry_after)
+  return HTTPException(
+    status_code=503,
+    detail={
+      "code": code,
+      "message": message,
+      "retry_after_seconds": retry_after,
+    },
+    headers={"Retry-After": str(retry_after)},
+  )
+
 def hash_password(password: str):
   return pwd_context.hash(password)
 
@@ -88,16 +121,31 @@ def verify_password(password: str, hash):
 def create_token(user_id: int):
   payload = {
       "user_id": user_id,
-      "exp": datetime.datetime.utcnow() + datetime.timedelta(days=7)
+      "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=7)
   }
   return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-async def send_email(email: str, link: str):
+async def send_email(email: str, link: str, purpose: str):
+
+  if purpose == "verify_email":
+    subject = "[Lema] Verify your email"
+    body = (
+      "Verify your email address using the link below.\n"
+      "아래 링크를 눌러 이메일 주소를 인증하세요.\n"
+      f"{link}"
+    )
+  else:
+    subject = "[Lema] Reset your password"
+    body = (
+      "Reset your password using the link below.\n"
+      "아래 링크를 눌러 비밀번호를 재설정하세요.\n"
+      f"{link}"
+    )
 
   message = MessageSchema(
-    subject="[Lema] Account action",
+    subject=subject,
     recipients=[email],
-    body=f"To reset your password, click the link below.\n아래 링크를 클릭하여 비밀번호를 재설정하세요.\n{link}",
+    body=body,
     subtype="plain"
   )
 
@@ -325,15 +373,29 @@ router = APIRouter(prefix="/api")
 @router.post("/signup")
 async def signup(data: SignupRequest, db: Session = Depends(get_db)):
 
-  existing = db.query(User).filter(User.email == data.email).first()
+  email = normalize_email(str(data.email))
+
+  existing = db.query(User).filter(func.lower(User.email) == email).first()
 
   if existing:
     raise api_error(400, "email_already_registered", "email already registered")
 
+  reservation = email_send_limiter.reserve(
+    db,
+    email=email,
+    purpose="verify_email",
+  )
+  if not reservation.allowed:
+    raise email_service_error(
+      "email_service_busy",
+      "verification email is temporarily unavailable",
+      reservation.retry_after,
+    )
+
   token = secrets.token_urlsafe(32)
 
   user = User(
-    email=data.email,
+    email=email,
     password_hash=hash_password(data.password),
     name=data.name,
     verify_token=token,
@@ -344,7 +406,17 @@ async def signup(data: SignupRequest, db: Session = Depends(get_db)):
 
   link = f"{PUBLIC_API_BASE_URL}/verify-email?token={token}"
 
-  await send_email(data.email, link)
+  try:
+    await send_email(email, link, "verify_email")
+  except Exception as exc:
+    logger.exception("verification email delivery failed")
+    db.delete(user)
+    db.commit()
+    raise email_service_error(
+      "email_delivery_failed",
+      "verification email could not be sent",
+      60,
+    ) from exc
 
   return {"message": "signup success. check email for verification link"}
 
@@ -382,13 +454,30 @@ def verify_email(token: str, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
 
-  user = db.query(User).filter(User.email == data.email).first()
+  email = normalize_email(str(data.email))
+  retry_after = login_attempt_limiter.retry_after(email)
+  if retry_after:
+    raise rate_limit_error(
+      "login_rate_limited",
+      "too many login attempts",
+      retry_after,
+    )
 
-  if not user:
+  user = db.query(User).filter(func.lower(User.email) == email).first()
+  password_hash = user.password_hash if user else DUMMY_PASSWORD_HASH
+  password_matches = verify_password(data.password, password_hash)
+
+  if not user or not password_matches:
+      retry_after = login_attempt_limiter.record_failure(email)
+      if retry_after:
+        raise rate_limit_error(
+          "login_rate_limited",
+          "too many login attempts",
+          retry_after,
+        )
       raise api_error(400, "invalid_credentials", "invalid credentials")
 
-  if not verify_password(data.password, user.password_hash):
-      raise api_error(400, "invalid_credentials", "invalid credentials")
+  login_attempt_limiter.reset(email)
 
   if not user.email_verified:
       raise api_error(400, "email_not_verified", "email not verified")
@@ -404,12 +493,22 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 # request password reset
 # -----------------------------
 
-@router.post("/request-password-reset")
+@router.post("/request-password-reset", status_code=status.HTTP_202_ACCEPTED)
 async def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
 
-  user = db.query(User).filter(User.email == data.email).first()
+  email = normalize_email(str(data.email))
+
+  user = db.query(User).filter(func.lower(User.email) == email).first()
 
   if not user:
+    return {"message": "if email exists, reset link sent"}
+
+  reservation = email_send_limiter.reserve(
+    db,
+    email=email,
+    purpose="password_reset",
+  )
+  if not reservation.allowed:
     return {"message": "if email exists, reset link sent"}
 
   token = secrets.token_urlsafe(32)
@@ -420,7 +519,10 @@ async def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
 
   link = f"{PUBLIC_API_BASE_URL}/reset-password?token={token}"
 
-  await send_email(user.email, link)
+  try:
+    await send_email(user.email, link, "password_reset")
+  except Exception:
+    logger.exception("password reset email delivery failed")
 
   return {"message": "if email exists, reset link sent"}
 

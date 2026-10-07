@@ -8,7 +8,11 @@ from sqlalchemy import (
     ForeignKey,
     UniqueConstraint,
 )
-from datetime import datetime
+from datetime import UTC, datetime
+
+
+def utc_now_naive():
+    return datetime.now(UTC).replace(tzinfo=None)
 
 class User(Base):
   __tablename__ = "users"
@@ -20,6 +24,15 @@ class User(Base):
   email_verified = Column(Boolean, default=False)
   verify_token = Column(String, nullable=True)
   reset_token = Column(String, nullable=True)
+
+
+class EmailSendEvent(Base):
+    __tablename__ = "email_send_events"
+
+    id = Column(Integer, primary_key=True)
+    recipient_hash = Column(String, nullable=False, index=True)
+    purpose = Column(String, nullable=False)
+    sent_at = Column(DateTime, nullable=False, default=utc_now_naive, index=True)
 
 class UserLemma(Base):
     __tablename__ = "user_lemmas"

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { login, verifyToken } from "../../api"
 import { useNavigate } from "react-router-dom"
 import Button, { LinkButton } from "../../components/util/Button"
@@ -13,13 +13,32 @@ export default function Login(){
   const [password,setPassword]=useState("")
   const [msg,setMsg]=useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [cooldownUntil, setCooldownUntil] = useState(0)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const { t } = useI18n();
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!cooldownUntil) return
+
+    const updateCountdown = () => {
+      const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000))
+      setCooldownSeconds(remaining)
+      if (!remaining) {
+        setCooldownUntil(0)
+        setMsg(t("You can try signing in again."))
+      }
+    }
+
+    updateCountdown()
+    const timer = window.setInterval(updateCountdown, 250)
+    return () => window.clearInterval(timer)
+  }, [cooldownUntil, t])
+
   async function submit(){
 
-    if (submitting) return
+    if (submitting || cooldownSeconds > 0) return
 
     if (email.trim() && password.trim()) {
       setSubmitting(true)
@@ -30,6 +49,10 @@ export default function Login(){
           storeAccessToken(res.access_token)
           await verifyToken().catch(() => null)
           navigate('/')
+        } else if (res.httpStatus === 429) {
+          const retryAfter = Math.max(1, res.retryAfterSeconds ?? 30)
+          setCooldownUntil(Date.now() + retryAfter * 1000)
+          setCooldownSeconds(retryAfter)
         } else {
           setMsg(t(resolveAuthMessage(res.detail)))
         }
@@ -43,9 +66,19 @@ export default function Login(){
         setSubmitting(false)
       }
     } else {
-      setMsg("enter your email and password.")
+      setMsg(t("enter your email and password."))
     }
   }
+
+  const displayMessage = cooldownSeconds > 0
+    ? t("Too many login attempts. Try again in {seconds} seconds.", { seconds: cooldownSeconds })
+    : msg
+
+  const buttonText = submitting
+    ? t("Signing in...")
+    : cooldownSeconds > 0
+      ? t("Try again in {seconds}s", { seconds: cooldownSeconds })
+      : t("Login")
 
   return(
     <>
@@ -69,8 +102,8 @@ export default function Login(){
         />
 
         <div className="flex flex-col gap-2 w-full">
-          <SystemMessage msg={msg} />
-          <Button text={submitting ? "..." : t("Login")} onClick={submit} disabled={submitting} fit />
+          <SystemMessage msg={displayMessage} />
+          <Button text={buttonText} onClick={submit} disabled={submitting || cooldownSeconds > 0} fit />
         </div>
       </div>
 

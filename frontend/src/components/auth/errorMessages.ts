@@ -6,6 +6,11 @@ const API_ERROR_MESSAGE_KEYS: Record<string, string> = {
   email_not_verified: "Please verify your email before logging in.",
   invalid_token: "This link is invalid or has expired.",
   user_not_found: "User not found.",
+  login_rate_limited: "Too many login attempts. Please wait and try again.",
+  too_many_requests: "Too many requests. Please wait and try again.",
+  email_service_busy: "We can't send a verification email right now. Please try again later.",
+  email_delivery_failed: "We couldn't send the verification email. Please try again in a minute.",
+  request_failed: "Something went wrong. Please try again.",
 };
 
 const RAW_ERROR_MESSAGE_KEYS: Record<string, string> = {

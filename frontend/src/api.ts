@@ -114,6 +114,7 @@ export type LatestVersionPlatform = "desktop" | "android";
 type ApiErrorDetailObject = {
   code?: string;
   message?: string;
+  retry_after_seconds?: number;
 };
 
 export type ApiErrorDetail =
@@ -121,6 +122,14 @@ export type ApiErrorDetail =
   | ApiErrorDetailObject
   | Array<{ msg?: string }>
   | undefined;
+
+export type AuthApiResponse = {
+  access_token?: string;
+  detail?: ApiErrorDetail;
+  message?: string;
+  httpStatus: number;
+  retryAfterSeconds?: number;
+};
 
 function resolveLatestVersionPlatform(): LatestVersionPlatform {
   return getAppPlatform() === "mobile" ? "android" : "desktop";
@@ -161,37 +170,74 @@ export async function getLatestVersionInfo() {
   return res.json() as Promise<LatestVersionInfo>;
 }
 
+function parseRetryAfter(value: string | null) {
+  if (!value) return undefined;
+  const seconds = Number.parseInt(value, 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+}
+
+async function parseAuthResponse(res: Response): Promise<AuthApiResponse> {
+  const payload = await res.json().catch(() => ({})) as Omit<AuthApiResponse, "httpStatus">;
+  const parsedDetail = parseApiErrorDetail(payload.detail);
+  const retryAfterSeconds =
+    parseRetryAfter(res.headers.get("Retry-After"))
+    ?? (typeof payload.detail === "object" && !Array.isArray(payload.detail)
+      ? payload.detail?.retry_after_seconds
+      : undefined);
+
+  if (!res.ok && !payload.detail) {
+    payload.detail = {
+      code: res.status === 429 ? "too_many_requests" : "request_failed",
+      message: res.status === 429 ? "too many requests" : "request failed",
+    };
+  } else if (parsedDetail?.code && typeof payload.detail === "object" && !Array.isArray(payload.detail)) {
+    payload.detail = {
+      ...payload.detail,
+      code: parsedDetail.code,
+    };
+  }
+
+  return {
+    ...payload,
+    httpStatus: res.status,
+    retryAfterSeconds,
+  };
+}
+
 export async function signup(email: string, password: string, name: string) {
   const res = await centralFetch(CENTRAL_API+"/signup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, name })
   });
-  return res.json();
+  return parseAuthResponse(res);
 }
 
 export async function login(email:string,password:string){
-  return centralFetch(CENTRAL_API+"/login",{
+  const res = await centralFetch(CENTRAL_API+"/login",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({email,password})
-  }).then(r=>r.json())
+  });
+  return parseAuthResponse(res);
 }
 
 export async function requestReset(email:string){
-  return centralFetch(CENTRAL_API+"/request-password-reset",{
+  const res = await centralFetch(CENTRAL_API+"/request-password-reset",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({email})
-  }).then(r=>r.json())
+  });
+  return parseAuthResponse(res);
 }
 
 export async function resetPassword(token:string,new_password:string){
-  return centralFetch(CENTRAL_API+"/reset-password",{
+  const res = await centralFetch(CENTRAL_API+"/reset-password",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({token,new_password})
-  }).then(r=>r.json())
+  });
+  return parseAuthResponse(res);
 }
 
 export function parseApiErrorDetail(detail: ApiErrorDetail): {
