@@ -32,7 +32,29 @@ final class AndroidLanguagePackStore {
     private static final Pattern LANGUAGE_PATTERN = Pattern.compile("^[a-z]{2,3}$");
     private static final Pattern VERSION_PATTERN = Pattern.compile("^[0-9]+(?:\\.[0-9]+)*$");
     private static final int BUFFER_SIZE = 64 * 1024;
-    private static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("en");
+    private static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("de", "en");
+    private static final ModelArtifact[] GERMAN_MODELS = new ModelArtifact[] {
+        new ModelArtifact(
+            "sentence detector",
+            GermanNlpAnalyzer.SENTENCE_MODEL,
+            "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-sentdetect-de/1.3.0/opennlp-models-sentdetect-de-1.3.0.jar"
+        ),
+        new ModelArtifact(
+            "tokenizer",
+            GermanNlpAnalyzer.TOKEN_MODEL,
+            "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-tokenizer-de/1.3.0/opennlp-models-tokenizer-de-1.3.0.jar"
+        ),
+        new ModelArtifact(
+            "part-of-speech model",
+            GermanNlpAnalyzer.POS_MODEL,
+            "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-pos-de/1.3.0/opennlp-models-pos-de-1.3.0.jar"
+        ),
+        new ModelArtifact(
+            "lemmatizer",
+            GermanNlpAnalyzer.LEMMA_MODEL,
+            "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-lemmatizer-de/1.3.0/opennlp-models-lemmatizer-de-1.3.0.jar"
+        ),
+    };
     private static final ModelArtifact[] ENGLISH_MODELS = new ModelArtifact[] {
         new ModelArtifact(
             "sentence detector",
@@ -67,6 +89,10 @@ final class AndroidLanguagePackStore {
         JSArray result = new JSArray();
         for (String language : SUPPORTED_LANGUAGES) result.put(language);
         return result;
+    }
+
+    List<String> supportedLanguageCodes() {
+        return SUPPORTED_LANGUAGES;
     }
 
     JSArray installedPacks() {
@@ -145,7 +171,7 @@ final class AndroidLanguagePackStore {
 
             File modelsDirectory = new File(staging, "models");
             ensureDirectory(modelsDirectory);
-            installEnglishModels(modelsDirectory, progress);
+            installModels(language, modelsDirectory, progress);
             progress.update(0.98, "verifying_install", null, 100);
 
             if (!hasUsableDatabase(staging) || !hasUsableModels(language, staging)) {
@@ -153,6 +179,8 @@ final class AndroidLanguagePackStore {
             }
             if ("en".equals(language)) {
                 new EnglishNlpAnalyzer(new File(staging, "models"));
+            } else if ("de".equals(language)) {
+                new GermanNlpAnalyzer(new File(staging, "models"), null);
             }
 
             File target = new File(languageDirectory, version);
@@ -175,12 +203,17 @@ final class AndroidLanguagePackStore {
         if (remaining != null && remaining.length == 0) languageDirectory.delete();
     }
 
-    private void installEnglishModels(File modelsDirectory, ProgressListener progress) throws Exception {
-        for (int index = 0; index < ENGLISH_MODELS.length; index += 1) {
-            ModelArtifact artifact = ENGLISH_MODELS[index];
-            double start = 0.66 + (0.30 * index / ENGLISH_MODELS.length);
-            double end = 0.66 + (0.30 * (index + 1) / ENGLISH_MODELS.length);
-            int startPercent = (int) Math.round(100.0 * index / ENGLISH_MODELS.length);
+    private void installModels(
+        String language,
+        File modelsDirectory,
+        ProgressListener progress
+    ) throws Exception {
+        ModelArtifact[] models = modelsForLanguage(language);
+        for (int index = 0; index < models.length; index += 1) {
+            ModelArtifact artifact = models[index];
+            double start = 0.66 + (0.30 * index / models.length);
+            double end = 0.66 + (0.30 * (index + 1) / models.length);
+            int startPercent = (int) Math.round(100.0 * index / models.length);
             File archive = null;
             try {
                 archive = download(
@@ -199,6 +232,12 @@ final class AndroidLanguagePackStore {
                 if (archive != null) archive.delete();
             }
         }
+    }
+
+    private ModelArtifact[] modelsForLanguage(String language) {
+        if ("de".equals(language)) return GERMAN_MODELS;
+        if ("en".equals(language)) return ENGLISH_MODELS;
+        throw new IllegalArgumentException("Unsupported Android language pack: " + language);
     }
 
     private File download(
@@ -328,7 +367,10 @@ final class AndroidLanguagePackStore {
     }
 
     private boolean hasUsableModels(String language, File directory) {
-        return "en".equals(language) && EnglishNlpAnalyzer.modelsAvailable(new File(directory, "models"));
+        File modelsDirectory = new File(directory, "models");
+        if ("de".equals(language)) return GermanNlpAnalyzer.modelsAvailable(modelsDirectory);
+        if ("en".equals(language)) return EnglishNlpAnalyzer.modelsAvailable(modelsDirectory);
+        return false;
     }
 
     private File rootDirectory() {

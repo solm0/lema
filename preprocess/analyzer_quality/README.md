@@ -62,13 +62,21 @@ python3 preprocess/analyzer_quality/compare.py \
 품사/lemma를 넣을 수 있다. 분석기 고유 보정은 Android 어댑터에서 수행하고, 이 설정은 그
 보정안을 실험하거나 서로 다른 태그셋을 비교하는 데 사용한다.
 
-## Android 실기기에서 영어 기준선 만들기
+## Android 실기기에서 기준선 만들기
 
 USB 디버깅으로 연결된 기기에서 영어 분석기를 1,000문장 실행하고 비교 결과를
 `baselines/en-android-opennlp.json`에 저장한다.
 
 ```bash
 python3 preprocess/analyzer_quality/run_android.py --language en --sample-size 1000
+```
+
+독일어는 같은 실행기에 `--language de`를 지정한다. OpenNLP의 UD German GSD
+분석 결과는 기존 spaCy 기반 언어팩의 `lemma_POS`가 없을 때만 DB에 존재하는
+품사·표기 대체 후보를 적용한다.
+
+```bash
+python3 preprocess/analyzer_quality/run_android.py --language de --sample-size 1000
 ```
 
 이 실행기는 Gradshow Debug 앱을 별도 패키지로 설치하므로 일반 Debug 앱의 로컬 페이지에는
@@ -88,6 +96,8 @@ python3 preprocess/analyzer_quality/run_android.py --language en --sample-size 1
 ```bash
 python3 preprocess/analyzer_quality/run_android_performance.py --language en
 ```
+
+독일어 모델은 `--language de`로 같은 로드·힙·지연 지표를 측정한다.
 
 APK가 이미 최신이면 빌드와 설치를 생략할 수 있다.
 

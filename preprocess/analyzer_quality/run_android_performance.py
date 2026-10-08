@@ -28,6 +28,25 @@ from preprocess.analyzer_quality.android_device import (  # noqa: E402
 
 
 LANGUAGES: dict[str, dict[str, Any]] = {
+    "de": {
+        "application_id": "com.solmi.lema.gradshow.debug",
+        "test_application_id": "com.solmi.lema.gradshow.debug.test",
+        "test_class": (
+            "com.solmi.lema.GermanNlpAnalyzerInstrumentedTest"
+            "#loadsModelsAndAnalyzesOnAndroidRuntime"
+        ),
+        "remote_report": "cache/analyzer-quality/de-android-performance.json",
+        "baseline": (
+            ROOT
+            / "preprocess/analyzer_quality/baselines/de-android-opennlp-performance.json"
+        ),
+        "analyzer": {
+            "engine": "Apache OpenNLP",
+            "runtime_version": "2.5.3",
+            "model_package_version": "1.3.0",
+            "model_treebank": "UD German GSD",
+        },
+    },
     "en": {
         "application_id": "com.solmi.lema.gradshow.debug",
         "test_application_id": "com.solmi.lema.gradshow.debug.test",
@@ -189,4 +208,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

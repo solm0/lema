@@ -110,6 +110,9 @@ tasks.register("prepareGradshowAssets", Sync) {
     from(rootProject.file("../../releases/en/en-v1.1.2/en-v1.1.2-lemma.zip")) {
         into "packs"
     }
+    from(rootProject.file("../../releases/de/de-v1.1.2/de-v1.1.2-lemma.zip")) {
+        into "packs"
+    }
     into gradshowAssetsDir
 }
 
@@ -155,10 +158,18 @@ dependencies {
     gradshowImplementation "org.apache.opennlp:opennlp-models-tokenizer-en:1.3.0"
     gradshowImplementation "org.apache.opennlp:opennlp-models-pos-en:1.3.0"
     gradshowImplementation "org.apache.opennlp:opennlp-models-lemmatizer-en:1.3.0"
+    gradshowImplementation "org.apache.opennlp:opennlp-models-sentdetect-de:1.3.0"
+    gradshowImplementation "org.apache.opennlp:opennlp-models-tokenizer-de:1.3.0"
+    gradshowImplementation "org.apache.opennlp:opennlp-models-pos-de:1.3.0"
+    gradshowImplementation "org.apache.opennlp:opennlp-models-lemmatizer-de:1.3.0"
     debugImplementation "org.apache.opennlp:opennlp-models-sentdetect-en:1.3.0"
     debugImplementation "org.apache.opennlp:opennlp-models-tokenizer-en:1.3.0"
     debugImplementation "org.apache.opennlp:opennlp-models-pos-en:1.3.0"
     debugImplementation "org.apache.opennlp:opennlp-models-lemmatizer-en:1.3.0"
+    debugImplementation "org.apache.opennlp:opennlp-models-sentdetect-de:1.3.0"
+    debugImplementation "org.apache.opennlp:opennlp-models-tokenizer-de:1.3.0"
+    debugImplementation "org.apache.opennlp:opennlp-models-pos-de:1.3.0"
+    debugImplementation "org.apache.opennlp:opennlp-models-lemmatizer-de:1.3.0"
 }
 
 apply from: 'capacitor.build.gradle'

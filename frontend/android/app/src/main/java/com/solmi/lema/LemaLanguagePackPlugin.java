@@ -35,7 +35,7 @@ import java.util.zip.ZipInputStream;
 
 @CapacitorPlugin(name = "LemaLanguagePack")
 public class LemaLanguagePackPlugin extends Plugin {
-    private static final String PACK_ASSET = "packs/en-v1.1.2-lemma.zip";
+    private static final String GRADSHOW_PACK_VERSION = "1.1.2";
     private static final int MAX_ANALYZE_BLOCKS = 100;
     private static final int MAX_ANALYZE_CHARS = 50_000;
     private static final int MAX_LOOKUP_ITEMS = 100;
@@ -47,10 +47,12 @@ public class LemaLanguagePackPlugin extends Plugin {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Map<String, JSObject> installProgress = new ConcurrentHashMap<>();
     private AndroidLanguagePackStore packStore;
-    private SQLiteDatabase database;
-    private File openPackDirectory;
-    private EnglishNlpAnalyzer analyzer;
-    private File openAnalyzerDirectory;
+    private final Map<String, SQLiteDatabase> databases = new HashMap<>();
+    private final Map<String, File> openPackDirectories = new HashMap<>();
+    private EnglishNlpAnalyzer englishAnalyzer;
+    private File openEnglishAnalyzerDirectory;
+    private GermanNlpAnalyzer germanAnalyzer;
+    private File openGermanAnalyzerDirectory;
 
     @PluginMethod
     public void getSupportedLanguages(PluginCall call) {
@@ -135,15 +137,15 @@ public class LemaLanguagePackPlugin extends Plugin {
         JSArray analysisLanguages = new JSArray();
         JSArray lookupLanguages = new JSArray();
 
-        File installedEnglish = packStore().latestReadyDirectory("en");
-        if (installedEnglish != null) {
-            analysisLanguages.put("en");
-            lookupLanguages.put("en");
-        } else if (BuildConfig.GRADSHOW_MODE
-            && EnglishNlpAnalyzer.modelsAvailable(getClass().getClassLoader())
-            && hasPackSource()) {
-            analysisLanguages.put("en");
-            lookupLanguages.put("en");
+        for (String language : packStore().supportedLanguageCodes()) {
+            File installed = packStore().latestReadyDirectory(language);
+            boolean gradshowReady = BuildConfig.GRADSHOW_MODE
+                && bundledModelsAvailable(language)
+                && hasPackSource(language);
+            if (installed != null || gradshowReady) {
+                analysisLanguages.put(language);
+                lookupLanguages.put(language);
+            }
         }
 
         JSObject response = new JSObject();
@@ -182,7 +184,7 @@ public class LemaLanguagePackPlugin extends Plugin {
 
         executor.execute(() -> {
             try {
-                if (!"en".equals(language)) {
+                if (!packStore().supportedLanguageCodes().contains(language)) {
                     throw new IllegalArgumentException("Unsupported local analysis language: " + language);
                 }
                 if (blocks.length() > MAX_ANALYZE_BLOCKS) {
@@ -198,7 +200,12 @@ public class LemaLanguagePackPlugin extends Plugin {
                     throw new IllegalArgumentException("Analysis input exceeds " + MAX_ANALYZE_CHARS + " characters");
                 }
 
-                EnglishNlpAnalyzer englishAnalyzer = openAnalyzer();
+                EnglishNlpAnalyzer selectedEnglishAnalyzer = "en".equals(language)
+                    ? openEnglishAnalyzer()
+                    : null;
+                GermanNlpAnalyzer selectedGermanAnalyzer = "de".equals(language)
+                    ? openGermanAnalyzer()
+                    : null;
                 JSArray analyzedBlocks = new JSArray();
 
                 for (int index = 0; index < blocks.length(); index += 1) {
@@ -207,8 +214,16 @@ public class LemaLanguagePackPlugin extends Plugin {
                     String text = originalText.trim();
                     JSArray tokens = new JSArray();
 
-                    if (!text.isEmpty()) {
-                        for (EnglishNlpAnalyzer.Token token : englishAnalyzer.analyze(text)) {
+                    if (!text.isEmpty() && selectedEnglishAnalyzer != null) {
+                        for (EnglishNlpAnalyzer.Token token : selectedEnglishAnalyzer.analyze(text)) {
+                            JSObject outputToken = new JSObject();
+                            outputToken.put("surface", token.surface);
+                            outputToken.put("lemma", token.lemma != null ? token.lemma : JSONObject.NULL);
+                            outputToken.put("pos", token.pos != null ? token.pos : JSONObject.NULL);
+                            tokens.put(outputToken);
+                        }
+                    } else if (!text.isEmpty() && selectedGermanAnalyzer != null) {
+                        for (GermanNlpAnalyzer.Token token : selectedGermanAnalyzer.analyze(text)) {
                             JSObject outputToken = new JSObject();
                             outputToken.put("surface", token.surface);
                             outputToken.put("lemma", token.lemma != null ? token.lemma : JSONObject.NULL);
@@ -228,7 +243,7 @@ public class LemaLanguagePackPlugin extends Plugin {
                 call.resolve(response);
             } catch (Exception error) {
                 call.reject(
-                    error.getMessage() != null ? error.getMessage() : "Could not analyze English text locally",
+                    error.getMessage() != null ? error.getMessage() : "Could not analyze text locally",
                     error
                 );
             }
@@ -244,10 +259,10 @@ public class LemaLanguagePackPlugin extends Plugin {
 
         executor.execute(() -> {
             try {
-                if (!"en".equals(language)) {
+                if (!packStore().supportedLanguageCodes().contains(language)) {
                     throw new IllegalArgumentException("Unsupported local lookup language: " + language);
                 }
-                JSONObject result = lookupEntry(openDatabase(), lemma, pos, language, profile);
+                JSONObject result = lookupEntry(openDatabase(language), lemma, pos, language, profile);
                 call.resolve(result != null
                     ? JSObject.fromJSONObject(result)
                     : JSObject.fromJSONObject(missingLookupResult(lemma, pos, language, profile))
@@ -269,14 +284,14 @@ public class LemaLanguagePackPlugin extends Plugin {
 
         executor.execute(() -> {
             try {
-                if (!"en".equals(language)) {
+                if (!packStore().supportedLanguageCodes().contains(language)) {
                     JSObject response = new JSObject();
                     response.put("items", new JSObject());
                     call.resolve(response);
                     return;
                 }
 
-                SQLiteDatabase db = openDatabase();
+                SQLiteDatabase db = openDatabase(language);
                 JSObject output = new JSObject();
                 int count = Math.min(items.length(), MAX_LOOKUP_ITEMS);
 
@@ -303,31 +318,38 @@ public class LemaLanguagePackPlugin extends Plugin {
         });
     }
 
-    private synchronized SQLiteDatabase openDatabase() throws Exception {
-        File packDirectory = getReadablePackDirectory();
-        if (database != null
-            && database.isOpen()
-            && packDirectory.equals(openPackDirectory)) {
-            return database;
+    private synchronized SQLiteDatabase openDatabase(String language) throws Exception {
+        File packDirectory = getReadablePackDirectory(language);
+        SQLiteDatabase existing = databases.get(language);
+        File existingDirectory = openPackDirectories.get(language);
+        if (existing != null
+            && existing.isOpen()
+            && packDirectory.equals(existingDirectory)) {
+            return existing;
         }
-        if (database != null) database.close();
+        if (existing != null) existing.close();
         File packDatabase = new File(packDirectory, "lemma_pack.db");
         if (!packDatabase.exists() || packDatabase.length() == 0) {
             if (!BuildConfig.GRADSHOW_MODE) {
-                throw new IllegalStateException("English language pack is not installed");
+                throw new IllegalStateException(language + " language pack is not installed");
             }
-            extractPack(packDirectory, packDatabase);
+            extractPack(language, packDirectory, packDatabase);
         }
-        database = SQLiteDatabase.openDatabase(
+        SQLiteDatabase database = SQLiteDatabase.openDatabase(
             packDatabase.getAbsolutePath(),
             null,
             SQLiteDatabase.OPEN_READONLY
         );
-        openPackDirectory = packDirectory;
+        databases.put(language, database);
+        openPackDirectories.put(language, packDirectory);
         return database;
     }
 
-    private void extractPack(File packDirectory, File packDatabase) throws Exception {
+    private void extractPack(
+        String language,
+        File packDirectory,
+        File packDatabase
+    ) throws Exception {
         if (!packDirectory.exists() && !packDirectory.mkdirs()) {
             throw new IllegalStateException("Could not create language pack directory");
         }
@@ -339,7 +361,7 @@ public class LemaLanguagePackPlugin extends Plugin {
 
         boolean found = false;
         try (
-            InputStream asset = getContext().getAssets().open(PACK_ASSET);
+            InputStream asset = getContext().getAssets().open(packAsset(language));
             ZipInputStream zip = new ZipInputStream(asset)
         ) {
             ZipEntry entry;
@@ -363,7 +385,7 @@ public class LemaLanguagePackPlugin extends Plugin {
 
         if (!found || temporary.length() == 0) {
             temporary.delete();
-            throw new IllegalStateException("Bundled English language pack is invalid");
+            throw new IllegalStateException("Bundled " + language + " language pack is invalid");
         }
         if (packDatabase.exists() && !packDatabase.delete()) {
             temporary.delete();
@@ -375,34 +397,63 @@ public class LemaLanguagePackPlugin extends Plugin {
         }
     }
 
-    private synchronized EnglishNlpAnalyzer openAnalyzer() throws Exception {
+    private synchronized EnglishNlpAnalyzer openEnglishAnalyzer() throws Exception {
         File installedDirectory = packStore().latestReadyDirectory("en");
         if (installedDirectory != null) {
             File modelDirectory = new File(installedDirectory, "models");
-            if (analyzer == null || !modelDirectory.equals(openAnalyzerDirectory)) {
-                analyzer = new EnglishNlpAnalyzer(modelDirectory);
-                openAnalyzerDirectory = modelDirectory;
+            if (englishAnalyzer == null || !modelDirectory.equals(openEnglishAnalyzerDirectory)) {
+                englishAnalyzer = new EnglishNlpAnalyzer(modelDirectory);
+                openEnglishAnalyzerDirectory = modelDirectory;
             }
-            return analyzer;
+            return englishAnalyzer;
         }
         if (!BuildConfig.GRADSHOW_MODE) {
             throw new IllegalStateException("English language pack is not installed");
         }
-        if (analyzer == null || openAnalyzerDirectory != null) {
-            analyzer = new EnglishNlpAnalyzer(getClass().getClassLoader());
-            openAnalyzerDirectory = null;
+        if (englishAnalyzer == null || openEnglishAnalyzerDirectory != null) {
+            englishAnalyzer = new EnglishNlpAnalyzer(getClass().getClassLoader());
+            openEnglishAnalyzerDirectory = null;
         }
-        return analyzer;
+        return englishAnalyzer;
     }
 
-    private File getGradshowPackDirectory() {
-        return new File(getContext().getFilesDir(), "gradshow-language-packs/en-v1.1.2");
+    private synchronized GermanNlpAnalyzer openGermanAnalyzer() throws Exception {
+        File installedDirectory = packStore().latestReadyDirectory("de");
+        if (installedDirectory != null) {
+            File modelDirectory = new File(installedDirectory, "models");
+            if (germanAnalyzer == null || !modelDirectory.equals(openGermanAnalyzerDirectory)) {
+                germanAnalyzer = new GermanNlpAnalyzer(
+                    modelDirectory,
+                    new SqliteLemmaKeyLookup(openDatabase("de"))
+                );
+                openGermanAnalyzerDirectory = modelDirectory;
+            }
+            return germanAnalyzer;
+        }
+        if (!BuildConfig.GRADSHOW_MODE) {
+            throw new IllegalStateException("German language pack is not installed");
+        }
+        if (germanAnalyzer == null || openGermanAnalyzerDirectory != null) {
+            germanAnalyzer = new GermanNlpAnalyzer(
+                getClass().getClassLoader(),
+                new SqliteLemmaKeyLookup(openDatabase("de"))
+            );
+            openGermanAnalyzerDirectory = null;
+        }
+        return germanAnalyzer;
     }
 
-    private File getReadablePackDirectory() {
-        File installed = packStore().latestReadyDirectory("en");
+    private File getGradshowPackDirectory(String language) {
+        return new File(
+            getContext().getFilesDir(),
+            "gradshow-language-packs/" + language + "-v" + GRADSHOW_PACK_VERSION
+        );
+    }
+
+    private File getReadablePackDirectory(String language) {
+        File installed = packStore().latestReadyDirectory(language);
         if (installed != null) return installed;
-        return getGradshowPackDirectory();
+        return getGradshowPackDirectory(language);
     }
 
     private boolean hasUsableDatabase(File directory) {
@@ -410,23 +461,41 @@ public class LemaLanguagePackPlugin extends Plugin {
         return installedDatabase.isFile() && installedDatabase.length() > 0;
     }
 
-    private boolean hasPackSource() {
-        if (packStore().latestReadyDirectory("en") != null) return true;
-        if (hasUsableDatabase(getGradshowPackDirectory())) return true;
+    private boolean hasPackSource(String language) {
+        if (packStore().latestReadyDirectory(language) != null) return true;
+        if (hasUsableDatabase(getGradshowPackDirectory(language))) return true;
 
-        try (InputStream ignored = getContext().getAssets().open(PACK_ASSET)) {
+        try (InputStream ignored = getContext().getAssets().open(packAsset(language))) {
             return true;
         } catch (Exception ignored) {
             return false;
         }
     }
 
+    private boolean bundledModelsAvailable(String language) {
+        if ("de".equals(language)) {
+            return GermanNlpAnalyzer.modelsAvailable(getClass().getClassLoader());
+        }
+        if ("en".equals(language)) {
+            return EnglishNlpAnalyzer.modelsAvailable(getClass().getClassLoader());
+        }
+        return false;
+    }
+
+    private String packAsset(String language) {
+        return "packs/" + language + "-v" + GRADSHOW_PACK_VERSION + "-lemma.zip";
+    }
+
     private synchronized void closeOpenPack() {
-        if (database != null) database.close();
-        database = null;
-        openPackDirectory = null;
-        analyzer = null;
-        openAnalyzerDirectory = null;
+        for (SQLiteDatabase database : databases.values()) {
+            if (database != null && database.isOpen()) database.close();
+        }
+        databases.clear();
+        openPackDirectories.clear();
+        englishAnalyzer = null;
+        openEnglishAnalyzerDirectory = null;
+        germanAnalyzer = null;
+        openGermanAnalyzerDirectory = null;
     }
 
     private JSONObject missingLookupResult(
@@ -811,11 +880,7 @@ public class LemaLanguagePackPlugin extends Plugin {
     @Override
     protected void handleOnDestroy() {
         executor.shutdown();
-        synchronized (this) {
-            if (database != null) database.close();
-            database = null;
-            analyzer = null;
-        }
+        closeOpenPack();
         super.handleOnDestroy();
     }
 }

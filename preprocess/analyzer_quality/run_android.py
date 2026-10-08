@@ -37,6 +37,24 @@ from preprocess.analyzer_quality.compare import (  # noqa: E402
 
 
 LANGUAGES: dict[str, dict[str, Any]] = {
+    "de": {
+        "application_id": "com.solmi.lema.gradshow.debug",
+        "test_application_id": "com.solmi.lema.gradshow.debug.test",
+        "test_class": (
+            "com.solmi.lema.AnalyzerQualityExportInstrumentedTest"
+            "#exportsGermanCandidateJsonl"
+        ),
+        "remote_candidate": "cache/analyzer-quality/de-android.jsonl",
+        "reference_db": ROOT / "releases/de/de-v1.1.2/lemma_pack.db",
+        "config": ROOT / "preprocess/analyzer_quality/configs/de.json",
+        "baseline": ROOT / "preprocess/analyzer_quality/baselines/de-android-opennlp.json",
+        "analyzer": {
+            "engine": "Apache OpenNLP",
+            "runtime_version": "2.5.3",
+            "model_package_version": "1.3.0",
+            "model_treebank": "UD German GSD",
+        },
+    },
     "en": {
         "application_id": "com.solmi.lema.gradshow.debug",
         "test_application_id": "com.solmi.lema.gradshow.debug.test",

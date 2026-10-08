@@ -31,22 +31,25 @@ import java.util.zip.ZipInputStream;
 
 @RunWith(AndroidJUnit4.class)
 public class AnalyzerQualityExportInstrumentedTest {
-    private static final String LANGUAGE = "en";
-    private static final String PACK_ASSET = "packs/en-v1.1.2-lemma.zip";
-    private static final String OUTPUT_PATH = "analyzer-quality/en-android.jsonl";
+    private static final String ENGLISH_LANGUAGE = "en";
+    private static final String GERMAN_LANGUAGE = "de";
+    private static final String ENGLISH_PACK_ASSET = "packs/en-v1.1.2-lemma.zip";
+    private static final String GERMAN_PACK_ASSET = "packs/de-v1.1.2-lemma.zip";
+    private static final String ENGLISH_OUTPUT_PATH = "analyzer-quality/en-android.jsonl";
+    private static final String GERMAN_OUTPUT_PATH = "analyzer-quality/de-android.jsonl";
 
     @Test
     public void exportsEnglishCandidateJsonl() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         Bundle arguments = InstrumentationRegistry.getArguments();
-        String requestedLanguage = arguments.getString("language", LANGUAGE);
+        String requestedLanguage = arguments.getString("language", ENGLISH_LANGUAGE);
         int requestedSampleSize = parseSampleSize(arguments.getString("sampleSize", "1000"));
 
-        assertEquals("This adapter currently exports the English analyzer", LANGUAGE, requestedLanguage);
+        assertEquals("This export runs the English analyzer", ENGLISH_LANGUAGE, requestedLanguage);
         assertTrue("The export requires the Gradshow language-pack asset", BuildConfig.GRADSHOW_MODE);
 
-        File databaseFile = extractPackDatabase(context);
-        File outputFile = new File(context.getCacheDir(), OUTPUT_PATH);
+        File databaseFile = extractPackDatabase(context, ENGLISH_PACK_ASSET, "english");
+        File outputFile = new File(context.getCacheDir(), ENGLISH_OUTPUT_PATH);
         File parent = outputFile.getParentFile();
         assertTrue(parent != null && (parent.isDirectory() || parent.mkdirs()));
 
@@ -76,7 +79,61 @@ public class AnalyzerQualityExportInstrumentedTest {
             assertEquals(lineIds.size(), countLines(outputFile));
             System.out.printf(
                 "LEMA_QUALITY_EXPORT language=%s samples=%d path=%s%n",
-                LANGUAGE,
+                ENGLISH_LANGUAGE,
+                lineIds.size(),
+                outputFile.getAbsolutePath()
+            );
+        } finally {
+            if (database != null) database.close();
+            databaseFile.delete();
+        }
+    }
+
+    @Test
+    public void exportsGermanCandidateJsonl() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        Bundle arguments = InstrumentationRegistry.getArguments();
+        String requestedLanguage = arguments.getString("language", GERMAN_LANGUAGE);
+        int requestedSampleSize = parseSampleSize(arguments.getString("sampleSize", "1000"));
+
+        assertEquals("This export runs the German analyzer", GERMAN_LANGUAGE, requestedLanguage);
+        assertTrue("The export requires the Gradshow language-pack asset", BuildConfig.GRADSHOW_MODE);
+
+        File databaseFile = extractPackDatabase(context, GERMAN_PACK_ASSET, "german");
+        File outputFile = new File(context.getCacheDir(), GERMAN_OUTPUT_PATH);
+        File parent = outputFile.getParentFile();
+        assertTrue(parent != null && (parent.isDirectory() || parent.mkdirs()));
+
+        SQLiteDatabase database = null;
+        try {
+            database = SQLiteDatabase.openDatabase(
+                databaseFile.getAbsolutePath(),
+                null,
+                SQLiteDatabase.OPEN_READONLY
+            );
+            List<Long> lineIds = evenlySpacedLineIds(database, requestedSampleSize);
+            GermanNlpAnalyzer analyzer = new GermanNlpAnalyzer(
+                context.getClassLoader(),
+                new SqliteLemmaKeyLookup(database)
+            );
+
+            try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(outputFile),
+                StandardCharsets.UTF_8
+            ))) {
+                for (long lineId : lineIds) {
+                    JSONObject reference = readLine(database, lineId);
+                    String input = reconstructInput(reference.getJSONArray("tokens"));
+                    List<GermanNlpAnalyzer.Token> analyzed = analyzer.analyze(input);
+                    writer.write(germanCandidateRecord(lineId, analyzed).toString());
+                    writer.newLine();
+                }
+            }
+
+            assertEquals(lineIds.size(), countLines(outputFile));
+            System.out.printf(
+                "LEMA_QUALITY_EXPORT language=%s samples=%d path=%s%n",
+                GERMAN_LANGUAGE,
                 lineIds.size(),
                 outputFile.getAbsolutePath()
             );
@@ -97,11 +154,19 @@ public class AnalyzerQualityExportInstrumentedTest {
         return parsed;
     }
 
-    private static File extractPackDatabase(Context context) throws Exception {
-        File databaseFile = File.createTempFile("english-quality-reference-", ".db", context.getCacheDir());
+    private static File extractPackDatabase(
+        Context context,
+        String packAsset,
+        String filePrefix
+    ) throws Exception {
+        File databaseFile = File.createTempFile(
+            filePrefix + "-quality-reference-",
+            ".db",
+            context.getCacheDir()
+        );
         boolean found = false;
         try (
-            InputStream input = context.getAssets().open(PACK_ASSET);
+            InputStream input = context.getAssets().open(packAsset);
             ZipInputStream zip = new ZipInputStream(input)
         ) {
             ZipEntry entry;
@@ -182,6 +247,24 @@ public class AnalyzerQualityExportInstrumentedTest {
         return output;
     }
 
+    private static JSONObject germanCandidateRecord(
+        long lineId,
+        List<GermanNlpAnalyzer.Token> tokens
+    ) throws Exception {
+        JSONArray outputTokens = new JSONArray();
+        for (GermanNlpAnalyzer.Token token : tokens) {
+            JSONObject outputToken = new JSONObject();
+            outputToken.put("surface", token.surface);
+            if (token.lemma != null) outputToken.put("lemma", token.lemma);
+            if (token.pos != null) outputToken.put("pos", token.pos);
+            outputTokens.put(outputToken);
+        }
+        JSONObject output = new JSONObject();
+        output.put("id", lineId);
+        output.put("tokens", outputTokens);
+        return output;
+    }
+
     private static int countLines(File file) throws Exception {
         int count = 0;
         try (InputStream input = new java.io.FileInputStream(file)) {
@@ -196,4 +279,3 @@ public class AnalyzerQualityExportInstrumentedTest {
         return count;
     }
 }
-
