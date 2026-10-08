@@ -46,7 +46,6 @@ load_dotenv()
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"
-DATABASE_URL = os.getenv('DATABASE_URL')
 PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "http://localhost:8000/api")
 
 pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated=["bcrypt"])
