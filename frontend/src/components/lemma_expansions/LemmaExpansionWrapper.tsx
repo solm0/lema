@@ -43,7 +43,6 @@ export default function LemmaExpansionWrapper({
   const inflightRef = useRef(new Set<string>());
   const statusRef = useRef(new Map<string, "loading" | "success" | "error">());
   const [missingPackLang, setMissingPackLang] = useState<string | null>(null);
-  const [activationRevision, setActivationRevision] = useState(0);
 
   useEffect(() => {
     const lemmaKey = activeNode?.data.lemma;
@@ -90,7 +89,7 @@ export default function LemmaExpansionWrapper({
       }
 
     })();
-  }, [activeNode, lemmaDatas, addLemmaData, onLemmaFetchStart, onLemmaFetchSuccess, onLemmaFetchError, activationRevision, language]);
+  }, [activeNode, lemmaDatas, addLemmaData, onLemmaFetchStart, onLemmaFetchSuccess, onLemmaFetchError, language]);
 
   const lemmaData = lemmaDatas.find(l => l.key === activeKey)
   const status = activeKey ? statusRef.current.get(activeKey) : undefined;
@@ -105,7 +104,6 @@ export default function LemmaExpansionWrapper({
           language={missingPackLang ?? ""}
           open={missingPackLang !== null}
           onClose={() => setMissingPackLang(null)}
-          onActivated={() => setActivationRevision((revision) => revision + 1)}
         />
         <div className="w-full h-full flex flex-col items-center justify-center gap-2">
           <CircleAlert size={20} />
@@ -133,7 +131,6 @@ export default function LemmaExpansionWrapper({
       language={missingPackLang ?? ""}
       open={missingPackLang !== null}
       onClose={() => setMissingPackLang(null)}
-      onActivated={() => setActivationRevision((revision) => revision + 1)}
     />
   );
 }

@@ -560,9 +560,7 @@ export default function Setting() {
         <section className="w-full flex flex-col gap-6">
           <h3 ref={languagePacksRef} className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Language packs")}</h3>
           <p className="text-sm">
-            {mobileApp
-              ? t("Activate only the languages you want to use on this device.")
-              : t("To reduce storage, keep a single language version.")}
+            {t("To reduce storage, keep a single language version.")}
           </p>
           <fieldset
             disabled={GRADSHOW_MODE}

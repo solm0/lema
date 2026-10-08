@@ -26,21 +26,240 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-@CapacitorPlugin(name = "GradshowLanguagePack")
-public class GradshowLanguagePackPlugin extends Plugin {
+@CapacitorPlugin(name = "LemaLanguagePack")
+public class LemaLanguagePackPlugin extends Plugin {
     private static final String PACK_ASSET = "packs/en-v1.1.2-lemma.zip";
+    private static final int MAX_ANALYZE_BLOCKS = 100;
+    private static final int MAX_ANALYZE_CHARS = 50_000;
+    private static final int MAX_LOOKUP_ITEMS = 100;
     private static final int EXAMPLE_LIMIT = 12;
     private static final double SIMILARITY_THRESHOLD = 0.85;
     private static final Set<String> IGNORED_POS =
         new HashSet<>(Arrays.asList("PUNCT", "SPACE", "SYM"));
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Map<String, JSObject> installProgress = new ConcurrentHashMap<>();
+    private AndroidLanguagePackStore packStore;
     private SQLiteDatabase database;
+    private File openPackDirectory;
+    private EnglishNlpAnalyzer analyzer;
+    private File openAnalyzerDirectory;
+
+    @PluginMethod
+    public void getSupportedLanguages(PluginCall call) {
+        JSObject response = new JSObject();
+        response.put("languages", packStore().supportedLanguages());
+        call.resolve(response);
+    }
+
+    @PluginMethod
+    public void getInstalledPacks(PluginCall call) {
+        JSObject response = new JSObject();
+        response.put("packs", packStore().installedPacks());
+        call.resolve(response);
+    }
+
+    @PluginMethod
+    public void install(PluginCall call) {
+        String language = call.getString("lang", "");
+        String version = call.getString("version", "");
+        String filename = call.getString("filename", "");
+        String downloadUrl = call.getString("download_url", "");
+        String taskId = UUID.randomUUID().toString();
+        setInstallProgress(taskId, 0.0, "downloading_pack", null, null);
+
+        executor.execute(() -> {
+            try {
+                closeOpenPack();
+                packStore().install(
+                    language,
+                    version,
+                    filename,
+                    downloadUrl,
+                    (progress, status, detail, modelPercent) ->
+                        setInstallProgress(taskId, progress, status, detail, modelPercent)
+                );
+            } catch (Exception error) {
+                JSObject state = new JSObject();
+                state.put("progress", 0);
+                state.put("status", "error");
+                state.put("error", error.getMessage() != null ? error.getMessage() : "Installation failed");
+                installProgress.put(taskId, state);
+            }
+        });
+
+        JSObject response = new JSObject();
+        response.put("task_id", taskId);
+        call.resolve(response);
+    }
+
+    @PluginMethod
+    public void getInstallProgress(PluginCall call) {
+        String taskId = call.getString("task_id", "");
+        JSObject state = installProgress.get(taskId);
+        if (state == null) {
+            state = new JSObject();
+            state.put("progress", 0);
+            state.put("status", "unknown");
+        }
+        call.resolve(state);
+    }
+
+    @PluginMethod
+    public void uninstall(PluginCall call) {
+        String language = call.getString("lang", "");
+        String version = call.getString("version", "");
+        executor.execute(() -> {
+            try {
+                closeOpenPack();
+                packStore().uninstall(language, version);
+                call.resolve();
+            } catch (Exception error) {
+                call.reject(
+                    error.getMessage() != null ? error.getMessage() : "Could not uninstall language pack",
+                    error
+                );
+            }
+        });
+    }
+
+    @PluginMethod
+    public void getCapabilities(PluginCall call) {
+        JSArray analysisLanguages = new JSArray();
+        JSArray lookupLanguages = new JSArray();
+
+        File installedEnglish = packStore().latestReadyDirectory("en");
+        if (installedEnglish != null) {
+            analysisLanguages.put("en");
+            lookupLanguages.put("en");
+        } else if (BuildConfig.GRADSHOW_MODE
+            && EnglishNlpAnalyzer.modelsAvailable(getClass().getClassLoader())
+            && hasPackSource()) {
+            analysisLanguages.put("en");
+            lookupLanguages.put("en");
+        }
+
+        JSObject response = new JSObject();
+        response.put("analysisLanguages", analysisLanguages);
+        response.put("lookupLanguages", lookupLanguages);
+        call.resolve(response);
+    }
+
+    private AndroidLanguagePackStore packStore() {
+        if (packStore == null) packStore = new AndroidLanguagePackStore(getContext());
+        return packStore;
+    }
+
+    private void setInstallProgress(
+        String taskId,
+        double progress,
+        String status,
+        String detail,
+        Integer modelPercent
+    ) {
+        JSObject state = new JSObject();
+        state.put("progress", Math.max(0.0, Math.min(1.0, progress)));
+        state.put("status", status);
+        if (detail != null) {
+            state.put("detail", detail);
+            if ("installing_model".equals(status)) state.put("model_name", detail);
+        }
+        if (modelPercent != null) state.put("model_percent", modelPercent);
+        installProgress.put(taskId, state);
+    }
+
+    @PluginMethod
+    public void analyze(PluginCall call) {
+        JSArray blocks = call.getArray("blocks", new JSArray());
+        String language = call.getString("language", "en");
+
+        executor.execute(() -> {
+            try {
+                if (!"en".equals(language)) {
+                    throw new IllegalArgumentException("Unsupported local analysis language: " + language);
+                }
+                if (blocks.length() > MAX_ANALYZE_BLOCKS) {
+                    throw new IllegalArgumentException("Analysis input exceeds " + MAX_ANALYZE_BLOCKS + " blocks");
+                }
+
+                int totalChars = 0;
+                for (int index = 0; index < blocks.length(); index += 1) {
+                    JSONObject block = blocks.optJSONObject(index);
+                    if (block != null) totalChars += block.optString("text", "").length();
+                }
+                if (totalChars > MAX_ANALYZE_CHARS) {
+                    throw new IllegalArgumentException("Analysis input exceeds " + MAX_ANALYZE_CHARS + " characters");
+                }
+
+                EnglishNlpAnalyzer englishAnalyzer = openAnalyzer();
+                JSArray analyzedBlocks = new JSArray();
+
+                for (int index = 0; index < blocks.length(); index += 1) {
+                    JSONObject block = blocks.optJSONObject(index);
+                    String originalText = block != null ? block.optString("text", "") : "";
+                    String text = originalText.trim();
+                    JSArray tokens = new JSArray();
+
+                    if (!text.isEmpty()) {
+                        for (EnglishNlpAnalyzer.Token token : englishAnalyzer.analyze(text)) {
+                            JSObject outputToken = new JSObject();
+                            outputToken.put("surface", token.surface);
+                            outputToken.put("lemma", token.lemma != null ? token.lemma : JSONObject.NULL);
+                            outputToken.put("pos", token.pos != null ? token.pos : JSONObject.NULL);
+                            tokens.put(outputToken);
+                        }
+                    }
+
+                    JSObject outputBlock = new JSObject();
+                    outputBlock.put("text", originalText);
+                    outputBlock.put("tokens", tokens);
+                    analyzedBlocks.put(outputBlock);
+                }
+
+                JSObject response = new JSObject();
+                response.put("blocks", analyzedBlocks);
+                call.resolve(response);
+            } catch (Exception error) {
+                call.reject(
+                    error.getMessage() != null ? error.getMessage() : "Could not analyze English text locally",
+                    error
+                );
+            }
+        });
+    }
+
+    @PluginMethod
+    public void lookup(PluginCall call) {
+        String lemma = call.getString("lemma", "").trim();
+        String pos = call.getString("pos", "").trim();
+        String language = call.getString("language", "en");
+        JSObject profile = call.getObject("profile", new JSObject());
+
+        executor.execute(() -> {
+            try {
+                if (!"en".equals(language)) {
+                    throw new IllegalArgumentException("Unsupported local lookup language: " + language);
+                }
+                JSONObject result = lookupEntry(openDatabase(), lemma, pos, language, profile);
+                call.resolve(result != null
+                    ? JSObject.fromJSONObject(result)
+                    : JSObject.fromJSONObject(missingLookupResult(lemma, pos, language, profile))
+                );
+            } catch (Exception error) {
+                call.reject(
+                    error.getMessage() != null ? error.getMessage() : "Could not query local language pack",
+                    error
+                );
+            }
+        });
+    }
 
     @PluginMethod
     public void lookupBatch(PluginCall call) {
@@ -59,7 +278,7 @@ public class GradshowLanguagePackPlugin extends Plugin {
 
                 SQLiteDatabase db = openDatabase();
                 JSObject output = new JSObject();
-                int count = Math.min(items.length(), 100);
+                int count = Math.min(items.length(), MAX_LOOKUP_ITEMS);
 
                 for (int index = 0; index < count; index += 1) {
                     JSONObject item = items.optJSONObject(index);
@@ -68,7 +287,7 @@ public class GradshowLanguagePackPlugin extends Plugin {
                     String pos = item.optString("pos", "").trim();
                     if (lemma.isEmpty() || pos.isEmpty()) continue;
 
-                    JSONObject result = lookup(db, lemma, pos, language, profile);
+                    JSONObject result = lookupEntry(db, lemma, pos, language, profile);
                     if (result != null) output.put(lemma + "_" + pos, result);
                 }
 
@@ -85,11 +304,18 @@ public class GradshowLanguagePackPlugin extends Plugin {
     }
 
     private synchronized SQLiteDatabase openDatabase() throws Exception {
-        if (database != null && database.isOpen()) return database;
-
-        File packDirectory = new File(getContext().getFilesDir(), "gradshow-language-packs/en-v1.1.2");
+        File packDirectory = getReadablePackDirectory();
+        if (database != null
+            && database.isOpen()
+            && packDirectory.equals(openPackDirectory)) {
+            return database;
+        }
+        if (database != null) database.close();
         File packDatabase = new File(packDirectory, "lemma_pack.db");
         if (!packDatabase.exists() || packDatabase.length() == 0) {
+            if (!BuildConfig.GRADSHOW_MODE) {
+                throw new IllegalStateException("English language pack is not installed");
+            }
             extractPack(packDirectory, packDatabase);
         }
         database = SQLiteDatabase.openDatabase(
@@ -97,6 +323,7 @@ public class GradshowLanguagePackPlugin extends Plugin {
             null,
             SQLiteDatabase.OPEN_READONLY
         );
+        openPackDirectory = packDirectory;
         return database;
     }
 
@@ -148,7 +375,82 @@ public class GradshowLanguagePackPlugin extends Plugin {
         }
     }
 
-    private JSONObject lookup(
+    private synchronized EnglishNlpAnalyzer openAnalyzer() throws Exception {
+        File installedDirectory = packStore().latestReadyDirectory("en");
+        if (installedDirectory != null) {
+            File modelDirectory = new File(installedDirectory, "models");
+            if (analyzer == null || !modelDirectory.equals(openAnalyzerDirectory)) {
+                analyzer = new EnglishNlpAnalyzer(modelDirectory);
+                openAnalyzerDirectory = modelDirectory;
+            }
+            return analyzer;
+        }
+        if (!BuildConfig.GRADSHOW_MODE) {
+            throw new IllegalStateException("English language pack is not installed");
+        }
+        if (analyzer == null || openAnalyzerDirectory != null) {
+            analyzer = new EnglishNlpAnalyzer(getClass().getClassLoader());
+            openAnalyzerDirectory = null;
+        }
+        return analyzer;
+    }
+
+    private File getGradshowPackDirectory() {
+        return new File(getContext().getFilesDir(), "gradshow-language-packs/en-v1.1.2");
+    }
+
+    private File getReadablePackDirectory() {
+        File installed = packStore().latestReadyDirectory("en");
+        if (installed != null) return installed;
+        return getGradshowPackDirectory();
+    }
+
+    private boolean hasUsableDatabase(File directory) {
+        File installedDatabase = new File(directory, "lemma_pack.db");
+        return installedDatabase.isFile() && installedDatabase.length() > 0;
+    }
+
+    private boolean hasPackSource() {
+        if (packStore().latestReadyDirectory("en") != null) return true;
+        if (hasUsableDatabase(getGradshowPackDirectory())) return true;
+
+        try (InputStream ignored = getContext().getAssets().open(PACK_ASSET)) {
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private synchronized void closeOpenPack() {
+        if (database != null) database.close();
+        database = null;
+        openPackDirectory = null;
+        analyzer = null;
+        openAnalyzerDirectory = null;
+    }
+
+    private JSONObject missingLookupResult(
+        String lemma,
+        String pos,
+        String language,
+        JSONObject profile
+    ) throws Exception {
+        String localKey = lemma + "_" + pos;
+        String globalKey = lemma + "/" + pos + "/" + language;
+        JSONObject state = profile.optJSONObject(globalKey);
+        boolean interested = state != null && state.optBoolean("is_interested", false);
+        JSONObject result = new JSONObject();
+        result.put("key", localKey);
+        result.put("global_key", globalKey);
+        result.put("found", false);
+        result.put("kwic", new JSONArray());
+        result.put("furigana", JSONObject.NULL);
+        result.put("is_interested", interested);
+        result.put("is_favorite", interested);
+        return result;
+    }
+
+    private JSONObject lookupEntry(
         SQLiteDatabase db,
         String lemma,
         String pos,
@@ -512,6 +814,7 @@ public class GradshowLanguagePackPlugin extends Plugin {
         synchronized (this) {
             if (database != null) database.close();
             database = null;
+            analyzer = null;
         }
         super.handleOnDestroy();
     }

@@ -1,0 +1,58 @@
+{
+  "language": "en",
+  "unicode_form": "NFC",
+  "casefold_lemmas": true,
+  "reference_pos_map": {},
+  "candidate_pos_map": {
+    "NN": "NOUN",
+    "NNS": "NOUN",
+    "NNP": "PROPN",
+    "NNPS": "PROPN",
+    "VB": "VERB",
+    "VBD": "VERB",
+    "VBG": "VERB",
+    "VBN": "VERB",
+    "VBP": "VERB",
+    "VBZ": "VERB"
+  },
+  "reference_lemma_map": {},
+  "candidate_lemma_map": {},
+  "exclude_pos": [
+    "PUNCT",
+    "SYM",
+    "SPACE",
+    "DET",
+    "CCONJ",
+    "SCONJ",
+    "PART",
+    "PRON",
+    "ADP"
+  ],
+  "exclude_lemmas": [
+    "be",
+    "have",
+    "do",
+    "can",
+    "could",
+    "may",
+    "might",
+    "must",
+    "shall",
+    "should",
+    "will",
+    "would",
+    "more",
+    "already",
+    "finally",
+    "however",
+    "then",
+    "there",
+    "here",
+    "also",
+    "still",
+    "only",
+    "about",
+    "well"
+  ]
+}
+

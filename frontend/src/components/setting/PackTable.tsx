@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDownIcon, ChevronUpIcon, Trash2 } from "lucide-react";
-import { getInstalled, getPacks, installPack, uninstallPack } from "../../api";
+import { getInstalled, getPacks, uninstallPack } from "../../api";
 import { isNetworkError } from "../../network";
 import { readPackCatalogSnapshot } from "../../packCatalogSnapshot";
 import PackModal from "./PackModal";
 import type { InstalledPack } from "../util/LanguageSelect";
-import Button from "../util/Button";
-import { isCapacitorApp } from "../../platform";
 import { invalidateInstalledLanguagesCache } from "../util/LanguageSelect";
 import { useI18n } from "../../i18n";
 
@@ -65,7 +63,6 @@ export function normalizePacksForTargetRelease(packs: Pack[]): Pack[] {
 
 export default function PackTable() {
   const { t } = useI18n();
-  const mobileApp = isCapacitorApp();
   const [packs, setPacks] = useState<Pack[]>([]);
   const [installed, setInstalled] = useState<InstalledPack[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +80,7 @@ export default function PackTable() {
     const cached = readPackCatalogSnapshot() as Pack[];
     const installedKeys = new Set(
       installedPacks
-        .filter((pack) => pack.lemma_installed || pack.installed)
+        .filter((pack) => pack.lemma_installed || pack.model_installed || pack.installed)
         .map((pack) => `${pack.lang}:${pack.version}`),
     );
 
@@ -92,7 +89,7 @@ export default function PackTable() {
     );
 
     const missingInstalled = installedPacks
-      .filter((pack) => pack.lemma_installed || pack.installed)
+      .filter((pack) => pack.lemma_installed || pack.model_installed || pack.installed)
       .filter(
         (pack) =>
           !cachedInstalled.some(
@@ -150,7 +147,7 @@ export default function PackTable() {
   }
 
   function renderDesktopStatus(state: InstalledPack) {
-    return state.lemma_installed ? (
+    return state.installed ? (
       <div className="text-xs px-1.5 rounded-full bg-green-100 text-green-800/60">
         {t("Installed")}
       </div>
@@ -158,44 +155,7 @@ export default function PackTable() {
   }
 
   function renderHeaderStatus(state: InstalledPack) {
-    if (mobileApp) {
-      if (!state.installed) {
-        return null;
-      }
-
-      return (
-        <div className="bg-green-200 text-green-700/80 text-xs px-2 rounded-full">
-          {t("Activate")}
-        </div>
-      );
-    }
-
     return renderDesktopStatus(state);
-  }
-
-  async function handleActivate(pack: Pack) {
-    const key = `${pack.lang}-${pack.version}`;
-
-    try {
-      setErrorMap((prev) => ({
-        ...prev,
-        [key]: "",
-      }));
-
-      await installPack({
-        lang: pack.lang,
-        version: pack.version,
-        filename: pack.lemma_filename,
-        download_url: pack.lemma_download_url,
-      });
-
-      await reload();
-    } catch {
-      setErrorMap((prev) => ({
-        ...prev,
-        [key]: "Failed to activate language.",
-      }));
-    }
   }
 
   async function handleUninstall(pack: Pack) {
@@ -216,9 +176,7 @@ export default function PackTable() {
     } catch {
       setErrorMap((prev) => ({
         ...prev,
-        [key]: mobileApp
-          ? "Failed to deactivate language."
-          : "Failed to uninstall pack.",
+        [key]: "Failed to uninstall pack.",
       }));
     }
   }
@@ -246,14 +204,7 @@ export default function PackTable() {
     return map;
   }, [packs]);
 
-  const groupsToRender = useMemo(() => {
-    if (!mobileApp) return Object.entries(grouped);
-
-    return Object.entries(grouped).map(([lang, langPacks]) => [
-      lang,
-      langPacks.slice(0, 1),
-    ] as const);
-  }, [grouped, mobileApp]);
+  const groupsToRender = useMemo(() => Object.entries(grouped), [grouped]);
 
   function openInstall(pack: Pack) {
     setSelectedInstall({
@@ -355,7 +306,8 @@ export default function PackTable() {
                     const key = `${pack.lang}-${pack.version}`;
                     const isHiddenVersion = HIDDEN_PACK_VERSIONS.has(pack.version);
                     const shouldDisableRemove =
-                      isHiddenVersion || !state.lemma_installed;
+                      isHiddenVersion
+                      || !(state.lemma_installed || state.model_installed || state.installed);
 
                     return (
                       <div
@@ -375,56 +327,35 @@ export default function PackTable() {
                           </div>
 
                           <div className="flex-1">
-                            {mobileApp ? (
-                              <div onClick={(event) => event.stopPropagation()}>
-                                {state.installed ? (
-                                  <Button
-                                    onClick={() => handleUninstall(pack)}
-                                    text={t("Deactivate")}
-                                    black
-                                    fit
-                                    disabled={isHiddenVersion}
-                                  />
-                                ) : (
-                                  <Button
-                                    onClick={() => handleActivate(pack)}
-                                    text={t("Activate")}
-                                    fit
-                                    disabled={offline || isHiddenVersion}
-                                  />
-                                )}
-                              </div>
-                            ) : (
-                              <div
-                                className="flex items-start justify-end gap-2"
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                <div className="flex flex-col gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => openInstall(pack)}
-                                    disabled={offline || isHiddenVersion || state.lemma_installed}
-                                    className={`rounded-sm px-3 py-2 text-xs transition-colors ${
-                                      state.lemma_installed
-                                        ? "bg-green-100 text-green-700/50"
-                                      : "border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-300 disabled:opacity-40 disabled:pointer-events-none"
-                                    }`}
-                                  >
-                                    {state.lemma_installed ? t("Installed") : t("Install")}
-                                  </button>
-                                </div>
-
+                            <div
+                              className="flex items-start justify-end gap-2"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <div className="flex flex-col gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => handleUninstall(pack)}
-                                  disabled={shouldDisableRemove}
-                                  className="rounded-sm p-2 text-neutral-600 transition-colors hover:bg-neutral-200 disabled:opacity-30 disabled:pointer-events-none disabled:hover:bg-transparent disabled:hover:text-neutral-600"
-                                  title={t("Remove language pack")}
+                                  onClick={() => openInstall(pack)}
+                                  disabled={offline || isHiddenVersion || state.installed}
+                                  className={`rounded-sm px-3 py-2 text-xs transition-colors ${
+                                    state.installed
+                                      ? "bg-green-100 text-green-700/50"
+                                      : "border border-neutral-300 bg-neutral-100 text-neutral-800 hover:bg-neutral-300 disabled:opacity-40 disabled:pointer-events-none"
+                                  }`}
                                 >
-                                  <Trash2 size={14} />
+                                  {state.installed ? t("Installed") : t("Install")}
                                 </button>
                               </div>
-                            )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleUninstall(pack)}
+                                disabled={shouldDisableRemove}
+                                className="rounded-sm p-2 text-neutral-600 transition-colors hover:bg-neutral-200 disabled:opacity-30 disabled:pointer-events-none disabled:hover:bg-transparent disabled:hover:text-neutral-600"
+                                title={t("Remove language pack")}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -449,7 +380,7 @@ export default function PackTable() {
         ) : null}
       </div>
 
-      {!mobileApp && selectedInstall ? (
+      {selectedInstall ? (
         <PackModal
           lang={selectedInstall.lang}
           version={selectedInstall.version}

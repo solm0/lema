@@ -1,5 +1,6 @@
 import type {
   Annotation,
+  LemmaData,
   PageSource,
   TextAnalysisResult,
   UserLemmaState,
@@ -14,9 +15,9 @@ import {
   storeVerifiedSession,
 } from "./authSession";
 import {
-  readPackCatalogSnapshot,
   writePackCatalogSnapshot,
 } from "./packCatalogSnapshot";
+import type { PackCatalogEntry } from "./packCatalogSnapshot";
 import {
   cacheInterestedLemmaKeys,
   cacheLemmaProfile,
@@ -27,11 +28,6 @@ import {
   syncOfflineOutbox,
 } from "./offlineData";
 import { getAppPlatform, isCapacitorApp, isElectronApp } from "./platform";
-import {
-  disableMobileLanguage,
-  enableMobileLanguage,
-  getEnabledMobileLanguages,
-} from "./mobilePacks";
 import { centralFetch } from "./network";
 import {
   createLocalAnnotation,
@@ -45,7 +41,18 @@ import {
   updateLocalAnnotation,
 } from "./localLibrary";
 import { GRADSHOW_MODE, GRADSHOW_USER } from "./gradshow/mode";
-import { lookupGradshowLemmas } from "./gradshow/languagePack";
+import {
+  analyzeWithNativePack,
+  canAnalyzeWithNativePack,
+  canLookupWithNativePack,
+  getInstalledNativePacks,
+  getNativePackInstallProgress,
+  getSupportedNativePackLanguages,
+  installNativePack,
+  lookupNativeLemma,
+  lookupNativeLemmas,
+  uninstallNativePack,
+} from "./nativeLanguagePack";
 
 const DEFAULT_CENTRAL_API = "https://nautilus.solmi.wiki/api";
 const DEFAULT_ELECTRON_LOCAL_API = "http://localhost:8010/api";
@@ -397,6 +404,10 @@ async function analyzeBlocksBatch(
   blocks: AnalyzeBlockInput[],
   language: string,
 ) {
+  if (isCapacitorApp() && await canAnalyzeWithNativePack(language)) {
+    return analyzeWithNativePack(blocks, language);
+  }
+
   const remoteAnalysis = !isElectronApp();
   const headers = remoteAnalysis
     ? authHeaders()
@@ -542,60 +553,62 @@ function normalizeSr(lemma: string) {
     .join("")
 }
 
+const MAX_LOOKUP_BATCH_ITEMS = 100;
+
 export async function lemmaLookup(
   items: { lemma: string; pos: string }[],
   language: string
-) {
-  if (GRADSHOW_MODE) {
-    return lookupGradshowLemmas(items, language, await getOfflineLemmaProfile());
+): Promise<Record<string, LemmaData>> {
+  const output: Record<string, LemmaData> = {};
+  const useNativePack =
+    isCapacitorApp() && await canLookupWithNativePack(language);
+  const profile = useNativePack ? await getOfflineLemmaProfile() : null;
+
+  for (let start = 0; start < items.length; start += MAX_LOOKUP_BATCH_ITEMS) {
+    const batch = items.slice(start, start + MAX_LOOKUP_BATCH_ITEMS);
+
+    if (useNativePack && profile) {
+      Object.assign(output, await lookupNativeLemmas(batch, language, profile));
+      continue;
+    }
+
+    const normalizedItems =
+      language === "sr"
+        ? batch.map(i => ({
+            ...i,
+            lemma: normalizeSr(i.lemma),
+          }))
+        : batch;
+    const headers = authHeaders() ?? {};
+    const res = await fetch(`${LOCAL_API}/lookup_batch`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...headers,
+      },
+      body: JSON.stringify({
+        items: normalizedItems,
+        language,
+      }),
+    });
+
+    if (!res.ok) throw new Error("lookup_batch failed");
+    Object.assign(output, await res.json() as Record<string, LemmaData>);
   }
-  const headers = authHeaders() ?? {}
 
-  const normalizedItems =
-    language === "sr"
-      ? items.map(i => ({
-          ...i,
-          lemma: normalizeSr(i.lemma),
-        }))
-      : items
-
-  const res = await fetch(`${LOCAL_API}/lookup_batch`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
-    body: JSON.stringify({
-      items: normalizedItems,
-      language,
-    }),
-  })
-
-  if (!res.ok) throw new Error("lookup_batch failed")
-
-  return res.json()
+  return output;
 }
 
 export async function lemmaLookupOne(
   item: { lemma:string; pos:string; },
   language: string
 ) {
-  if (GRADSHOW_MODE) {
-    const items = await lookupGradshowLemmas(
-      [item],
+  if (isCapacitorApp() && await canLookupWithNativePack(language)) {
+    return lookupNativeLemma(
+      item,
       language,
       await getOfflineLemmaProfile(),
     );
-    const localKey = `${item.lemma}_${item.pos}`;
-    return items[localKey] ?? {
-      key: localKey,
-      global_key: `${item.lemma}/${item.pos}/${language}`,
-      found: false,
-      kwic: [],
-      furigana: null,
-      is_interested: false,
-      is_favorite: false,
-    };
   }
   const headers = authHeaders() ?? {}
 
@@ -768,7 +781,7 @@ export async function createAnnotation(annotation: Annotation) {
 }
 
 // packs 목록
-export async function getPacks() {
+export async function getPacks(): Promise<PackCatalogEntry[]> {
   if (GRADSHOW_MODE) {
     return [{
       lang: "en",
@@ -785,11 +798,16 @@ export async function getPacks() {
     throw new Error("pack fetch failed");
   }
 
-  const data = await res.json();
+  const data: unknown = await res.json();
 
   if (Array.isArray(data)) {
-    writePackCatalogSnapshot(data);
-    return data;
+    let packs = data as PackCatalogEntry[];
+    if (isCapacitorApp()) {
+      const supportedLanguages = new Set(await getSupportedNativePackLanguages());
+      packs = packs.filter((pack) => supportedLanguages.has(pack.lang));
+    }
+    writePackCatalogSnapshot(packs);
+    return packs;
   }
 
   return [];
@@ -807,31 +825,7 @@ export async function getInstalled() {
     }];
   }
   if (isCapacitorApp()) {
-    const enabledLangs = await getEnabledMobileLanguages();
-    let packs = readPackCatalogSnapshot();
-
-    try {
-      packs = await getPacks();
-    } catch {
-      // Fallback to the last known pack catalog so mobile can keep showing enabled languages offline.
-    }
-
-    const latestByLang = new Map<string, any>();
-
-    for (const pack of packs) {
-      const existing = latestByLang.get(pack.lang);
-
-      if (!existing || compareVersionsDesc(existing.version, pack.version) > 0) {
-        latestByLang.set(pack.lang, pack);
-      }
-    }
-
-    return Array.from(latestByLang.values()).map((pack) => ({
-      lang: pack.lang,
-      version: pack.version,
-      installed: enabledLangs.includes(pack.lang),
-      lemma_installed: enabledLangs.includes(pack.lang),
-    }));
+    return getInstalledNativePacks();
   }
 
   return fetch(`${LOCAL_API}/lang/installed`).then(r => r.json());
@@ -845,14 +839,7 @@ export async function installPack(pack: {
   download_url?: string;
 }) {
   if (isCapacitorApp()) {
-    await enableMobileLanguage(pack.lang);
-
-    return {
-      status: "ok",
-      lang: pack.lang,
-      version: pack.version,
-      installed: true,
-    };
+    return installNativePack(pack);
   }
 
   return fetch(`${LOCAL_API}/lang/install`, {
@@ -868,14 +855,8 @@ export async function uninstallPack(pack: {
   version: string;
 }) {
   if (isCapacitorApp()) {
-    await disableMobileLanguage(pack.lang);
-
-    return {
-      status: "ok",
-      lang: pack.lang,
-      version: pack.version,
-      installed: false,
-    };
+    await uninstallNativePack(pack);
+    return { status: "ok" };
   }
 
   return fetch(`${LOCAL_API}/lang/uninstall`, {
@@ -887,5 +868,8 @@ export async function uninstallPack(pack: {
 
 // progress
 export async function getProgress(taskId: string) {
+  if (isCapacitorApp()) {
+    return getNativePackInstallProgress(taskId);
+  }
   return fetch(`${LOCAL_API}/lang/progress/${taskId}`).then(r => r.json());
 }

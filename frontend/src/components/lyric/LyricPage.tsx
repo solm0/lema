@@ -296,6 +296,9 @@ export default function LyricPage() {
           onProgress: setSaveProgress,
         },
       );
+      // Saving is the committed outcome. Lemma prefetch below is only an
+      // optimization and must not turn an already-saved page into a failure.
+      setSavedPageId(pageId);
 
       const items = analyzedBlocks
         .flatMap((block) => block.tokens ?? [])
@@ -307,10 +310,12 @@ export default function LyricPage() {
         const uniqueItems = Array.from(
           new Map(items.map((item) => [`${item.lemma}_${item.pos}`, item])).values(),
         );
-        await lemmaLookup(uniqueItems, language.lang);
+        try {
+          await lemmaLookup(uniqueItems, language.lang);
+        } catch (error) {
+          console.warn("[lyrics] lemma prefetch failed after page save", error);
+        }
       }
-
-      setSavedPageId(pageId);
     } catch (error) {
       if (error instanceof Error && error.message === "unauthorized") {
         navigate("/login");

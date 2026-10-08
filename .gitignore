@@ -3,6 +3,7 @@ data
 releases
 preprocess/*/*.txt
 !preprocess/*/requirements.txt
+preprocess/analyzer_quality/baselines/*
 venv
 models
 classla_models
@@ -55,3 +56,4 @@ note.md
 *.sqlite3-shm
 *.db-wal
 *.db-shm
+

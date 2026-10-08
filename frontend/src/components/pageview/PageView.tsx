@@ -174,7 +174,7 @@ export default function PageView() {
       if (!active) return;
       const pack = installed.find((l: Pack) => l.lang === lang);
 
-      if (!pack?.lemma_installed) {
+      if (!pack?.installed) {
         setNoPack(true);
       }
     };

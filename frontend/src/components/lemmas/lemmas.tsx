@@ -40,11 +40,6 @@ export default function Lemmas(){
   const [lemmaData, setLemmaData] = useState<LemmaData | null>(null);
   const [currentLang, setCurrentLang] = useState<string | null>(null);
   const [missingPackLang, setMissingPackLang] = useState<string | null>(null);
-  const [pendingLemma, setPendingLemma] = useState<{
-    lemma: string;
-    pos: string;
-    language: string;
-  } | null>(null);
   const [offline, setOffline] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [knownWordsMilestone, setKnownWordsMilestone] = useState<KnownWordsMilestone | null>(null);
@@ -127,7 +122,6 @@ export default function Lemmas(){
 
   const onLemmaClick = async (lemma:string, pos:string, language:string) => {
     setCurrentLang(language);
-    setPendingLemma({ lemma, pos, language });
     const hasPack = await hasLemmaPackInstalled(language);
 
     if (!hasPack) {
@@ -147,7 +141,6 @@ export default function Lemmas(){
     }
 
     setLemmaData(data);
-    setPendingLemma(null);
   }
 
   return (
@@ -157,16 +150,6 @@ export default function Lemmas(){
         open={missingPackLang !== null}
         onClose={() => {
           setMissingPackLang(null);
-          setPendingLemma(null);
-        }}
-        onActivated={() => {
-          if (pendingLemma) {
-            void onLemmaClick(
-              pendingLemma.lemma,
-              pendingLemma.pos,
-              pendingLemma.language,
-            );
-          }
         }}
       />
 

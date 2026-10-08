@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { getInstalled } from "../../api";
-import { isCapacitorApp } from "../../platform";
 import { Link } from "react-router-dom";
 import { useI18n } from "../../i18n";
 
@@ -67,7 +66,7 @@ export async function getInstalledPacksCached() {
 export async function hasLemmaPackInstalled(language: string) {
   const packs = await loadInstalledPacks();
   return packs.some(
-    (pack) => pack.lang === language && (pack.lemma_installed || pack.installed),
+    (pack) => pack.lang === language && pack.installed,
   );
 }
 
@@ -90,7 +89,6 @@ export default function LanguageSelect({
   allowUnselected?: boolean;
   disabled?: boolean;
 }) {
-  const mobileApp = isCapacitorApp();
   const { t } = useI18n();
   const [languages, setLanguages] = useState<NormalizedLanguageOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -115,7 +113,7 @@ export default function LanguageSelect({
         if (!active) return;
         setLanguages(
           packs
-            .filter((pack) => pack.lemma_installed || pack.installed)
+            .filter((pack) => pack.installed)
             .map((pack) => ({ lang: pack.lang })),
         );
       })
@@ -159,7 +157,7 @@ export default function LanguageSelect({
           {!loading && languages.length === 0 && (
             disabled ? (
               <span className="px-2 text-sm text-neutral-400">
-                {t("Activate a language to continue.")}
+                {t("Install languages to continue.")}
               </span>
             ) : (
               <Link
@@ -167,9 +165,7 @@ export default function LanguageSelect({
                 state={{ scrollTo: "language-packs" }}
                 className="px-2 text-sm text-neutral-500 border border-neutral-300 hover:bg-neutral-200 transition-colors"
               >
-                {mobileApp
-                  ? t("Activate a language to continue.")
-                  : t("Install languages to continue.")}
+                {t("Install languages to continue.")}
               </Link>
             )
           )}
