@@ -236,20 +236,16 @@ export function UserProfile() {
 
   async function handleSave() {
     await updateName(value);
-    setUser((prev) => {
-      if (!prev) {
-        return prev;
-      }
-
-      const nextUser = { ...prev, name: value };
-      updateStoredUser(nextUser);
-      return nextUser;
-    });
+    if (user) {
+      const nextUser = { ...user, name: value };
+      await updateStoredUser(nextUser);
+      setUser(nextUser);
+    }
     setEditing(false);
   }
 
-  function logout() {
-    clearStoredSession();
+  async function logout() {
+    await clearStoredSession();
     navigate("/login");
   }
 
@@ -259,7 +255,7 @@ export function UserProfile() {
 
     try {
       await deleteAccount();
-      clearStoredSession();
+      await clearStoredSession();
       navigate("/login");
     } catch (error) {
       setDeleteError(

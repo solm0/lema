@@ -324,7 +324,7 @@ export async function verifyToken({
   }
 
   if (isTokenExpired(token)) {
-    clearStoredSession();
+    await clearStoredSession();
     return null;
   }
 
@@ -341,7 +341,7 @@ export async function verifyToken({
 
     if (!res.ok) {
       if (res.status === 401) {
-        clearStoredSession();
+        await clearStoredSession();
         return null;
       }
 
@@ -349,7 +349,7 @@ export async function verifyToken({
     }
 
     const data = await res.json() as User;
-    storeVerifiedSession(token, data);
+    await storeVerifiedSession(token, data);
     return data;
   } catch (error) {
     if (throwOnNetworkError) {

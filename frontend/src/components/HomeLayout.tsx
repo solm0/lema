@@ -206,7 +206,7 @@ export default function HomeLayout() {
     if (GRADSHOW_MODE) return;
     if (user === undefined) return; // 아직 로딩 중
     if (!user) {
-      clearStoredSession();
+      void clearStoredSession().catch(() => undefined);
       navigate("/login");
     }
   }, [navigate, user]);

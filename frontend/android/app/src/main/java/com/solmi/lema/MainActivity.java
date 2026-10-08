@@ -20,6 +20,7 @@ public class MainActivity extends BridgeActivity {
         if (BuildConfig.GRADSHOW_MODE) {
             registerPlugin(GradshowLanguagePackPlugin.class);
         }
+        registerPlugin(LemaSecureStoragePlugin.class);
         registerPlugin(LemaLibraryPlugin.class);
         super.onCreate(savedInstanceState);
         handleDeepLinkIntent(getIntent());

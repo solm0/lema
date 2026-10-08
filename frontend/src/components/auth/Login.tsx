@@ -46,7 +46,7 @@ export default function Login(){
         const res=await login(email,password)
     
         if (res.access_token) {
-          storeAccessToken(res.access_token)
+          await storeAccessToken(res.access_token)
           await verifyToken().catch(() => null)
           navigate('/')
         } else if (res.httpStatus === 429) {
