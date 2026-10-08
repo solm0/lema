@@ -23,7 +23,23 @@ class User(Base):
   password_hash = Column(String)
   email_verified = Column(Boolean, default=False)
   verify_token = Column(String, nullable=True)
+  # Kept temporarily so existing databases can be migrated without dropping a
+  # column. New password reset tokens live in password_reset_tokens.
   reset_token = Column(String, nullable=True)
+  auth_version = Column(Integer, nullable=False, default=0)
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=utc_now_naive)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    delivered_at = Column(DateTime, nullable=True)
+    used_at = Column(DateTime, nullable=True)
+    revoked_at = Column(DateTime, nullable=True)
 
 
 class EmailSendEvent(Base):

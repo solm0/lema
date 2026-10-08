@@ -53,3 +53,37 @@ real test account token, then confirm:
    returns `429` with `detail.code=analysis_busy`.
 5. With more than `ANALYZE_LANGUAGE_QUEUE_LIMIT` concurrent requests for one
    language, excess requests return `429` with `detail.code=analysis_queue_full`.
+
+## Account and password security
+
+New and reset passwords are normalized to Unicode NFC, must contain 8 to 128
+characters, and are checked against both `data/common_passwords.txt` and the
+Have I Been Pwned range API. Only the first five characters of a SHA-1 digest
+are sent to that API. If the API is unavailable, the local denylist remains in
+effect and the request is allowed to continue.
+
+New password hashes use Argon2id. Existing bcrypt hashes are upgraded after a
+successful login. Install `central/requirements.txt` before deploying so the
+Argon2 backend is available.
+
+Password reset links use a random token whose SHA-256 digest is stored in
+`password_reset_tokens`. Tokens expire after 30 minutes, are single-use, and
+are removed if email delivery fails. A successful reset increments the user's
+`auth_version`, immediately invalidating JWTs issued with the previous version.
+Requesting a reset link does not invalidate an existing session.
+
+Password reset submission limits default to 10 attempts per IP over 10 minutes
+and 5 failures per token over 15 minutes. These in-memory values apply per
+server process and can be changed at startup:
+
+- `AUTH_RESET_IP_LIMIT=10`
+- `AUTH_RESET_IP_WINDOW_SECONDS=600`
+- `AUTH_RESET_TOKEN_FAILURE_LIMIT=5`
+- `AUTH_RESET_TOKEN_WINDOW_SECONDS=900`
+- `PASSWORD_RESET_TTL_MINUTES=30`
+- `PASSWORD_RESET_RESPONSE_MIN_MS=200`
+- `PWNED_PASSWORDS_TIMEOUT_SECONDS=2`
+- `PWNED_PASSWORDS_URL=https://api.pwnedpasswords.com/range`
+
+Client IP extraction uses the same trusted-proxy configuration documented
+above for mobile analysis.

@@ -1,12 +1,16 @@
-from fastapi import APIRouter, HTTPException, Depends, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Request, status
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import func
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
 from jose import jwt, JWTError
+import asyncio
 import secrets
 import datetime
+import hashlib
+import json
 import logging
+import time
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import os
 from dotenv import load_dotenv
@@ -15,6 +19,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import date
 from db import get_db
 from models import (
+  PasswordResetToken,
   User,
   UserLemma,
 )
@@ -22,6 +27,15 @@ from services.auth_rate_limits import (
   email_send_limiter,
   login_attempt_limiter,
   normalize_email,
+)
+from services.analysis_access import get_client_ip
+from services.password_reset_limits import password_reset_attempt_limiter
+from services.password_security import (
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+  PasswordPolicyError,
+  normalize_password,
+  validate_new_password,
 )
 
 # -----------------------------
@@ -35,9 +49,17 @@ ALGORITHM = "HS256"
 DATABASE_URL = os.getenv('DATABASE_URL')
 PUBLIC_API_BASE_URL = os.getenv("PUBLIC_API_BASE_URL", "http://localhost:8000/api")
 
-pwd_context = CryptContext(schemes=["bcrypt"])
+pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated=["bcrypt"])
 DUMMY_PASSWORD_HASH = pwd_context.hash(secrets.token_urlsafe(32))
 logger = logging.getLogger(__name__)
+PASSWORD_RESET_TTL_MINUTES = int(os.getenv("PASSWORD_RESET_TTL_MINUTES", "30"))
+if PASSWORD_RESET_TTL_MINUTES <= 0:
+  raise RuntimeError("PASSWORD_RESET_TTL_MINUTES must be greater than zero")
+PASSWORD_RESET_RESPONSE_MIN_MS = int(
+  os.getenv("PASSWORD_RESET_RESPONSE_MIN_MS", "200")
+)
+if PASSWORD_RESET_RESPONSE_MIN_MS < 0:
+  raise RuntimeError("PASSWORD_RESET_RESPONSE_MIN_MS cannot be negative")
 
 conf = ConnectionConfig(
   MAIL_USERNAME=os.getenv('MAIL_USERNAME'),
@@ -113,17 +135,48 @@ def email_service_error(code: str, message: str, retry_after: int) -> HTTPExcept
   )
 
 def hash_password(password: str):
-  return pwd_context.hash(password)
+  return pwd_context.hash(normalize_password(password))
 
 def verify_password(password: str, hash):
-  return pwd_context.verify(password, hash)
+  matches, _ = verify_password_and_update(password, hash)
+  return matches
 
-def create_token(user_id: int):
+def verify_password_and_update(password: str, password_hash: str):
+  normalized = normalize_password(password)
+  candidates = [password]
+  if normalized != password:
+    candidates.append(normalized)
+
+  for candidate in candidates:
+    matches, replacement_hash = pwd_context.verify_and_update(candidate, password_hash)
+    if matches:
+      return True, replacement_hash
+  return False, None
+
+def create_token(user_id: int, auth_version: int = 0):
   payload = {
       "user_id": user_id,
+      "auth_version": auth_version,
       "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=7)
   }
   return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+def utc_now_naive():
+  return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+
+def hash_reset_token(token: str) -> str:
+  return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+def password_policy_error(error: PasswordPolicyError) -> HTTPException:
+  return api_error(400, error.code, error.message)
+
+async def wait_for_reset_response_window(started_at: float):
+  remaining_seconds = (
+    PASSWORD_RESET_RESPONSE_MIN_MS / 1000
+    - (time.monotonic() - started_at)
+  )
+  if remaining_seconds > 0:
+    await asyncio.sleep(remaining_seconds)
 
 async def send_email(email: str, link: str, purpose: str):
 
@@ -154,12 +207,59 @@ async def send_email(email: str, link: str, purpose: str):
   await fm.send_message(message)
 
 
+async def deliver_password_reset_email(
+  token_id: int,
+  email: str,
+  link: str,
+  session_factory,
+):
+  try:
+    await send_email(email, link, "password_reset")
+  except Exception:
+    logger.exception("password reset email delivery failed")
+    db = session_factory()
+    try:
+      token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.id == token_id,
+        PasswordResetToken.delivered_at.is_(None),
+      ).first()
+      if token:
+        db.delete(token)
+        db.commit()
+    finally:
+      db.close()
+    return
+
+  db = session_factory()
+  try:
+    token = db.query(PasswordResetToken).filter(
+      PasswordResetToken.id == token_id,
+      PasswordResetToken.used_at.is_(None),
+      PasswordResetToken.revoked_at.is_(None),
+    ).first()
+    if not token:
+      return
+
+    now = utc_now_naive()
+    db.query(PasswordResetToken).filter(
+      PasswordResetToken.user_id == token.user_id,
+      PasswordResetToken.id != token.id,
+      PasswordResetToken.used_at.is_(None),
+      PasswordResetToken.revoked_at.is_(None),
+    ).update({PasswordResetToken.revoked_at: now}, synchronize_session=False)
+    token.delivered_at = now
+    db.commit()
+  finally:
+    db.close()
+
+
 def render_auth_page(title: str, body: str) -> HTMLResponse:
   html = f"""<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
     <title>{title}</title>
     <style>
       :root {{
@@ -292,19 +392,20 @@ def render_verify_result(title: str, message: str, success: bool) -> HTMLRespons
 
 
 def render_reset_page(token: str) -> HTMLResponse:
-  safe_token = token.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+  token_literal = json.dumps(token).replace("</", "<\\/")
   body = f"""
       <h1>Reset password</h1>
       <p>Enter a new password for your Lema account.</p>
       <form id="reset-form">
         <label>
-          <input id="password" type="password" minlength="1" autocomplete="new-password" required />
+          <input id="password" type="password" autocomplete="new-password" required />
         </label>
         <button id="submit-button" type="submit">Change password</button>
       </form>
       <div id="message" class="message"></div>
       <script>
-        const token = "{safe_token}";
+        const token = {token_literal};
+        window.history.replaceState(null, "", window.location.pathname);
         const form = document.getElementById("reset-form");
         const passwordInput = document.getElementById("password");
         const submitButton = document.getElementById("submit-button");
@@ -313,10 +414,11 @@ def render_reset_page(token: str) -> HTMLResponse:
         form.addEventListener("submit", async (event) => {{
           event.preventDefault();
 
-          const password = passwordInput.value.trim();
+          const password = passwordInput.value;
 
-          if (!password) {{
-            message.textContent = "Enter a new password.";
+          const passwordLength = Array.from(password.normalize("NFC")).length;
+          if (passwordLength < {MIN_PASSWORD_LENGTH} || passwordLength > {MAX_PASSWORD_LENGTH}) {{
+            message.textContent = "Use {MIN_PASSWORD_LENGTH} to {MAX_PASSWORD_LENGTH} characters.";
             message.className = "message error";
             return;
           }}
@@ -338,7 +440,9 @@ def render_reset_page(token: str) -> HTMLResponse:
             }});
 
             const data = await response.json();
-            const error = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail;
+            const error = Array.isArray(data.detail)
+              ? data.detail[0]?.msg
+              : data.detail?.message || data.detail;
 
             if (!response.ok || error) {{
               message.textContent = error || "Could not reset password.";
@@ -380,6 +484,11 @@ async def signup(data: SignupRequest, db: Session = Depends(get_db)):
   if existing:
     raise api_error(400, "email_already_registered", "email already registered")
 
+  try:
+    password = await validate_new_password(data.password, email=email)
+  except PasswordPolicyError as exc:
+    raise password_policy_error(exc) from exc
+
   reservation = email_send_limiter.reserve(
     db,
     email=email,
@@ -396,7 +505,7 @@ async def signup(data: SignupRequest, db: Session = Depends(get_db)):
 
   user = User(
     email=email,
-    password_hash=hash_password(data.password),
+    password_hash=hash_password(password),
     name=data.name,
     verify_token=token,
   )
@@ -465,7 +574,10 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
   user = db.query(User).filter(func.lower(User.email) == email).first()
   password_hash = user.password_hash if user else DUMMY_PASSWORD_HASH
-  password_matches = verify_password(data.password, password_hash)
+  password_matches, replacement_hash = verify_password_and_update(
+    data.password,
+    password_hash,
+  )
 
   if not user or not password_matches:
       retry_after = login_attempt_limiter.record_failure(email)
@@ -479,10 +591,14 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 
   login_attempt_limiter.reset(email)
 
+  if replacement_hash:
+      user.password_hash = replacement_hash
+      db.commit()
+
   if not user.email_verified:
       raise api_error(400, "email_not_verified", "email not verified")
 
-  token = create_token(user.id)
+  token = create_token(user.id, user.auth_version or 0)
 
   return {
     "access_token": token,
@@ -494,13 +610,19 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
 # -----------------------------
 
 @router.post("/request-password-reset", status_code=status.HTTP_202_ACCEPTED)
-async def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
+async def request_reset(
+  data: ResetRequest,
+  background_tasks: BackgroundTasks,
+  db: Session = Depends(get_db),
+):
+  started_at = time.monotonic()
 
   email = normalize_email(str(data.email))
 
   user = db.query(User).filter(func.lower(User.email) == email).first()
 
   if not user:
+    await wait_for_reset_response_window(started_at)
     return {"message": "if email exists, reset link sent"}
 
   reservation = email_send_limiter.reserve(
@@ -509,21 +631,36 @@ async def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
     purpose="password_reset",
   )
   if not reservation.allowed:
+    await wait_for_reset_response_window(started_at)
     return {"message": "if email exists, reset link sent"}
 
   token = secrets.token_urlsafe(32)
-
-  user.reset_token = token
-
+  token_record = PasswordResetToken(
+    user_id=user.id,
+    token_hash=hash_reset_token(token),
+    created_at=utc_now_naive(),
+    expires_at=utc_now_naive() + datetime.timedelta(
+      minutes=PASSWORD_RESET_TTL_MINUTES,
+    ),
+  )
+  user.reset_token = None
+  db.query(PasswordResetToken).filter(
+    PasswordResetToken.expires_at <= utc_now_naive(),
+  ).delete(synchronize_session=False)
+  db.add(token_record)
   db.commit()
+  db.refresh(token_record)
 
   link = f"{PUBLIC_API_BASE_URL}/reset-password?token={token}"
+  background_tasks.add_task(
+    deliver_password_reset_email,
+    token_record.id,
+    user.email,
+    link,
+    sessionmaker(bind=db.get_bind()),
+  )
 
-  try:
-    await send_email(user.email, link, "password_reset")
-  except Exception:
-    logger.exception("password reset email delivery failed")
-
+  await wait_for_reset_response_window(started_at)
   return {"message": "if email exists, reset link sent"}
 
 # -----------------------------
@@ -535,17 +672,86 @@ def reset_password_page(token: str):
   return render_reset_page(token)
 
 @router.post("/reset-password")
-def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
+async def reset_password(
+  data: ResetPassword,
+  request: Request,
+  db: Session = Depends(get_db),
+):
+  retry_after = password_reset_attempt_limiter.reserve_ip_attempt(
+    get_client_ip(request),
+  )
+  if retry_after:
+    raise rate_limit_error(
+      "password_reset_rate_limited",
+      "too many password reset attempts",
+      retry_after,
+    )
 
-  user = db.query(User).filter(User.reset_token == data.token).first()
+  token_hash = hash_reset_token(data.token)
+  retry_after = password_reset_attempt_limiter.token_retry_after(token_hash)
+  if retry_after:
+    raise rate_limit_error(
+      "password_reset_rate_limited",
+      "too many password reset attempts",
+      retry_after,
+    )
 
+  now = utc_now_naive()
+  token_record = db.query(PasswordResetToken).filter(
+    PasswordResetToken.token_hash == token_hash,
+    PasswordResetToken.delivered_at.is_not(None),
+    PasswordResetToken.used_at.is_(None),
+    PasswordResetToken.revoked_at.is_(None),
+    PasswordResetToken.expires_at > now,
+  ).first()
+
+  if not token_record:
+    retry_after = password_reset_attempt_limiter.record_token_failure(token_hash)
+    if retry_after:
+      raise rate_limit_error(
+        "password_reset_rate_limited",
+        "too many password reset attempts",
+        retry_after,
+      )
+    raise api_error(400, "invalid_token", "invalid token")
+
+  user = db.query(User).filter(User.id == token_record.user_id).first()
   if not user:
     raise api_error(400, "invalid_token", "invalid token")
 
-  user.password_hash = hash_password(data.new_password)
-  user.reset_token = None
+  try:
+    password = await validate_new_password(data.new_password, email=user.email)
+  except PasswordPolicyError as exc:
+    raise password_policy_error(exc) from exc
 
+  completed_at = utc_now_naive()
+  claimed = db.query(PasswordResetToken).filter(
+    PasswordResetToken.id == token_record.id,
+    PasswordResetToken.used_at.is_(None),
+    PasswordResetToken.revoked_at.is_(None),
+    PasswordResetToken.expires_at > completed_at,
+  ).update(
+    {PasswordResetToken.used_at: completed_at},
+    synchronize_session=False,
+  )
+  if claimed != 1:
+    db.rollback()
+    raise api_error(400, "invalid_token", "invalid token")
+
+  db.query(PasswordResetToken).filter(
+    PasswordResetToken.user_id == user.id,
+    PasswordResetToken.id != token_record.id,
+    PasswordResetToken.used_at.is_(None),
+    PasswordResetToken.revoked_at.is_(None),
+  ).update(
+    {PasswordResetToken.revoked_at: completed_at},
+    synchronize_session=False,
+  )
+  user.password_hash = hash_password(password)
+  user.auth_version = (user.auth_version or 0) + 1
+  user.reset_token = None
   db.commit()
+  password_reset_attempt_limiter.reset_token(token_hash)
 
   return {"message": "password updated"}
 
@@ -560,6 +766,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("user_id")
+        token_auth_version = payload.get("auth_version", 0)
         if not user_id:
             raise api_error(401, "invalid_token", "invalid token")
     except JWTError:
@@ -568,6 +775,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise api_error(401, "user_not_found", "user not found")
+    if token_auth_version != (user.auth_version or 0):
+        raise api_error(401, "invalid_token", "invalid token")
     return user
 
 @router.get("/me")
@@ -601,6 +810,9 @@ def delete_user_account(current_user: User, db: Session):
     user_id = current_user.id
 
     db.query(UserLemma).filter(UserLemma.user_id == user_id).delete(synchronize_session=False)
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user_id,
+    ).delete(synchronize_session=False)
     db.delete(current_user)
     db.commit()
 

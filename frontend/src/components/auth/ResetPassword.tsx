@@ -1,31 +1,48 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { resetPassword } from "../../api"
 import SystemMessage from "./SystemMessage"
 import Button, { LinkButton } from "../../components/util/Button"
 import { useI18n } from "../../i18n"
 import { resolveAuthMessage } from "./errorMessages"
 import { isDefinitelyOffline, isNetworkError } from "../../network"
+import { passwordPolicyMessage } from "./passwordPolicy"
 
 export default function ResetPassword(){
 
-  const url=new URL(window.location.href)
-  const token=url.searchParams.get("token")||""
+  const [token] = useState(() => {
+    const url = new URL(window.location.href)
+    return url.searchParams.get("token") || ""
+  })
 
   const [pw,setPw]=useState("")
   const [msg,setMsg]=useState("")
   const [submitting, setSubmitting] = useState(false)
   const { t } = useI18n();
 
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has("token")) return
+    url.searchParams.delete("token")
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
+  }, [])
+
   async function submit(){
     if (submitting) return
 
-    if (pw.trim()) {
+    if (token) {
+      const passwordError = passwordPolicyMessage(pw)
+      if (passwordError) {
+        setMsg(t(passwordError))
+        return
+      }
+
       setSubmitting(true)
       try {
         const res=await resetPassword(token,pw);
 
         if (res.httpStatus === 429) {
-          setMsg(t("Too many requests. Please wait and try again."))
+          const seconds = Math.max(1, res.retryAfterSeconds ?? 60)
+          setMsg(t("Too many password reset attempts. Try again in {seconds} seconds.", { seconds }))
         } else if (res.detail) {
           setMsg(t(resolveAuthMessage(res.detail)))
         } else setMsg(t("your password was reset."))
@@ -41,7 +58,7 @@ export default function ResetPassword(){
         setSubmitting(false)
       }
     } else {
-      setMsg(t("enter your new password."))
+      setMsg(t("This link is invalid or has expired."))
     }
   }
 
@@ -53,6 +70,7 @@ export default function ResetPassword(){
           placeholder={t("password")}
           value={pw}
           onChange={e=>setPw(e.target.value)}
+          autoComplete="new-password"
           className="w-full border-2 border-neutral-900 text-neutral-900 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-80 transition-opacity"
           autoCapitalize="none"
         />

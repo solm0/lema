@@ -86,6 +86,25 @@ app.include_router(version_router)
 
 Base.metadata.create_all(bind=engine)
 
+
+def ensure_auth_schema():
+    with engine.begin() as conn:
+        columns = {
+            row[1]
+            for row in conn.exec_driver_sql("PRAGMA table_info(users)").fetchall()
+        }
+
+        if "auth_version" not in columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE users "
+                    "ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0"
+                )
+            )
+
+
+ensure_auth_schema()
+
 def ensure_user_lemma_schema():
     with engine.begin() as conn:
         columns = {

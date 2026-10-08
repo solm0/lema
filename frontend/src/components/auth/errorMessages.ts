@@ -10,6 +10,10 @@ const API_ERROR_MESSAGE_KEYS: Record<string, string> = {
   too_many_requests: "Too many requests. Please wait and try again.",
   email_service_busy: "We can't send a verification email right now. Please try again later.",
   email_delivery_failed: "We couldn't send the verification email. Please try again in a minute.",
+  password_too_short: "Use at least 8 characters for your password.",
+  password_too_long: "Use no more than 128 characters for your password.",
+  password_compromised: "Choose a less common password that has not appeared in a known data breach.",
+  password_reset_rate_limited: "Too many password reset attempts. Please wait and try again.",
   request_failed: "Something went wrong. Please try again.",
 };
 

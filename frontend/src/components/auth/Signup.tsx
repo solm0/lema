@@ -5,6 +5,7 @@ import SystemMessage from "./SystemMessage"
 import { useI18n } from "../../i18n"
 import { resolveAuthMessage } from "./errorMessages"
 import { isDefinitelyOffline, isNetworkError } from "../../network"
+import { passwordPolicyMessage } from "./passwordPolicy"
 
 export default function Signup(){
   const [name, setName] = useState("")
@@ -17,7 +18,13 @@ export default function Signup(){
   async function submit(){
     if (submitting) return
 
-    if (name.trim() && email.trim() && password.trim()) {
+    if (name.trim() && email.trim()) {
+      const passwordError = passwordPolicyMessage(password)
+      if (passwordError) {
+        setMsg(t(passwordError))
+        return
+      }
+
       setSubmitting(true)
       try {
         const res=await signup(email,password,name);
@@ -73,6 +80,7 @@ export default function Signup(){
           placeholder={t("password")}
           value={password}
           onChange={e=>setPassword(e.target.value)}
+          autoComplete="new-password"
           className="w-full border-2 border-neutral-900 text-neutral-900 rounded-sm px-3 py-2 focus:outline-none opacity-30 focus:opacity-50 transition-opacity"
           autoCapitalize="none"
         />
