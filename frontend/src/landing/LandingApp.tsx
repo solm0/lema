@@ -302,7 +302,7 @@ function LandingApp() {
                 <div className="flex gap-4">
                   <p className="text-sm font-medium text-neutral-600 w-30">Desktop App</p>
                   <div className="flex flex-col gap-3">
-                    {releaseCatalog.desktop.map((desktopVersion) => (
+                    {releaseCatalog.desktop.slice(0, 1).map((desktopVersion) => (
                       <div
                         key={desktopVersion.version}
                         className="flex flex-col gap-1.5"
