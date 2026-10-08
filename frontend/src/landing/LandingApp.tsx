@@ -338,7 +338,7 @@ function LandingApp() {
                       rel="noreferrer"
                       className="rounded-sm border border-transparent bg-neutral-900 px-4 py-2 text-sm font-medium text-neutral-200 transition-colors hover:border-neutral-300 hover:bg-neutral-200 hover:text-neutral-900"
                     >
-                      Chrome Web Store →
+                      Chrome Web Store에서 다운로드
                     </a>
                   </div>
                 </div>
