@@ -24,6 +24,10 @@ export function isNetworkError(error: unknown) {
   );
 }
 
+export function isDefinitelyOffline() {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
 function markCentralBlocked() {
   centralStatus = "blocked";
   centralBlockedUntil = Date.now() + CENTRAL_RETRY_COOLDOWN_MS;

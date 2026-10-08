@@ -4,7 +4,7 @@ import SystemMessage from "./SystemMessage"
 import Button, { LinkButton } from "../../components/util/Button"
 import { useI18n } from "../../i18n"
 import { resolveAuthMessage } from "./errorMessages"
-import { isNetworkError } from "../../network"
+import { isDefinitelyOffline, isNetworkError } from "../../network"
 
 export default function ResetPassword(){
 
@@ -31,8 +31,10 @@ export default function ResetPassword(){
         } else setMsg(t("your password was reset."))
       } catch (error) {
         setMsg(
-          isNetworkError(error)
+          isDefinitelyOffline()
             ? t("You're offline. Check your connection and try again.")
+            : isNetworkError(error)
+              ? t("The request could not be completed. Please wait a moment and try again.")
             : t("error"),
         )
       } finally {

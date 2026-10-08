@@ -6,7 +6,7 @@ import SystemMessage from "./SystemMessage"
 import { useI18n } from "../../i18n"
 import { resolveAuthMessage } from "./errorMessages"
 import { storeAccessToken } from "../../authSession"
-import { isNetworkError } from "../../network"
+import { isDefinitelyOffline, isNetworkError } from "../../network"
 
 export default function Login(){
   const [email,setEmail]=useState("")
@@ -58,8 +58,10 @@ export default function Login(){
         }
       } catch (error) {
         setMsg(
-          isNetworkError(error)
+          isDefinitelyOffline()
             ? t("You're offline. Check your connection and try again.")
+            : isNetworkError(error)
+              ? t("The request could not be completed. Please wait a moment and try again.")
             : t("error"),
         )
       } finally {

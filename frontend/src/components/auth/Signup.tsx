@@ -4,7 +4,7 @@ import Button, { LinkButton } from "../../components/util/Button"
 import SystemMessage from "./SystemMessage"
 import { useI18n } from "../../i18n"
 import { resolveAuthMessage } from "./errorMessages"
-import { isNetworkError } from "../../network"
+import { isDefinitelyOffline, isNetworkError } from "../../network"
 
 export default function Signup(){
   const [name, setName] = useState("")
@@ -23,7 +23,8 @@ export default function Signup(){
         const res=await signup(email,password,name);
 
         if (res.httpStatus === 429) {
-          setMsg(t("Too many requests. Please wait and try again."))
+          const seconds = Math.max(1, res.retryAfterSeconds ?? 10)
+          setMsg(t("Too many requests. Try again in {seconds} seconds.", { seconds }))
         } else if (res.detail) {
           setMsg(t(resolveAuthMessage(res.detail)))
         } else {
@@ -31,8 +32,10 @@ export default function Signup(){
         }
       } catch (error) {
         setMsg(
-          isNetworkError(error)
+          isDefinitelyOffline()
             ? t("You're offline. Check your connection and try again.")
+            : isNetworkError(error)
+              ? t("The request could not be completed. Please wait a moment and try again.")
             : t("error"),
         )
       } finally {

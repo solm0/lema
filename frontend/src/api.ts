@@ -131,6 +131,10 @@ export type AuthApiResponse = {
   retryAfterSeconds?: number;
 };
 
+const AUTH_BURST_LIMIT = 5;
+const AUTH_BURST_WINDOW_MS = 10_000;
+let authRequestTimestamps: number[] = [];
+
 function resolveLatestVersionPlatform(): LatestVersionPlatform {
   return getAppPlatform() === "mobile" ? "android" : "desktop";
 }
@@ -204,40 +208,71 @@ async function parseAuthResponse(res: Response): Promise<AuthApiResponse> {
   };
 }
 
-export async function signup(email: string, password: string, name: string) {
-  const res = await centralFetch(CENTRAL_API+"/signup", {
+function reserveAuthRequest(): number {
+  const now = Date.now();
+  authRequestTimestamps = authRequestTimestamps.filter(
+    timestamp => timestamp > now - AUTH_BURST_WINDOW_MS,
+  );
+
+  if (authRequestTimestamps.length >= AUTH_BURST_LIMIT) {
+    return Math.max(
+      1,
+      Math.ceil(
+        (authRequestTimestamps[0] + AUTH_BURST_WINDOW_MS - now) / 1000,
+      ),
+    );
+  }
+
+  authRequestTimestamps.push(now);
+  return 0;
+}
+
+async function authPost(
+  path: string,
+  body: Record<string, string>,
+  { applyBurstLimit = true }: { applyBurstLimit?: boolean } = {},
+) {
+  if (applyBurstLimit && (typeof navigator === "undefined" || navigator.onLine)) {
+    const retryAfterSeconds = reserveAuthRequest();
+    if (retryAfterSeconds) {
+      return {
+        httpStatus: 429,
+        retryAfterSeconds,
+        detail: {
+          code: "too_many_requests",
+          message: "too many requests",
+          retry_after_seconds: retryAfterSeconds,
+        },
+      } satisfies AuthApiResponse;
+    }
+  }
+
+  const res = await centralFetch(`${CENTRAL_API}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, name })
+    body: JSON.stringify(body),
   });
   return parseAuthResponse(res);
+}
+
+export async function signup(email: string, password: string, name: string) {
+  return authPost("/signup", { email, password, name });
 }
 
 export async function login(email:string,password:string){
-  const res = await centralFetch(CENTRAL_API+"/login",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({email,password})
-  });
-  return parseAuthResponse(res);
+  return authPost("/login", { email, password });
 }
 
 export async function requestReset(email:string){
-  const res = await centralFetch(CENTRAL_API+"/request-password-reset",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({email})
-  });
-  return parseAuthResponse(res);
+  return authPost("/request-password-reset", { email });
 }
 
 export async function resetPassword(token:string,new_password:string){
-  const res = await centralFetch(CENTRAL_API+"/reset-password",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({token,new_password})
-  });
-  return parseAuthResponse(res);
+  return authPost(
+    "/reset-password",
+    { token, new_password },
+    { applyBurstLimit: false },
+  );
 }
 
 export function parseApiErrorDetail(detail: ApiErrorDetail): {
