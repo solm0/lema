@@ -74,15 +74,6 @@ def get_stanza_model_root() -> Path:
     return get_backend_root() / "models"
 
 
-def get_classla_model_root() -> Path:
-    override = _resolve_override("LEMA_CLASSLA_MODEL_ROOT", "NAUTILUS_CLASSLA_MODEL_ROOT")
-
-    if override is not None:
-        return override
-
-    return get_backend_root() / "classla_models"
-
-
 def get_frontend_dist_dir() -> Path | None:
     override = os.getenv("LEMA_FRONTEND_DIST") or os.getenv("NAUTILUS_FRONTEND_DIST")
 

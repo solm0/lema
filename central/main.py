@@ -10,7 +10,7 @@ from language_config.model_store import (
     ensure_model_directories,
     model_exists,
 )
-from packs import get_model_provider, list_languages
+from packs import list_languages
 from runtime_paths import get_runtime_state_root
 from shared.manifests import mark_runtime_consumers
 
@@ -42,13 +42,8 @@ def ensure_language_models():
             continue
 
         try:
-            if get_model_provider(lang) == "classla":
-                print(f"[classla] downloading: {lang}")
-                download_model(lang)
-
-            else:
-                print(f"[stanza] downloading: {lang}")
-                download_model(lang)
+            print(f"[stanza] downloading: {lang}")
+            download_model(lang)
 
             mark_runtime_consumers(STATE_ROOT, lang)
 

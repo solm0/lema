@@ -6,23 +6,17 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 STANZA_MODEL_DIR = ROOT_DIR / "backend" / "models"
-CLASSLA_MODEL_DIR = ROOT_DIR / "backend" / "classla_models"
 
 SPACY_MODELS = {
     "de": "de_core_news_md",
     "en": "en_core_web_md",
     "ru": "ru_core_news_md",
 }
-STANZA_LANGS = {"ja", "ko", "sq"}
-CLASSLA_LANGS = {"mk", "sr"}
+STANZA_LANGS = {"ja", "ko"}
 STANZA_MODEL_COMPONENTS = {
     "ja": ("tokenize", "pos", "lemma", "pretrain"),
     "ko": ("tokenize", "pos", "lemma", "pretrain"),
-    "sq": ("tokenize", "mwt", "pos", "lemma", "pretrain"),
 }
-CLASSLA_MODEL_COMPONENTS = ("pos", "lemma", "pretrain")
-
-
 def _has_model_components(model_dir: Path, components: Iterable[str]) -> bool:
     return all(any((model_dir / component).glob("*.pt")) for component in components)
 
@@ -62,25 +56,6 @@ def _ensure_stanza_model(lang: str, log: Callable[[str], None]):
         raise RuntimeError(f"Stanza model download did not complete for language: {lang}")
 
 
-def _ensure_classla_model(lang: str, log: Callable[[str], None]):
-    model_dir = CLASSLA_MODEL_DIR / lang
-    if _has_model_components(model_dir, CLASSLA_MODEL_COMPONENTS):
-        return
-
-    log(f"{lang} models: downloading CLASSLA models")
-    import classla
-
-    CLASSLA_MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    classla.download(
-        lang,
-        dir=str(CLASSLA_MODEL_DIR),
-        processors="tokenize,pos,lemma",
-    )
-
-    if not _has_model_components(model_dir, CLASSLA_MODEL_COMPONENTS):
-        raise RuntimeError(f"CLASSLA model download did not complete for language: {lang}")
-
-
 def ensure_language_model(lang: str, log: Callable[[str], None] = print):
     if lang in SPACY_MODELS:
         _ensure_spacy_model(lang, log)
@@ -88,10 +63,6 @@ def ensure_language_model(lang: str, log: Callable[[str], None] = print):
 
     if lang in STANZA_LANGS:
         _ensure_stanza_model(lang, log)
-        return
-
-    if lang in CLASSLA_LANGS:
-        _ensure_classla_model(lang, log)
         return
 
     raise KeyError(f"No preprocess model setup is configured for language: {lang}")

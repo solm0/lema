@@ -3,26 +3,15 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from runtime_paths import get_classla_model_root, get_stanza_model_root
-from shared.manifests import get_model_provider
+from runtime_paths import get_stanza_model_root
 
 
 STANZA_MODEL_DIR = get_stanza_model_root()
-CLASSLA_MODEL_DIR = get_classla_model_root()
 
 
 def _legacy_stanza_root() -> Path | None:
     try:
         from stanza.resources.common import DEFAULT_MODEL_DIR
-    except Exception:
-        return None
-
-    return Path(DEFAULT_MODEL_DIR)
-
-
-def _legacy_classla_root() -> Path | None:
-    try:
-        from classla.resources.common import DEFAULT_MODEL_DIR
     except Exception:
         return None
 
@@ -37,9 +26,6 @@ def _lang_path(root: Path | None, lang: str) -> Path | None:
 
 
 def get_local_model_dir(lang: str) -> Path:
-    if get_model_provider(lang) == "classla":
-        return CLASSLA_MODEL_DIR
-
     return STANZA_MODEL_DIR
 
 
@@ -48,15 +34,7 @@ def get_local_model_path(lang: str) -> Path:
 
 
 def get_legacy_model_path(lang: str) -> Path | None:
-    provider = get_model_provider(lang)
-
-    if provider == "classla":
-        return _lang_path(_legacy_classla_root(), lang)
-
-    if provider == "stanza":
-        return _lang_path(_legacy_stanza_root(), lang)
-
-    return None
+    return _lang_path(_legacy_stanza_root(), lang)
 
 
 def resolve_model_dir(lang: str) -> Path:
@@ -87,12 +65,6 @@ def ensure_model_installed(lang: str) -> Path:
         return legacy_path.parent
 
     local_dir.mkdir(parents=True, exist_ok=True)
-
-    if get_model_provider(lang) == "classla":
-        import classla
-
-        classla.download(lang, dir=str(local_dir), processors="tokenize,pos,lemma")
-        return local_dir
 
     import stanza
 

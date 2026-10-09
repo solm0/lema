@@ -19,7 +19,6 @@ BASE_STOP_POS = {
 LANGUAGE_STOP_POS = {
     "ja": BASE_STOP_POS | {"AUX"},
     "ko": BASE_STOP_POS | {"AUX"},
-    "sr": BASE_STOP_POS | {"AUX", "X"},
 }
 
 

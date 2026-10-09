@@ -29,11 +29,17 @@ from shared.manifests import PACKS
 # -----------------------------
 
 def fetch_packs():
+    supported_languages = {pack["lang"] for pack in PACKS}
+
     try:
         with httpx.Client(http2=False, timeout=10.0) as client:
             res = client.get(f"{CENTRAL_API}/lang/packs")
             res.raise_for_status()
-            return res.json()
+            return [
+                pack
+                for pack in res.json()
+                if pack.get("lang") in supported_languages
+            ]
     except Exception as exc:
         print(f"[lang_router] failed to fetch packs from {CENTRAL_API}: {exc}")
         return PACKS

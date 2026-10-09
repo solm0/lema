@@ -38,9 +38,6 @@ export const LANG_MAP: Record<string, string> = {
   zh: "Chinese",
   fr: "French",
   es: "Spanish",
-  sr: "Serbian",
-  mk: "Macedonian",
-  sq: "Albanian",
 };
 
 export function normalizePacksForTargetRelease(packs: Pack[]): Pack[] {

@@ -3,8 +3,6 @@ from pydantic import BaseModel, Field, model_validator
 from typing import List
 
 from services.nlp_service import analyze_text
-from language_config.sr import cyr_to_lat
-import unicodedata
 
 router = APIRouter(prefix="/api")
 
@@ -27,12 +25,6 @@ class AnalyzeRequest(BaseModel):
         return self
 
 
-def normalize_sr(text: str) -> str:
-    text = unicodedata.normalize("NFC", text)
-    text = text
-    return cyr_to_lat(text)
-
-
 @router.post("/analyze")
 def analyze(req: AnalyzeRequest):
     out_blocks = []
@@ -46,10 +38,6 @@ def analyze(req: AnalyzeRequest):
                 "tokens": []
             })
             continue
-
-        # sr이면 변환
-        if req.language == "sr":
-            text = normalize_sr(text)
 
         out_blocks.append({
             "text": block.text,

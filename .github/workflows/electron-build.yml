@@ -105,7 +105,6 @@ jobs:
             cffi==2.0.0 \
             chardet==7.4.3 \
             charset-normalizer==2.0.12 \
-            classla==2.2.1 \
             click==8.3.3 \
             colorama==0.4.6 \
             colorlog==6.10.1 \
@@ -142,7 +141,6 @@ jobs:
             networkx==3.6.1 \
             ninja==1.13.0 \
             numpy==2.4.4 \
-            obeliks==1.1.6 \
             opt-einsum==3.3.0 \
             packaging==26.2 \
             passlib==1.7.4 \
@@ -170,7 +168,6 @@ jobs:
             python-multipart==0.0.26 \
             PyYAML==6.0.2 \
             regex==2025.11.3 \
-            reldi-tokeniser==1.0.3 \
             requests==2.28.0 \
             rich==15.0.0 \
             rsa==4.9.1 \

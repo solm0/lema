@@ -43,9 +43,7 @@ function inferLanguage() {
   if (!lang) return "en";
 
   if (lang.startsWith("de")) return "de";
-  if (lang.startsWith("mk")) return "mk";
   if (lang.startsWith("ru")) return "ru";
-  if (lang.startsWith("sr")) return "sr";
   return "en";
 }
 

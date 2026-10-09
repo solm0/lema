@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Dict
 import re
 
-from . import de, en, ja, ko, mk, ru, sq, sr
+from . import de, en, ja, ko, ru
 from runtime_paths import get_static_data_root
 
 
@@ -14,10 +14,7 @@ LANGUAGE_MODULES = {
     "en": en,
     "ja": ja,
     "ko": ko,
-    "mk": mk,
     "ru": ru,
-    "sq": sq,
-    "sr": sr,
 }
 
 

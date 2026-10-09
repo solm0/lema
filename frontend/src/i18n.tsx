@@ -288,10 +288,7 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "English": "영어",
     "Japanese": "일본어",
     "Korean": "한국어",
-    "Macedonian": "마케도니아어",
-    "Russian": "러시아어",
-    "Albanian": "알바니아어",
-    "Serbian": "세르비아어"
+    "Russian": "러시아어"
   },
 };
 

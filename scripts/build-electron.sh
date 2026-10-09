@@ -72,12 +72,9 @@ PYINSTALLER_ARGS=(
 
 PYINSTALLER_DATA_PACKAGES=(
   stanza
-  classla
-  obeliks
   udtools
   udapi
   regex
-  reldi_tokeniser
   kiwipiepy
   kiwipiepy_model
 )

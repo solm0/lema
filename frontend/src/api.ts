@@ -536,23 +536,6 @@ export async function fetchPageDetail(pageId: string) {
   return getLocalPage(pageId);
 }
 
-const CYR_TO_LAT_MAP: Record<string, string> = {
-  а:"a", б:"b", в:"v", г:"g", д:"d",
-  ђ:"đ", е:"e", ж:"ž", з:"z", и:"i",
-  ј:"j", к:"k", л:"l", љ:"lj", м:"m",
-  н:"n", њ:"nj", о:"o", п:"p", р:"r",
-  с:"s", т:"t", ћ:"ć", у:"u", ф:"f",
-  х:"h", ц:"c", ч:"č", џ:"dž", ш:"š"
-}
-
-function normalizeSr(lemma: string) {
-  return lemma
-    .toLowerCase()
-    .split("")
-    .map(ch => CYR_TO_LAT_MAP[ch] ?? ch)
-    .join("")
-}
-
 const MAX_LOOKUP_BATCH_ITEMS = 100;
 
 export async function lemmaLookup(
@@ -572,13 +555,6 @@ export async function lemmaLookup(
       continue;
     }
 
-    const normalizedItems =
-      language === "sr"
-        ? batch.map(i => ({
-            ...i,
-            lemma: normalizeSr(i.lemma),
-          }))
-        : batch;
     const headers = authHeaders() ?? {};
     const res = await fetch(`${LOCAL_API}/lookup_batch`, {
       method: "POST",
@@ -587,7 +563,7 @@ export async function lemmaLookup(
         ...headers,
       },
       body: JSON.stringify({
-        items: normalizedItems,
+        items: batch,
         language,
       }),
     });

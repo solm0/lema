@@ -20,9 +20,6 @@ const LANGUAGE_NAMES: Record<string, string> = {
   zh: "Chinese",
   fr: "French",
   es: "Spanish",
-  sr: "Serbian",
-  mk: "Macedonian",
-  sq: "Albanian",
 };
 
 export default function KnownWordsMilestoneToast({

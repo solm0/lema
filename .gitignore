@@ -6,7 +6,6 @@ preprocess/*/*.txt
 preprocess/analyzer_quality/baselines/*
 venv
 models
-classla_models
 data_runtime/
 backend/data_runtime/
 central/data_runtime/
@@ -56,4 +55,3 @@ note.md
 *.sqlite3-shm
 *.db-wal
 *.db-shm
-

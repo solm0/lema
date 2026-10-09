@@ -1,13 +1,11 @@
 import logging
 import time
-import unicodedata
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 
 from db import get_db
-from language_config.sr import cyr_to_lat
 from models import User, UserLemma
 from routers.auth_router import get_current_user
 from services.analysis_access import AnalysisLease, acquire_analysis_lease
@@ -46,11 +44,6 @@ class LookupRequest(BaseModel):
 class BatchLookupRequest(BaseModel):
     items: list[dict] = Field(max_length=MAX_LOOKUP_BATCH_ITEMS)
     language: str
-
-
-def normalize_sr(text: str) -> str:
-    text = unicodedata.normalize("NFC", text)
-    return cyr_to_lat(text)
 
 
 def to_local_key(lemma: str, pos: str) -> str:
@@ -109,9 +102,6 @@ def analyze(
                     "tokens": [],
                 })
                 continue
-
-            if req.language == "sr":
-                text = normalize_sr(text)
 
             block_started_at = time.perf_counter()
 

@@ -1,6 +1,6 @@
 # 언어팩 생성하기
 - 전체생성: `source backend/venv/bin/activate` -> `python3 preprocess/run_all_builds.py --version 0.0.0 --jobs 3 --caffeinate`
-- 일부 생성: `--lang sq --lang sr`
+- 일부 생성: `--lang ko --lang ja`
 - 전체 업로드: `python3 preprocess/publish_releases.py --version 0.0.0`
 
 # 같은 태그로 다시 배포하기

@@ -9,24 +9,9 @@ RUNTIME_PACKAGE_SPECS = {
         "version": "1.11.1",
         "install_mode": "pypi_wheel",
     },
-    "classla": {
-        "project": "classla",
-        "version": "2.2.1",
-        "install_mode": "pypi_wheel",
-    },
-    "obeliks": {
-        "project": "obeliks",
-        "version": "1.1.6",
-        "install_mode": "pypi_wheel",
-    },
     "udtools": {
         "project": "udtools",
         "version": "0.2.7",
-        "install_mode": "pypi_wheel",
-    },
-    "reldi_tokeniser": {
-        "project": "reldi-tokeniser",
-        "version": "1.0.3",
         "install_mode": "pypi_wheel",
     },
     "kiwipiepy_model": {
@@ -135,21 +120,6 @@ RUNTIME_MANIFESTS = {
             }
         ],
     },
-    "mk": {
-        "lang": "mk",
-        "runtime_version": 1,
-        "shared_dependencies": ["torch"],
-        "language_packages": ["classla", "obeliks", "udtools", "udapi", "regex", "reldi_tokeniser"],
-        "resource_packages": ["obeliks", "udtools", "reldi_tokeniser"],
-        "models": [
-            {
-                "id": "classla-mk",
-                "provider": "classla",
-                "lang": "mk",
-                "resource_id": "classla-model-mk",
-            }
-        ],
-    },
     "ru": {
         "lang": "ru",
         "runtime_version": 1,
@@ -162,36 +132,6 @@ RUNTIME_MANIFESTS = {
                 "provider": "stanza",
                 "lang": "ru",
                 "resource_id": "stanza-model-ru",
-            }
-        ],
-    },
-    "sq": {
-        "lang": "sq",
-        "runtime_version": 1,
-        "shared_dependencies": ["torch"],
-        "language_packages": ["stanza", "udtools", "udapi", "regex"],
-        "resource_packages": ["udtools"],
-        "models": [
-            {
-                "id": "stanza-sq",
-                "provider": "stanza",
-                "lang": "sq",
-                "resource_id": "stanza-model-sq",
-            }
-        ],
-    },
-    "sr": {
-        "lang": "sr",
-        "runtime_version": 1,
-        "shared_dependencies": ["torch"],
-        "language_packages": ["classla", "obeliks", "udtools", "udapi", "regex", "reldi_tokeniser"],
-        "resource_packages": ["obeliks", "udtools", "reldi_tokeniser"],
-        "models": [
-            {
-                "id": "classla-sr",
-                "provider": "classla",
-                "lang": "sr",
-                "resource_id": "classla-model-sr",
             }
         ],
     },
@@ -277,87 +217,6 @@ PACK_RELEASES = {
             [
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "eng-simple_wikipedia_2021_300K, eng-uk_web-public_2018_1M"},
-            ],
-        ),
-    ],
-    "sr": [
-        build_pack(
-            "sr",
-            "1.1.2",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "srp_wikipedia_2021_300K, srp-rs_web_2016_1M"},
-                {"Note": "deleted related words"},
-            ],
-        ),
-        build_pack(
-            "sr",
-            "1.1.0",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "srp_wikipedia_2021_300K, srp-rs_web_2016_1M"},
-            ],
-        ),
-        build_pack(
-            "sr",
-            "1.0.0",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "srp_wikipedia_2021_300K, srp-rs_web_2016_1M"},
-            ],
-        ),
-    ],
-    "mk": [
-        build_pack(
-            "mk",
-            "1.1.2",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "mkd_wikipedia_2021_300K, mkd-mk_web_2015_1M"},
-                {"Note": "deleted related words"},
-            ],
-        ),
-        build_pack(
-            "mk",
-            "1.1.0",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "mkd_wikipedia_2021_300K, mkd-mk_web_2015_1M"},
-            ],
-        ),
-        build_pack(
-            "mk",
-            "1.0.0",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "mkd_wikipedia_2021_300K, mkd-mk_web_2015_1M"},
-            ],
-        ),
-    ],
-    "sq": [
-        build_pack(
-            "sq",
-            "1.1.2",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "sqi_wikipedia_2021_300K, sqi_news_2020_1M"},
-                {"Note": "deleted related words"},
-            ],
-        ),
-        build_pack(
-            "sq",
-            "1.1.0",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "sqi_wikipedia_2021_300K, sqi_news_2020_1M"},
-            ],
-        ),
-        build_pack(
-            "sq",
-            "1.0.0",
-            [
-                {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "sqi_wikipedia_2021_300K, sqi_news_2020_1M"},
             ],
         ),
     ],

@@ -4,7 +4,6 @@ corpora
 releases
 venv
 models
-classla_models
 .env
 *.db
 *.woff2

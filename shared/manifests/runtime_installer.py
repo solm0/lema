@@ -52,38 +52,12 @@ def _validate_stanza() -> None:
     )
 
 
-def _validate_classla() -> None:
-    _get_package_root("classla")
-
-
-def _validate_obeliks() -> None:
-    _require_files(
-        "obeliks",
-        [
-            "res/ListOSeq.txt",
-            "res/ListOSeg.txt",
-            "res/TokRulesPart1.txt",
-        ],
-    )
-
-
 def _validate_udtools() -> None:
     _require_files(
         "udtools",
         [
             "data/data.json",
             "data/upos.json",
-        ],
-    )
-
-
-def _validate_reldi_tokeniser() -> None:
-    _require_files(
-        "reldi_tokeniser",
-        [
-            "mk.abbrev",
-            "sr.abbrev",
-            "punct",
         ],
     )
 
@@ -111,12 +85,9 @@ def _validate_kiwipiepy_model() -> None:
 VALIDATORS = {
     "torch": _validate_torch,
     "stanza": _validate_stanza,
-    "classla": _validate_classla,
-    "obeliks": _validate_obeliks,
     "udtools": _validate_udtools,
     "udapi": lambda: _require_files("udapi", ["__init__.py", "core/__init__.py", "block/__init__.py"]),
     "regex": lambda: _require_files("regex", ["__init__.py"]),
-    "reldi_tokeniser": _validate_reldi_tokeniser,
     "kiwipiepy": _validate_kiwipiepy,
     "kiwipiepy_model": _validate_kiwipiepy_model,
 }
