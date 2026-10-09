@@ -65,6 +65,25 @@ LANGUAGES: dict[str, dict[str, Any]] = {
             "model_package_version": "1.3.0",
         },
     },
+    "ru": {
+        "application_id": "com.solmi.lema.gradshow.debug",
+        "test_application_id": "com.solmi.lema.gradshow.debug.test",
+        "test_class": (
+            "com.solmi.lema.RussianNlpAnalyzerInstrumentedTest"
+            "#loadsModelsAndAnalyzesOnAndroidRuntime"
+        ),
+        "remote_report": "cache/analyzer-quality/ru-android-performance.json",
+        "baseline": (
+            ROOT
+            / "preprocess/analyzer_quality/baselines/ru-android-opennlp-performance.json"
+        ),
+        "analyzer": {
+            "engine": "Apache OpenNLP",
+            "runtime_version": "2.5.3",
+            "model_package_version": "1.3.0",
+            "model_treebank": "UD Russian GSD",
+        },
+    },
 }
 
 

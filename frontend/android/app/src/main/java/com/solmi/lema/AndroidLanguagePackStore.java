@@ -32,7 +32,7 @@ final class AndroidLanguagePackStore {
     private static final Pattern LANGUAGE_PATTERN = Pattern.compile("^[a-z]{2,3}$");
     private static final Pattern VERSION_PATTERN = Pattern.compile("^[0-9]+(?:\\.[0-9]+)*$");
     private static final int BUFFER_SIZE = 64 * 1024;
-    private static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("de", "en");
+    private static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("de", "en", "ru");
     private static final ModelArtifact[] GERMAN_MODELS = new ModelArtifact[] {
         new ModelArtifact(
             "sentence detector",
@@ -75,6 +75,28 @@ final class AndroidLanguagePackStore {
             "lemmatizer",
             EnglishNlpAnalyzer.LEMMA_MODEL,
             "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-lemmatizer-en/1.3.0/opennlp-models-lemmatizer-en-1.3.0.jar"
+        ),
+    };
+    private static final ModelArtifact[] RUSSIAN_MODELS = new ModelArtifact[] {
+        new ModelArtifact(
+            "sentence detector",
+            RussianNlpAnalyzer.SENTENCE_MODEL,
+            "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-sentdetect-ru/1.3.0/opennlp-models-sentdetect-ru-1.3.0.jar"
+        ),
+        new ModelArtifact(
+            "tokenizer",
+            RussianNlpAnalyzer.TOKEN_MODEL,
+            "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-tokenizer-ru/1.3.0/opennlp-models-tokenizer-ru-1.3.0.jar"
+        ),
+        new ModelArtifact(
+            "part-of-speech model",
+            RussianNlpAnalyzer.POS_MODEL,
+            "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-pos-ru/1.3.0/opennlp-models-pos-ru-1.3.0.jar"
+        ),
+        new ModelArtifact(
+            "lemmatizer",
+            RussianNlpAnalyzer.LEMMA_MODEL,
+            "https://repo.maven.apache.org/maven2/org/apache/opennlp/opennlp-models-lemmatizer-ru/1.3.0/opennlp-models-lemmatizer-ru-1.3.0.jar"
         ),
     };
 
@@ -181,6 +203,8 @@ final class AndroidLanguagePackStore {
                 new EnglishNlpAnalyzer(new File(staging, "models"));
             } else if ("de".equals(language)) {
                 new GermanNlpAnalyzer(new File(staging, "models"), null);
+            } else if ("ru".equals(language)) {
+                new RussianNlpAnalyzer(new File(staging, "models"), null);
             }
 
             File target = new File(languageDirectory, version);
@@ -237,6 +261,7 @@ final class AndroidLanguagePackStore {
     private ModelArtifact[] modelsForLanguage(String language) {
         if ("de".equals(language)) return GERMAN_MODELS;
         if ("en".equals(language)) return ENGLISH_MODELS;
+        if ("ru".equals(language)) return RUSSIAN_MODELS;
         throw new IllegalArgumentException("Unsupported Android language pack: " + language);
     }
 
@@ -370,6 +395,7 @@ final class AndroidLanguagePackStore {
         File modelsDirectory = new File(directory, "models");
         if ("de".equals(language)) return GermanNlpAnalyzer.modelsAvailable(modelsDirectory);
         if ("en".equals(language)) return EnglishNlpAnalyzer.modelsAvailable(modelsDirectory);
+        if ("ru".equals(language)) return RussianNlpAnalyzer.modelsAvailable(modelsDirectory);
         return false;
     }
 

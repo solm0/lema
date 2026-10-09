@@ -12,11 +12,11 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-final class GermanNlpAnalyzer {
-    static final String SENTENCE_MODEL = "opennlp-de-ud-gsd-sentence-1.3-2.5.4.bin";
-    static final String TOKEN_MODEL = "opennlp-de-ud-gsd-tokens-1.3-2.5.4.bin";
-    static final String POS_MODEL = "opennlp-de-ud-gsd-pos-1.3-2.5.4.bin";
-    static final String LEMMA_MODEL = "opennlp-de-ud-gsd-lemmas-1.3-2.5.4.bin";
+final class RussianNlpAnalyzer {
+    static final String SENTENCE_MODEL = "opennlp-ru-ud-gsd-sentence-1.3-2.5.4.bin";
+    static final String TOKEN_MODEL = "opennlp-ru-ud-gsd-tokens-1.3-2.5.4.bin";
+    static final String POS_MODEL = "opennlp-ru-ud-gsd-pos-1.3-2.5.4.bin";
+    static final String LEMMA_MODEL = "opennlp-ru-ud-gsd-lemmas-1.3-2.5.4.bin";
 
     private static final OpenNlpAnalyzer.Models MODELS = new OpenNlpAnalyzer.Models(
         SENTENCE_MODEL,
@@ -24,15 +24,16 @@ final class GermanNlpAnalyzer {
         POS_MODEL,
         LEMMA_MODEL
     );
-    private static final Pattern VALID_LEMMA_PATTERN = Pattern.compile("^[a-zäöüß]+$");
-    private static final Pattern EDGE_NON_LETTERS = Pattern.compile("^[^a-zäöüß]+|[^a-zäöüß]+$");
+    private static final Pattern VALID_LEMMA_PATTERN = Pattern.compile("^[а-яё-]+$");
+    private static final Pattern EDGE_NON_LETTERS = Pattern.compile("^[^а-яё]+|[^а-яё]+$");
+    private static final Pattern INITIAL_UPPERCASE = Pattern.compile("^[^А-ЯЁа-яё]*[А-ЯЁ]");
+    private static final Pattern SENTENCE_END = Pattern.compile("[.!?…][\"\u201d»)\\]]*$");
     private static final Set<String> STOP_POS = new HashSet<>(Arrays.asList(
         "PUNCT", "SYM", "SPACE", "DET", "CCONJ", "SCONJ", "PART", "PRON", "ADP"
     ));
     private static final Set<String> STOP_LEMMAS = new HashSet<>(Arrays.asList(
-        "sein", "haben", "werden", "können", "müssen", "sollen", "wollen", "dürfen", "mögen",
-        "mehr", "bereits", "zunächst", "schließlich", "jedoch", "dann", "dort", "hier",
-        "auch", "noch", "nur", "etwa", "wohl"
+        "быть", "мочь", "сказать", "становиться", "более", "уже", "затем", "однако",
+        "тогда", "там", "здесь", "также", "ещё", "еще", "только", "примерно"
     ));
     private static final List<String> PACK_POS_FALLBACKS = Arrays.asList(
         "ADJ", "ADV", "AUX", "INTJ", "NOUN", "NUM", "PROPN", "VERB", "X"
@@ -51,29 +52,32 @@ final class GermanNlpAnalyzer {
     }
 
     private final OpenNlpAnalyzer analyzer;
+    private final LemmaKeyLookup lemmaKeyLookup;
 
-    GermanNlpAnalyzer(ClassLoader classLoader) throws IOException {
+    RussianNlpAnalyzer(ClassLoader classLoader) throws IOException {
         this(classLoader, null);
     }
 
-    GermanNlpAnalyzer(ClassLoader classLoader, LemmaKeyLookup lemmaKeyLookup) throws IOException {
+    RussianNlpAnalyzer(ClassLoader classLoader, LemmaKeyLookup lemmaKeyLookup) throws IOException {
         analyzer = new OpenNlpAnalyzer(
             classLoader,
             MODELS,
-            "German",
+            "Russian",
             (surface, modelSurface, lemma, pos) ->
                 adaptForPack(surface, modelSurface, lemma, pos, lemmaKeyLookup)
         );
+        this.lemmaKeyLookup = lemmaKeyLookup;
     }
 
-    GermanNlpAnalyzer(File modelDirectory, LemmaKeyLookup lemmaKeyLookup) throws IOException {
+    RussianNlpAnalyzer(File modelDirectory, LemmaKeyLookup lemmaKeyLookup) throws IOException {
         analyzer = new OpenNlpAnalyzer(
             modelDirectory,
             MODELS,
-            "German",
+            "Russian",
             (surface, modelSurface, lemma, pos) ->
                 adaptForPack(surface, modelSurface, lemma, pos, lemmaKeyLookup)
         );
+        this.lemmaKeyLookup = lemmaKeyLookup;
     }
 
     static boolean modelsAvailable(ClassLoader classLoader) {
@@ -86,8 +90,19 @@ final class GermanNlpAnalyzer {
 
     List<Token> analyze(String rawText) {
         List<Token> output = new ArrayList<>();
+        boolean sentenceStart = true;
         for (OpenNlpAnalyzer.Token token : analyzer.analyze(rawText)) {
-            output.add(new Token(token.surface, token.lemma, token.pos));
+            String pos = token.pos;
+            if (!sentenceStart
+                && lemmaKeyLookup != null
+                && token.lemma != null
+                && "NOUN".equals(pos)
+                && INITIAL_UPPERCASE.matcher(token.surface).find()
+                && lemmaKeyLookup.contains(token.lemma, "PROPN")) {
+                pos = "PROPN";
+            }
+            output.add(new Token(token.surface, token.lemma, pos));
+            sentenceStart = SENTENCE_END.matcher(token.surface).find();
         }
         return output;
     }
@@ -114,14 +129,28 @@ final class GermanNlpAnalyzer {
         }
 
         LinkedHashSet<String> candidates = new LinkedHashSet<>();
-        addCandidate(candidates, normalizedLemma.replace("ß", "ss"), normalizedPos);
-        addPreferredPosCandidates(candidates, normalizedLemma, normalizedPos);
+        addYoVariants(candidates, normalizedLemma, normalizedPos);
 
         String normalizedSurface = normalizeSurface(modelSurface);
         if (normalizedSurface == null) normalizedSurface = normalizeSurface(surface);
         if (normalizedSurface != null) {
             addCandidate(candidates, normalizedSurface, normalizedPos);
-            addPreferredPosCandidates(candidates, normalizedSurface, normalizedPos);
+            if ("PROPN".equals(normalizedPos)) {
+                addCandidate(candidates, normalizedSurface, "PROPN");
+            }
+            addYoVariants(candidates, normalizedSurface, normalizedPos);
+        }
+
+        if ("NOUN".equals(normalizedPos)) {
+            addCandidate(candidates, normalizedLemma, "PROPN");
+            addYoVariants(candidates, normalizedLemma, "PROPN");
+        } else if ("PROPN".equals(normalizedPos)) {
+            addCandidate(candidates, normalizedLemma, "NOUN");
+            addYoVariants(candidates, normalizedLemma, "NOUN");
+            if (normalizedSurface != null) {
+                addCandidate(candidates, normalizedSurface, "NOUN");
+                addYoVariants(candidates, normalizedSurface, "NOUN");
+            }
         }
 
         for (String fallbackPos : PACK_POS_FALLBACKS) {
@@ -142,23 +171,22 @@ final class GermanNlpAnalyzer {
         return new OpenNlpAnalyzer.Annotation(normalizedLemma, normalizedPos);
     }
 
-    private static void addPreferredPosCandidates(
-        Set<String> candidates,
-        String lemma,
-        String pos
-    ) {
-        if ("NOUN".equals(pos)) {
-            addCandidate(candidates, lemma, "PROPN");
-        } else if ("PROPN".equals(pos)) {
-            addCandidate(candidates, lemma, "NOUN");
-        } else if ("ADJ".equals(pos)) {
-            addCandidate(candidates, lemma, "ADV");
-            addCandidate(candidates, lemma, "VERB");
+    private static void addYoVariants(Set<String> candidates, String lemma, String pos) {
+        if (lemma.indexOf('ё') >= 0) addCandidate(candidates, lemma.replace('ё', 'е'), pos);
+        for (int index = lemma.indexOf('е'); index >= 0; index = lemma.indexOf('е', index + 1)) {
+            addCandidate(
+                candidates,
+                lemma.substring(0, index) + 'ё' + lemma.substring(index + 1),
+                pos
+            );
         }
     }
 
     private static void addCandidate(Set<String> candidates, String lemma, String pos) {
-        if (lemma == null || pos == null || !VALID_LEMMA_PATTERN.matcher(lemma).matches()) return;
+        if (lemma == null
+            || pos == null
+            || STOP_LEMMAS.contains(lemma)
+            || !VALID_LEMMA_PATTERN.matcher(lemma).matches()) return;
         candidates.add(lemma + '\t' + pos);
     }
 

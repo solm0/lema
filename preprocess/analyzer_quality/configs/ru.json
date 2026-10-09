@@ -1,0 +1,38 @@
+{
+  "language": "ru",
+  "unicode_form": "NFC",
+  "casefold_lemmas": true,
+  "reference_pos_map": {},
+  "candidate_pos_map": {},
+  "reference_lemma_map": {},
+  "candidate_lemma_map": {},
+  "exclude_pos": [
+    "PUNCT",
+    "SYM",
+    "SPACE",
+    "DET",
+    "CCONJ",
+    "SCONJ",
+    "PART",
+    "PRON",
+    "ADP"
+  ],
+  "exclude_lemmas": [
+    "быть",
+    "мочь",
+    "сказать",
+    "становиться",
+    "более",
+    "уже",
+    "затем",
+    "однако",
+    "тогда",
+    "там",
+    "здесь",
+    "также",
+    "ещё",
+    "еще",
+    "только",
+    "примерно"
+  ]
+}

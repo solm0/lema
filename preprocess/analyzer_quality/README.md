@@ -79,6 +79,14 @@ python3 preprocess/analyzer_quality/run_android.py --language en --sample-size 1
 python3 preprocess/analyzer_quality/run_android.py --language de --sample-size 1000
 ```
 
+러시아어도 OpenNLP UD Russian GSD 모델을 사용하되, spaCy와 pymorphy3로 생성한
+언어팩의 lemma와 비교한다. 어댑터는 `ё/е`, 고유명사 surface, NOUN/PROPN 대체 후보가
+SQLite 언어팩에 실제로 존재할 때만 적용한다.
+
+```bash
+python3 preprocess/analyzer_quality/run_android.py --language ru --sample-size 1000
+```
+
 이 실행기는 Gradshow Debug 앱을 별도 패키지로 설치하므로 일반 Debug 앱의 로컬 페이지에는
 영향을 주지 않는다. 새 언어를 추가할 때는 Android 계측 테스트에 해당 분석기 어댑터를 넣고,
 `run_android.py`의 언어 설정과 `configs/{lang}.json`만 추가한다. 비교 및 판정 코드는 바꾸지 않는다.
@@ -97,7 +105,8 @@ python3 preprocess/analyzer_quality/run_android.py --language de --sample-size 1
 python3 preprocess/analyzer_quality/run_android_performance.py --language en
 ```
 
-독일어 모델은 `--language de`로 같은 로드·힙·지연 지표를 측정한다.
+독일어 모델은 `--language de`, 러시아어 모델은 `--language ru`로 같은
+로드·힙·지연 지표를 측정한다.
 
 APK가 이미 최신이면 빌드와 설치를 생략할 수 있다.
 

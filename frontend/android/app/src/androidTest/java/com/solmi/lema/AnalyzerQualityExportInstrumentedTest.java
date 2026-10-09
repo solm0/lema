@@ -33,10 +33,13 @@ import java.util.zip.ZipInputStream;
 public class AnalyzerQualityExportInstrumentedTest {
     private static final String ENGLISH_LANGUAGE = "en";
     private static final String GERMAN_LANGUAGE = "de";
+    private static final String RUSSIAN_LANGUAGE = "ru";
     private static final String ENGLISH_PACK_ASSET = "packs/en-v1.1.2-lemma.zip";
     private static final String GERMAN_PACK_ASSET = "packs/de-v1.1.2-lemma.zip";
+    private static final String RUSSIAN_PACK_ASSET = "packs/ru-v1.1.2-lemma.zip";
     private static final String ENGLISH_OUTPUT_PATH = "analyzer-quality/en-android.jsonl";
     private static final String GERMAN_OUTPUT_PATH = "analyzer-quality/de-android.jsonl";
+    private static final String RUSSIAN_OUTPUT_PATH = "analyzer-quality/ru-android.jsonl";
 
     @Test
     public void exportsEnglishCandidateJsonl() throws Exception {
@@ -134,6 +137,60 @@ public class AnalyzerQualityExportInstrumentedTest {
             System.out.printf(
                 "LEMA_QUALITY_EXPORT language=%s samples=%d path=%s%n",
                 GERMAN_LANGUAGE,
+                lineIds.size(),
+                outputFile.getAbsolutePath()
+            );
+        } finally {
+            if (database != null) database.close();
+            databaseFile.delete();
+        }
+    }
+
+    @Test
+    public void exportsRussianCandidateJsonl() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        Bundle arguments = InstrumentationRegistry.getArguments();
+        String requestedLanguage = arguments.getString("language", RUSSIAN_LANGUAGE);
+        int requestedSampleSize = parseSampleSize(arguments.getString("sampleSize", "1000"));
+
+        assertEquals("This export runs the Russian analyzer", RUSSIAN_LANGUAGE, requestedLanguage);
+        assertTrue("The export requires the Gradshow language-pack asset", BuildConfig.GRADSHOW_MODE);
+
+        File databaseFile = extractPackDatabase(context, RUSSIAN_PACK_ASSET, "russian");
+        File outputFile = new File(context.getCacheDir(), RUSSIAN_OUTPUT_PATH);
+        File parent = outputFile.getParentFile();
+        assertTrue(parent != null && (parent.isDirectory() || parent.mkdirs()));
+
+        SQLiteDatabase database = null;
+        try {
+            database = SQLiteDatabase.openDatabase(
+                databaseFile.getAbsolutePath(),
+                null,
+                SQLiteDatabase.OPEN_READONLY
+            );
+            List<Long> lineIds = evenlySpacedLineIds(database, requestedSampleSize);
+            RussianNlpAnalyzer analyzer = new RussianNlpAnalyzer(
+                context.getClassLoader(),
+                new SqliteLemmaKeyLookup(database)
+            );
+
+            try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(outputFile),
+                StandardCharsets.UTF_8
+            ))) {
+                for (long lineId : lineIds) {
+                    JSONObject reference = readLine(database, lineId);
+                    String input = reconstructInput(reference.getJSONArray("tokens"));
+                    List<RussianNlpAnalyzer.Token> analyzed = analyzer.analyze(input);
+                    writer.write(russianCandidateRecord(lineId, analyzed).toString());
+                    writer.newLine();
+                }
+            }
+
+            assertEquals(lineIds.size(), countLines(outputFile));
+            System.out.printf(
+                "LEMA_QUALITY_EXPORT language=%s samples=%d path=%s%n",
+                RUSSIAN_LANGUAGE,
                 lineIds.size(),
                 outputFile.getAbsolutePath()
             );
@@ -253,6 +310,24 @@ public class AnalyzerQualityExportInstrumentedTest {
     ) throws Exception {
         JSONArray outputTokens = new JSONArray();
         for (GermanNlpAnalyzer.Token token : tokens) {
+            JSONObject outputToken = new JSONObject();
+            outputToken.put("surface", token.surface);
+            if (token.lemma != null) outputToken.put("lemma", token.lemma);
+            if (token.pos != null) outputToken.put("pos", token.pos);
+            outputTokens.put(outputToken);
+        }
+        JSONObject output = new JSONObject();
+        output.put("id", lineId);
+        output.put("tokens", outputTokens);
+        return output;
+    }
+
+    private static JSONObject russianCandidateRecord(
+        long lineId,
+        List<RussianNlpAnalyzer.Token> tokens
+    ) throws Exception {
+        JSONArray outputTokens = new JSONArray();
+        for (RussianNlpAnalyzer.Token token : tokens) {
             JSONObject outputToken = new JSONObject();
             outputToken.put("surface", token.surface);
             if (token.lemma != null) outputToken.put("lemma", token.lemma);

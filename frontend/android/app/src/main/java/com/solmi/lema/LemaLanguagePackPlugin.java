@@ -53,6 +53,8 @@ public class LemaLanguagePackPlugin extends Plugin {
     private File openEnglishAnalyzerDirectory;
     private GermanNlpAnalyzer germanAnalyzer;
     private File openGermanAnalyzerDirectory;
+    private RussianNlpAnalyzer russianAnalyzer;
+    private File openRussianAnalyzerDirectory;
 
     @PluginMethod
     public void getSupportedLanguages(PluginCall call) {
@@ -206,6 +208,9 @@ public class LemaLanguagePackPlugin extends Plugin {
                 GermanNlpAnalyzer selectedGermanAnalyzer = "de".equals(language)
                     ? openGermanAnalyzer()
                     : null;
+                RussianNlpAnalyzer selectedRussianAnalyzer = "ru".equals(language)
+                    ? openRussianAnalyzer()
+                    : null;
                 JSArray analyzedBlocks = new JSArray();
 
                 for (int index = 0; index < blocks.length(); index += 1) {
@@ -224,6 +229,14 @@ public class LemaLanguagePackPlugin extends Plugin {
                         }
                     } else if (!text.isEmpty() && selectedGermanAnalyzer != null) {
                         for (GermanNlpAnalyzer.Token token : selectedGermanAnalyzer.analyze(text)) {
+                            JSObject outputToken = new JSObject();
+                            outputToken.put("surface", token.surface);
+                            outputToken.put("lemma", token.lemma != null ? token.lemma : JSONObject.NULL);
+                            outputToken.put("pos", token.pos != null ? token.pos : JSONObject.NULL);
+                            tokens.put(outputToken);
+                        }
+                    } else if (!text.isEmpty() && selectedRussianAnalyzer != null) {
+                        for (RussianNlpAnalyzer.Token token : selectedRussianAnalyzer.analyze(text)) {
                             JSObject outputToken = new JSObject();
                             outputToken.put("surface", token.surface);
                             outputToken.put("lemma", token.lemma != null ? token.lemma : JSONObject.NULL);
@@ -443,6 +456,32 @@ public class LemaLanguagePackPlugin extends Plugin {
         return germanAnalyzer;
     }
 
+    private synchronized RussianNlpAnalyzer openRussianAnalyzer() throws Exception {
+        File installedDirectory = packStore().latestReadyDirectory("ru");
+        if (installedDirectory != null) {
+            File modelDirectory = new File(installedDirectory, "models");
+            if (russianAnalyzer == null || !modelDirectory.equals(openRussianAnalyzerDirectory)) {
+                russianAnalyzer = new RussianNlpAnalyzer(
+                    modelDirectory,
+                    new SqliteLemmaKeyLookup(openDatabase("ru"))
+                );
+                openRussianAnalyzerDirectory = modelDirectory;
+            }
+            return russianAnalyzer;
+        }
+        if (!BuildConfig.GRADSHOW_MODE) {
+            throw new IllegalStateException("Russian language pack is not installed");
+        }
+        if (russianAnalyzer == null || openRussianAnalyzerDirectory != null) {
+            russianAnalyzer = new RussianNlpAnalyzer(
+                getClass().getClassLoader(),
+                new SqliteLemmaKeyLookup(openDatabase("ru"))
+            );
+            openRussianAnalyzerDirectory = null;
+        }
+        return russianAnalyzer;
+    }
+
     private File getGradshowPackDirectory(String language) {
         return new File(
             getContext().getFilesDir(),
@@ -479,6 +518,9 @@ public class LemaLanguagePackPlugin extends Plugin {
         if ("en".equals(language)) {
             return EnglishNlpAnalyzer.modelsAvailable(getClass().getClassLoader());
         }
+        if ("ru".equals(language)) {
+            return RussianNlpAnalyzer.modelsAvailable(getClass().getClassLoader());
+        }
         return false;
     }
 
@@ -496,6 +538,8 @@ public class LemaLanguagePackPlugin extends Plugin {
         openEnglishAnalyzerDirectory = null;
         germanAnalyzer = null;
         openGermanAnalyzerDirectory = null;
+        russianAnalyzer = null;
+        openRussianAnalyzerDirectory = null;
     }
 
     private JSONObject missingLookupResult(

@@ -28,7 +28,7 @@ public class GermanNlpAnalyzerTest {
 
     @Test
     public void keepsExistingPackKeyBeforeTryingPosAlternatives() {
-        GermanNlpAnalyzer.LemmaKeyLookup lookup = keys("schnell_ADJ", "schnell_ADV");
+        LemmaKeyLookup lookup = keys("schnell_ADJ", "schnell_ADV");
 
         OpenNlpAnalyzer.Annotation result = GermanNlpAnalyzer.adaptForPack(
             "schnell", "schnell", "schnell", "ADJ", lookup
@@ -40,7 +40,7 @@ public class GermanNlpAnalyzerTest {
 
     @Test
     public void reconcilesGermanPackPosOnlyWhenModelKeyIsMissing() {
-        GermanNlpAnalyzer.LemmaKeyLookup lookup = keys(
+        LemmaKeyLookup lookup = keys(
             "schnell_ADV",
             "volksstimme_NOUN"
         );
@@ -59,7 +59,7 @@ public class GermanNlpAnalyzerTest {
 
     @Test
     public void supportsModernSsFallbackAndGermanLetters() {
-        GermanNlpAnalyzer.LemmaKeyLookup lookup = keys("anlass_NOUN", "münchen_PROPN");
+        LemmaKeyLookup lookup = keys("anlass_NOUN", "münchen_PROPN");
 
         OpenNlpAnalyzer.Annotation spelling = GermanNlpAnalyzer.adaptForPack(
             "Anlass", "Anlass", "Anlaß", "NOUN", lookup
@@ -82,7 +82,7 @@ public class GermanNlpAnalyzerTest {
         assertEquals("AUX", result.pos);
     }
 
-    private static GermanNlpAnalyzer.LemmaKeyLookup keys(String... values) {
+    private static LemmaKeyLookup keys(String... values) {
         Set<String> keys = new HashSet<>(Arrays.asList(values));
         return (lemma, pos) -> keys.contains(lemma + "_" + pos);
     }

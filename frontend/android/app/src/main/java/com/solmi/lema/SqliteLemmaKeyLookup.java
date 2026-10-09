@@ -7,7 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Small bounded cache around the language-pack lemma_stats primary key. */
-final class SqliteLemmaKeyLookup implements GermanNlpAnalyzer.LemmaKeyLookup {
+final class SqliteLemmaKeyLookup implements LemmaKeyLookup {
     private static final int MAX_CACHE_ENTRIES = 4096;
 
     private final SQLiteDatabase database;
