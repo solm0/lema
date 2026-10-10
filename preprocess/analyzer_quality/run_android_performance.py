@@ -65,6 +65,24 @@ LANGUAGES: dict[str, dict[str, Any]] = {
             "model_package_version": "1.3.0",
         },
     },
+    "ko": {
+        "application_id": "com.solmi.lema.gradshow.debug",
+        "test_application_id": "com.solmi.lema.gradshow.debug.test",
+        "test_class": (
+            "com.solmi.lema.KoreanNlpAnalyzerInstrumentedTest"
+            "#loadsModelsAndAnalyzesOnAndroidRuntime"
+        ),
+        "remote_report": "cache/analyzer-quality/ko-android-performance.json",
+        "baseline": (
+            ROOT
+            / "preprocess/analyzer_quality/baselines/ko-android-kiwi-performance.json"
+        ),
+        "analyzer": {
+            "engine": "Kiwi Android",
+            "runtime_version": "0.24.0",
+            "model_version": "0.24.0-base",
+        },
+    },
     "ru": {
         "application_id": "com.solmi.lema.gradshow.debug",
         "test_application_id": "com.solmi.lema.gradshow.debug.test",
@@ -100,11 +118,16 @@ def gate_failures(summary: dict[str, Any], args: argparse.Namespace) -> list[str
     checks = [
         ("cold_model_load_ms", args.max_load_ms),
         ("retained_heap_mb", args.max_heap_mb),
+        ("native_pss_mb", args.max_native_pss_mb),
+        ("total_pss_mb", args.max_total_pss_mb),
         ("analysis_average_ms", args.max_analysis_average_ms),
     ]
     failures = []
     for metric, maximum in checks:
         if maximum is None:
+            continue
+        if metric not in summary:
+            failures.append(f"{metric} was not reported by the analyzer test")
             continue
         actual = float(summary[metric]["median"])
         if actual > maximum:
@@ -126,6 +149,17 @@ def print_report(summary: dict[str, Any], failures: list[str]) -> None:
         "Retained heap: "
         f"median {heap['median']:.2f} MB (min {heap['min']:.2f}, max {heap['max']:.2f})"
     )
+    for metric, label in (
+        ("native_pss_mb", "Native PSS"),
+        ("total_pss_mb", "Total PSS"),
+    ):
+        if metric not in summary:
+            continue
+        value = summary[metric]
+        print(
+            f"{label}: median {value['median']:.2f} MB "
+            f"(min {value['min']:.2f}, max {value['max']:.2f})"
+        )
     print(
         "12-token analysis: "
         f"median {analysis['median']:.2f} ms "
@@ -140,6 +174,8 @@ def print_report(summary: dict[str, Any], failures: list[str]) -> None:
         for value in (
             summary["thresholds"]["max_load_ms"],
             summary["thresholds"]["max_heap_mb"],
+            summary["thresholds"]["max_native_pss_mb"],
+            summary["thresholds"]["max_total_pss_mb"],
             summary["thresholds"]["max_analysis_average_ms"],
         )
     ):
@@ -152,9 +188,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--iterations", type=int, default=100)
     parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument(
+        "--kiwi-model-archive",
+        type=Path,
+        help="Official kiwi_model_v0.24.0_base.tgz used for Korean device tests",
+    )
     parser.add_argument("--baseline-out", type=Path)
     parser.add_argument("--max-load-ms", type=float)
     parser.add_argument("--max-heap-mb", type=float)
+    parser.add_argument("--max-native-pss-mb", type=float)
+    parser.add_argument("--max-total-pss-mb", type=float)
     parser.add_argument("--max-analysis-average-ms", type=float)
     return parser
 
@@ -167,7 +210,15 @@ def main(argv: list[str] | None = None) -> int:
     settings = LANGUAGES[args.language]
     adb = find_adb()
     if not args.skip_build:
-        build_and_install_test_apks(adb)
+        if args.language == "ko" and (
+            args.kiwi_model_archive is None
+            or not args.kiwi_model_archive.is_file()
+        ):
+            raise SystemExit(
+                "Korean device run requires --kiwi-model-archive "
+                "pointing to kiwi_model_v0.24.0_base.tgz"
+            )
+        build_and_install_test_apks(adb, args.kiwi_model_archive)
 
     reports: list[dict[str, Any]] = []
     with tempfile.TemporaryDirectory(prefix=f"lema-{args.language}-performance-") as directory:
@@ -203,9 +254,14 @@ def main(argv: list[str] | None = None) -> int:
         "thresholds": {
             "max_load_ms": args.max_load_ms,
             "max_heap_mb": args.max_heap_mb,
+            "max_native_pss_mb": args.max_native_pss_mb,
+            "max_total_pss_mb": args.max_total_pss_mb,
             "max_analysis_average_ms": args.max_analysis_average_ms,
         },
     }
+    for metric in ("native_pss_mb", "total_pss_mb"):
+        if all(metric in report for report in reports):
+            summary[metric] = metric_summary(reports, metric)
     failures = gate_failures(summary, args)
     print_report(summary, failures)
 

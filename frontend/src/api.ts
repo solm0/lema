@@ -54,7 +54,7 @@ import {
   uninstallNativePack,
 } from "./nativeLanguagePack";
 
-const DEFAULT_CENTRAL_API = "https://nautilus.solmi.wiki/api";
+const DEFAULT_CENTRAL_API = "https://lema.solmi.wiki/api";
 const DEFAULT_ELECTRON_LOCAL_API = "http://localhost:8010/api";
 const DEFAULT_WEB_LOCAL_API = "http://localhost:8000/api";
 

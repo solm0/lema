@@ -15,7 +15,7 @@ from services.installer import (
 
 router = APIRouter(prefix="/api/lang", tags=["lang"])
 
-CENTRAL_API = (os.getenv("CENTRAL_API") or "https://nautilus.solmi.wiki/api").rstrip("/")
+CENTRAL_API = (os.getenv("CENTRAL_API") or "https://lema.solmi.wiki/api").rstrip("/")
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 if str(ROOT_DIR) not in sys.path:

@@ -68,7 +68,7 @@ function AppVersionSection() {
     latestVersion != null && isNewerVersion(latestVersion, APP_VERSION);
 
   function openDownloadPage() {
-    const target = latestVersionInfo?.download_url ?? "https://nautilus.solmi.wiki/#download";
+    const target = latestVersionInfo?.download_url ?? "https://lema.solmi.wiki/#download";
     window.open(target, "_blank", "noopener,noreferrer");
   }
 

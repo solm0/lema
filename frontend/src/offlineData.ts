@@ -35,7 +35,7 @@ type VocabularySyncState = {
 const DEFAULT_STATE: VocabularySyncState = { version: 3, users: {} };
 const MOBILE_STORAGE_KEY = "lema.vocabulary-sync.v3";
 const LEGACY_MOBILE_STORAGE_KEY = "lema.favorite-sync.v2";
-const DEFAULT_CENTRAL_API = "https://nautilus.solmi.wiki/api";
+const DEFAULT_CENTRAL_API = "https://lema.solmi.wiki/api";
 export const VOCABULARY_SYNC_EVENT = "lema:vocabulary-sync";
 
 let stateCache: VocabularySyncState | null = null;

@@ -13,6 +13,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -32,7 +33,12 @@ final class AndroidLanguagePackStore {
     private static final Pattern LANGUAGE_PATTERN = Pattern.compile("^[a-z]{2,3}$");
     private static final Pattern VERSION_PATTERN = Pattern.compile("^[0-9]+(?:\\.[0-9]+)*$");
     private static final int BUFFER_SIZE = 64 * 1024;
-    private static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("de", "en", "ru");
+    private static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("de", "en", "ko", "ru");
+    static final String KIWI_MODEL_URL =
+        "https://github.com/bab2min/Kiwi/releases/download/v0.24.0/"
+            + "kiwi_model_v0.24.0_base.tgz";
+    static final String KIWI_MODEL_SHA256 =
+        "33188ba932bba4717bad5244bbec0ef8b1c9cbb47e26e68394a7976d8d779083";
     private static final ModelArtifact[] GERMAN_MODELS = new ModelArtifact[] {
         new ModelArtifact(
             "sentence detector",
@@ -203,6 +209,12 @@ final class AndroidLanguagePackStore {
                 new EnglishNlpAnalyzer(new File(staging, "models"));
             } else if ("de".equals(language)) {
                 new GermanNlpAnalyzer(new File(staging, "models"), null);
+            } else if ("ko".equals(language)) {
+                try (KoreanNlpAnalyzer ignored = new KoreanNlpAnalyzer(
+                    new File(new File(staging, "models"), KoreanNlpAnalyzer.MODEL_DIRECTORY)
+                )) {
+                    // Opening the native analyzer verifies model/runtime compatibility.
+                }
             } else if ("ru".equals(language)) {
                 new RussianNlpAnalyzer(new File(staging, "models"), null);
             }
@@ -232,6 +244,11 @@ final class AndroidLanguagePackStore {
         File modelsDirectory,
         ProgressListener progress
     ) throws Exception {
+        if ("ko".equals(language)) {
+            installKiwiModel(modelsDirectory, progress);
+            return;
+        }
+
         ModelArtifact[] models = modelsForLanguage(language);
         for (int index = 0; index < models.length; index += 1) {
             ModelArtifact artifact = models[index];
@@ -255,6 +272,31 @@ final class AndroidLanguagePackStore {
             } finally {
                 if (archive != null) archive.delete();
             }
+        }
+    }
+
+    private void installKiwiModel(
+        File modelsDirectory,
+        ProgressListener progress
+    ) throws Exception {
+        File archive = null;
+        try {
+            archive = download(
+                KIWI_MODEL_URL,
+                "kiwi-model-",
+                ".tgz",
+                0.66,
+                0.96,
+                progress,
+                "installing_model",
+                "Kiwi 0.24.0 Korean model",
+                0
+            );
+            verifySha256(archive, KIWI_MODEL_SHA256);
+            File kiwiDirectory = new File(modelsDirectory, KoreanNlpAnalyzer.MODEL_DIRECTORY);
+            KiwiModelArchive.extract(archive, kiwiDirectory);
+        } finally {
+            if (archive != null) archive.delete();
         }
     }
 
@@ -370,6 +412,20 @@ final class AndroidLanguagePackStore {
         }
     }
 
+    private void verifySha256(File file, String expected) throws Exception {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (InputStream input = new BufferedInputStream(new java.io.FileInputStream(file))) {
+            byte[] buffer = new byte[BUFFER_SIZE];
+            int read;
+            while ((read = input.read(buffer)) != -1) digest.update(buffer, 0, read);
+        }
+        StringBuilder actual = new StringBuilder();
+        for (byte value : digest.digest()) actual.append(String.format("%02x", value & 0xff));
+        if (!expected.equals(actual.toString())) {
+            throw new IllegalStateException("Downloaded Kiwi model failed SHA-256 verification");
+        }
+    }
+
     private boolean hasUsableDatabase(File directory) {
         File databaseFile = new File(directory, "lemma_pack.db");
         if (!databaseFile.isFile() || databaseFile.length() == 0) return false;
@@ -395,6 +451,11 @@ final class AndroidLanguagePackStore {
         File modelsDirectory = new File(directory, "models");
         if ("de".equals(language)) return GermanNlpAnalyzer.modelsAvailable(modelsDirectory);
         if ("en".equals(language)) return EnglishNlpAnalyzer.modelsAvailable(modelsDirectory);
+        if ("ko".equals(language)) {
+            return KoreanNlpAnalyzer.modelsAvailable(
+                new File(modelsDirectory, KoreanNlpAnalyzer.MODEL_DIRECTORY)
+            );
+        }
         if ("ru".equals(language)) return RussianNlpAnalyzer.modelsAvailable(modelsDirectory);
         return false;
     }

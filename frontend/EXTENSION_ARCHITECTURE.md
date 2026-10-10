@@ -25,7 +25,7 @@ This scaffold adds a separate Chrome extension build without changing the existi
 - Hover a text-heavy element
 - Click `Lema`
 - Probe the local Lema server
-- If unavailable, show an install CTA to `nautilus.solmi.wiki`
+- If unavailable, show an install CTA to `lema.solmi.wiki`
 - If available, analyze the element and render tokens in the floating panel
 - Click a token to fetch lemma details
 - Save the analyzed page and attempt to open the saved page in the app

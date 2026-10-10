@@ -72,6 +72,23 @@ LANGUAGES: dict[str, dict[str, Any]] = {
             "model_package_version": "1.3.0",
         },
     },
+    "ko": {
+        "application_id": "com.solmi.lema.gradshow.debug",
+        "test_application_id": "com.solmi.lema.gradshow.debug.test",
+        "test_class": (
+            "com.solmi.lema.AnalyzerQualityExportInstrumentedTest"
+            "#exportsKoreanCandidateJsonl"
+        ),
+        "remote_candidate": "cache/analyzer-quality/ko-android.jsonl",
+        "reference_db": ROOT / "releases/ko/ko-v1.1.2/lemma_pack.db",
+        "config": ROOT / "preprocess/analyzer_quality/configs/ko.json",
+        "baseline": ROOT / "preprocess/analyzer_quality/baselines/ko-android-kiwi.json",
+        "analyzer": {
+            "engine": "Kiwi Android",
+            "runtime_version": "0.24.0",
+            "model_version": "0.24.0-base",
+        },
+    },
     "ru": {
         "application_id": "com.solmi.lema.gradshow.debug",
         "test_application_id": "com.solmi.lema.gradshow.debug.test",
@@ -107,6 +124,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sample-size", type=int, default=1000)
     parser.add_argument("--skip-device-run", action="store_true")
     parser.add_argument(
+        "--kiwi-model-archive",
+        type=Path,
+        help="Official kiwi_model_v0.24.0_base.tgz used for Korean device tests",
+    )
+    parser.add_argument(
         "--candidate",
         type=Path,
         help="Existing candidate JSONL to reuse with --skip-device-run",
@@ -129,7 +151,15 @@ def main(argv: list[str] | None = None) -> int:
     with tempfile.TemporaryDirectory(prefix=f"lema-{args.language}-quality-") as directory:
         candidate_path = Path(directory) / f"{args.language}-android.jsonl"
         if not args.skip_device_run:
-            build_and_install_test_apks(adb)
+            if args.language == "ko" and (
+                args.kiwi_model_archive is None
+                or not args.kiwi_model_archive.is_file()
+            ):
+                raise SystemExit(
+                    "Korean device run requires --kiwi-model-archive "
+                    "pointing to kiwi_model_v0.24.0_base.tgz"
+                )
+            build_and_install_test_apks(adb, args.kiwi_model_archive)
             run_instrumentation(
                 adb,
                 settings["test_application_id"],

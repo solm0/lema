@@ -53,10 +53,20 @@ def find_adb() -> Path:
     )
 
 
-def build_and_install_test_apks(adb: Path) -> None:
+def build_and_install_test_apks(
+    adb: Path,
+    kiwi_model_archive: Path | None = None,
+) -> None:
     android_root = ROOT / "frontend/android"
+    gradle_command = ["./gradlew"]
+    if kiwi_model_archive is not None:
+        gradle_command.append(f"-PkiwiModelArchive={kiwi_model_archive.resolve()}")
+    gradle_command.extend([
+        ":app:assembleGradshowDebug",
+        ":app:assembleGradshowDebugAndroidTest",
+    ])
     run(
-        ["./gradlew", ":app:assembleGradshowDebug", ":app:assembleGradshowDebugAndroidTest"],
+        gradle_command,
         cwd=android_root,
     )
     app_apk = android_root / "app/build/outputs/apk/gradshow/debug/app-gradshow-debug.apk"
@@ -133,4 +143,3 @@ def write_json(path: Path, value: Any) -> None:
         json.dumps(value, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
-

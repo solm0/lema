@@ -4,7 +4,7 @@ const ALLOWED_FETCH_ORIGINS = new Set([
   "http://localhost:8000",
   "http://127.0.0.1:8000",
 ]);
-const ALLOWED_OPEN_ORIGINS = new Set(["https://nautilus.solmi.wiki"]);
+const ALLOWED_OPEN_ORIGINS = new Set(["https://lema.solmi.wiki"]);
 
 function parseUrl(rawUrl: string) {
   try {

@@ -90,7 +90,7 @@ sudo systemctl restart nautilus
 확인:
 
 ```bash
-curl "https://nautilus.solmi.wiki/api/latest-version?platform=desktop"
+curl "https://lema.solmi.wiki/api/latest-version?platform=desktop"
 ```
 
 응답의 `version`이 배포한 버전과 같으면 완료입니다.

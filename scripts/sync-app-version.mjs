@@ -74,12 +74,12 @@ if (typeof desktopVersion !== "string" || desktopVersion.length === 0) {
 
 syncLatestVersionFile(latestVersionDesktopPath, desktopVersion, {
   platform: "desktop",
-  download_url: "https://nautilus.solmi.wiki/#download-desktop",
+  download_url: "https://lema.solmi.wiki/#download-desktop",
   notes: [],
 });
 syncLatestVersionFile(latestVersionAndroidPath, androidVersion, {
   platform: "android",
-  download_url: "https://nautilus.solmi.wiki/#download-android",
+  download_url: "https://lema.solmi.wiki/#download-android",
   notes: [],
 });
 

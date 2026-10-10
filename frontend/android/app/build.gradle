@@ -96,6 +96,9 @@ android {
 }
 
 def gradshowAssetsDir = file("$buildDir/generated/gradshowAssets")
+def kiwiModelArchivePath = providers.gradleProperty("kiwiModelArchive")
+    .orElse(providers.environmentVariable("KIWI_MODEL_ARCHIVE"))
+    .orNull
 
 tasks.register("prepareGradshowAssets", Sync) {
     from(file("src/main/assets")) {
@@ -115,6 +118,15 @@ tasks.register("prepareGradshowAssets", Sync) {
     }
     from(rootProject.file("../../releases/ru/ru-v1.1.2/ru-v1.1.2-lemma.zip")) {
         into "packs"
+    }
+    from(rootProject.file("../../releases/ko/ko-v1.1.2/ko-v1.1.2-lemma.zip")) {
+        into "packs"
+    }
+    if (kiwiModelArchivePath) {
+        from(file(kiwiModelArchivePath)) {
+            into "models"
+            rename { "kiwi_model_v0.24.0_base.tgz" }
+        }
     }
     into gradshowAssetsDir
 }
@@ -145,6 +157,10 @@ dependencies {
     implementation project(':capacitor-cordova-android-plugins')
     implementation "androidx.room:room-runtime:2.8.4"
     annotationProcessor "androidx.room:room-compiler:2.8.4"
+    // Korean uses the same Kiwi analyzer family as the Electron backend's
+    // kiwipiepy runtime. The native AAR is kept in app/libs because Kiwi does
+    // not publish the Android binding to Maven Central.
+    implementation files('libs/kiwi-android-v0.24.0.aar')
     // 2.5.4+ includes MethodHandle-based Snowball stemmers that D8 cannot
     // translate for this app's Android 7 (API 24) minimum. The experiment uses
     // 2.5.3 with trusted, version-pinned models while we evaluate either raising

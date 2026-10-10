@@ -1,6 +1,6 @@
 import type { LemmaData, TextAnalysisResult, TextBlock } from "../src/components/pageTypes";
 
-const DEFAULT_INSTALL_URL = "https://nautilus.solmi.wiki";
+const DEFAULT_INSTALL_URL = "https://lema.solmi.wiki";
 const DEFAULT_LOCAL_API = "http://localhost:8010/api";
 const FALLBACK_LOCAL_APIS = [
   "http://localhost:8010/api",

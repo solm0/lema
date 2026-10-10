@@ -31,6 +31,9 @@ public class AndroidLanguagePackStoreInstrumentedTest {
     private static final String RUSSIAN_PACK_URL =
         "https://huggingface.co/datasets/solm0/nautilus-releases/resolve/main/"
             + "language-packs/ru/1.1.2/ru-v1.1.2-lemma.zip";
+    private static final String KOREAN_PACK_URL =
+        "https://huggingface.co/datasets/solm0/nautilus-releases/resolve/main/"
+            + "language-packs/ko/1.1.2/ko-v1.1.2-lemma.zip";
 
     @Test
     public void downloadsReadsAndDeletesEnglishPackWhenExplicitlyRequested() throws Exception {
@@ -142,5 +145,47 @@ public class AndroidLanguagePackStoreInstrumentedTest {
 
         store.uninstall("ru", "1.1.2");
         assertNull(store.latestReadyDirectory("ru"));
+    }
+
+    @Test
+    public void downloadsReadsAndDeletesKoreanPackWhenExplicitlyRequested() throws Exception {
+        Bundle arguments = InstrumentationRegistry.getArguments();
+        Assume.assumeTrue("true".equals(arguments.getString("runKoreanLanguagePackDownloadTest")));
+
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        AndroidLanguagePackStore store = new AndroidLanguagePackStore(context);
+        store.uninstall("ko", "1.1.2");
+
+        store.install(
+            "ko",
+            "1.1.2",
+            "ko-v1.1.2-lemma.zip",
+            KOREAN_PACK_URL,
+            (progress, status, detail, modelPercent) -> { }
+        );
+
+        File installed = store.latestReadyDirectory("ko");
+        assertNotNull(installed);
+        assertEquals("1.1.2", installed.getName());
+        assertTrue(new File(installed, "lemma_pack.db").isFile());
+        assertTrue(KoreanNlpAnalyzer.modelsAvailable(
+            new File(new File(installed, "models"), KoreanNlpAnalyzer.MODEL_DIRECTORY)
+        ));
+
+        JSArray packs = store.installedPacks();
+        JSONObject koreanState = null;
+        for (int index = 0; index < packs.length(); index += 1) {
+            JSONObject state = packs.getJSONObject(index);
+            if ("ko".equals(state.optString("lang"))
+                && "1.1.2".equals(state.optString("version"))) {
+                koreanState = state;
+                break;
+            }
+        }
+        assertNotNull(koreanState);
+        assertTrue(koreanState.getBoolean("installed"));
+
+        store.uninstall("ko", "1.1.2");
+        assertNull(store.latestReadyDirectory("ko"));
     }
 }

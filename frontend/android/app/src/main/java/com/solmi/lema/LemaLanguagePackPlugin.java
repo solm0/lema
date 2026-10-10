@@ -30,6 +30,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -41,10 +43,13 @@ public class LemaLanguagePackPlugin extends Plugin {
     private static final int MAX_LOOKUP_ITEMS = 100;
     private static final int EXAMPLE_LIMIT = 12;
     private static final double SIMILARITY_THRESHOLD = 0.85;
+    private static final long KOREAN_ANALYZER_IDLE_SECONDS = 30;
     private static final Set<String> IGNORED_POS =
         new HashSet<>(Arrays.asList("PUNCT", "SPACE", "SYM"));
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ScheduledExecutorService analyzerCleanupExecutor =
+        Executors.newSingleThreadScheduledExecutor();
     private final Map<String, JSObject> installProgress = new ConcurrentHashMap<>();
     private AndroidLanguagePackStore packStore;
     private final Map<String, SQLiteDatabase> databases = new HashMap<>();
@@ -53,6 +58,9 @@ public class LemaLanguagePackPlugin extends Plugin {
     private File openEnglishAnalyzerDirectory;
     private GermanNlpAnalyzer germanAnalyzer;
     private File openGermanAnalyzerDirectory;
+    private KoreanNlpAnalyzer koreanAnalyzer;
+    private File openKoreanAnalyzerDirectory;
+    private long koreanAnalyzerGeneration;
     private RussianNlpAnalyzer russianAnalyzer;
     private File openRussianAnalyzerDirectory;
 
@@ -208,6 +216,9 @@ public class LemaLanguagePackPlugin extends Plugin {
                 GermanNlpAnalyzer selectedGermanAnalyzer = "de".equals(language)
                     ? openGermanAnalyzer()
                     : null;
+                KoreanNlpAnalyzer selectedKoreanAnalyzer = "ko".equals(language)
+                    ? openKoreanAnalyzer()
+                    : null;
                 RussianNlpAnalyzer selectedRussianAnalyzer = "ru".equals(language)
                     ? openRussianAnalyzer()
                     : null;
@@ -235,6 +246,26 @@ public class LemaLanguagePackPlugin extends Plugin {
                             outputToken.put("pos", token.pos != null ? token.pos : JSONObject.NULL);
                             tokens.put(outputToken);
                         }
+                    } else if (!text.isEmpty() && selectedKoreanAnalyzer != null) {
+                        for (KoreanNlpAnalyzer.Token token : selectedKoreanAnalyzer.analyze(text)) {
+                            JSObject outputToken = new JSObject();
+                            outputToken.put("surface", token.surface);
+                            outputToken.put("lemma", token.lemma != null ? token.lemma : JSONObject.NULL);
+                            outputToken.put("pos", token.pos != null ? token.pos : JSONObject.NULL);
+                            JSArray morphs = new JSArray();
+                            for (KoreanNlpAnalyzer.Morph morph : token.morphs) {
+                                JSObject outputMorph = new JSObject();
+                                outputMorph.put("surface", morph.surface);
+                                outputMorph.put(
+                                    "lemma",
+                                    morph.lemma != null ? morph.lemma : JSONObject.NULL
+                                );
+                                outputMorph.put("pos", morph.pos != null ? morph.pos : JSONObject.NULL);
+                                morphs.put(outputMorph);
+                            }
+                            outputToken.put("morphs", morphs);
+                            tokens.put(outputToken);
+                        }
                     } else if (!text.isEmpty() && selectedRussianAnalyzer != null) {
                         for (RussianNlpAnalyzer.Token token : selectedRussianAnalyzer.analyze(text)) {
                             JSObject outputToken = new JSObject();
@@ -259,6 +290,8 @@ public class LemaLanguagePackPlugin extends Plugin {
                     error.getMessage() != null ? error.getMessage() : "Could not analyze text locally",
                     error
                 );
+            } finally {
+                if ("ko".equals(language)) scheduleKoreanAnalyzerClose();
             }
         });
     }
@@ -482,6 +515,50 @@ public class LemaLanguagePackPlugin extends Plugin {
         return russianAnalyzer;
     }
 
+    private synchronized KoreanNlpAnalyzer openKoreanAnalyzer() throws Exception {
+        File installedDirectory = packStore().latestReadyDirectory("ko");
+        if (installedDirectory == null) {
+            throw new IllegalStateException("Korean language pack is not installed");
+        }
+
+        File modelDirectory = new File(
+            new File(installedDirectory, "models"),
+            KoreanNlpAnalyzer.MODEL_DIRECTORY
+        );
+        if (koreanAnalyzer == null || !modelDirectory.equals(openKoreanAnalyzerDirectory)) {
+            if (koreanAnalyzer != null) koreanAnalyzer.close();
+            koreanAnalyzer = new KoreanNlpAnalyzer(modelDirectory);
+            openKoreanAnalyzerDirectory = modelDirectory;
+        }
+        return koreanAnalyzer;
+    }
+
+    private synchronized void scheduleKoreanAnalyzerClose() {
+        long generation = ++koreanAnalyzerGeneration;
+        analyzerCleanupExecutor.schedule(
+            () -> executor.execute(() -> closeKoreanAnalyzerIfIdle(generation)),
+            KOREAN_ANALYZER_IDLE_SECONDS,
+            TimeUnit.SECONDS
+        );
+    }
+
+    private synchronized void closeKoreanAnalyzerIfIdle(long generation) {
+        if (generation != koreanAnalyzerGeneration) return;
+        closeKoreanAnalyzer();
+    }
+
+    private synchronized void closeKoreanAnalyzer() {
+        if (koreanAnalyzer != null) {
+            try {
+                koreanAnalyzer.close();
+            } catch (Exception ignored) {
+                // Closing is best effort; the analyzer will not be reused.
+            }
+        }
+        koreanAnalyzer = null;
+        openKoreanAnalyzerDirectory = null;
+    }
+
     private File getGradshowPackDirectory(String language) {
         return new File(
             getContext().getFilesDir(),
@@ -538,6 +615,8 @@ public class LemaLanguagePackPlugin extends Plugin {
         openEnglishAnalyzerDirectory = null;
         germanAnalyzer = null;
         openGermanAnalyzerDirectory = null;
+        koreanAnalyzerGeneration += 1;
+        closeKoreanAnalyzer();
         russianAnalyzer = null;
         openRussianAnalyzerDirectory = null;
     }

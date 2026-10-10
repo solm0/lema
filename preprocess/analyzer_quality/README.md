@@ -87,6 +87,16 @@ SQLite 언어팩에 실제로 존재할 때만 적용한다.
 python3 preprocess/analyzer_quality/run_android.py --language ru --sample-size 1000
 ```
 
+한국어는 공식 Kiwi 모델 아카이브를 테스트 APK에만 임시로 포함해 Android Kiwi와
+`kiwipiepy`로 생성한 언어팩의 형태소 배열을 비교한다. 표준 APK에는 모델이 포함되지 않는다.
+
+```bash
+python3 preprocess/analyzer_quality/run_android.py \
+  --language ko \
+  --sample-size 1000 \
+  --kiwi-model-archive /path/to/kiwi_model_v0.24.0_base.tgz
+```
+
 이 실행기는 Gradshow Debug 앱을 별도 패키지로 설치하므로 일반 Debug 앱의 로컬 페이지에는
 영향을 주지 않는다. 새 언어를 추가할 때는 Android 계측 테스트에 해당 분석기 어댑터를 넣고,
 `run_android.py`의 언어 설정과 `configs/{lang}.json`만 추가한다. 비교 및 판정 코드는 바꾸지 않는다.
@@ -98,7 +108,8 @@ python3 preprocess/analyzer_quality/run_android.py --language ru --sample-size 1
 ## Android 실기기 성능 측정
 
 모델을 처음 메모리에 올리는 시간, 로드 후 유지되는 Java 힙, 12단어 문장 100회 분석 평균을
-각각 측정한다. 기본적으로 테스트 프로세스를 세 번 새로 시작하고 중앙값과 최솟값·최댓값을
+각각 측정한다. 한국어는 Kiwi 네이티브 할당을 확인하도록 native PSS와 total PSS도 기록한다.
+기본적으로 테스트 프로세스를 세 번 새로 시작하고 중앙값과 최솟값·최댓값을
 `baselines/en-android-opennlp-performance.json`에 저장한다.
 
 ```bash
@@ -107,6 +118,16 @@ python3 preprocess/analyzer_quality/run_android_performance.py --language en
 
 독일어 모델은 `--language de`, 러시아어 모델은 `--language ru`로 같은
 로드·힙·지연 지표를 측정한다.
+
+```bash
+python3 preprocess/analyzer_quality/run_android_performance.py \
+  --language ko \
+  --kiwi-model-archive /path/to/kiwi_model_v0.24.0_base.tgz \
+  --max-load-ms 5000 \
+  --max-native-pss-mb 250 \
+  --max-total-pss-mb 300 \
+  --max-analysis-average-ms 25
+```
 
 APK가 이미 최신이면 빌드와 설치를 생략할 수 있다.
 

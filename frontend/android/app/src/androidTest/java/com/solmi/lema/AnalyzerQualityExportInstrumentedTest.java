@@ -33,12 +33,16 @@ import java.util.zip.ZipInputStream;
 public class AnalyzerQualityExportInstrumentedTest {
     private static final String ENGLISH_LANGUAGE = "en";
     private static final String GERMAN_LANGUAGE = "de";
+    private static final String KOREAN_LANGUAGE = "ko";
     private static final String RUSSIAN_LANGUAGE = "ru";
     private static final String ENGLISH_PACK_ASSET = "packs/en-v1.1.2-lemma.zip";
     private static final String GERMAN_PACK_ASSET = "packs/de-v1.1.2-lemma.zip";
+    private static final String KOREAN_PACK_ASSET = "packs/ko-v1.1.2-lemma.zip";
+    private static final String KOREAN_MODEL_ASSET = "models/kiwi_model_v0.24.0_base.tgz";
     private static final String RUSSIAN_PACK_ASSET = "packs/ru-v1.1.2-lemma.zip";
     private static final String ENGLISH_OUTPUT_PATH = "analyzer-quality/en-android.jsonl";
     private static final String GERMAN_OUTPUT_PATH = "analyzer-quality/de-android.jsonl";
+    private static final String KOREAN_OUTPUT_PATH = "analyzer-quality/ko-android.jsonl";
     private static final String RUSSIAN_OUTPUT_PATH = "analyzer-quality/ru-android.jsonl";
 
     @Test
@@ -200,6 +204,59 @@ public class AnalyzerQualityExportInstrumentedTest {
         }
     }
 
+    @Test
+    public void exportsKoreanCandidateJsonl() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        Bundle arguments = InstrumentationRegistry.getArguments();
+        String requestedLanguage = arguments.getString("language", KOREAN_LANGUAGE);
+        int requestedSampleSize = parseSampleSize(arguments.getString("sampleSize", "1000"));
+
+        assertEquals("This export runs the Korean analyzer", KOREAN_LANGUAGE, requestedLanguage);
+        assertTrue("The export requires the Gradshow language-pack asset", BuildConfig.GRADSHOW_MODE);
+
+        File databaseFile = extractPackDatabase(context, KOREAN_PACK_ASSET, "korean");
+        File modelDirectory = extractKiwiModel(context);
+        File outputFile = new File(context.getCacheDir(), KOREAN_OUTPUT_PATH);
+        File parent = outputFile.getParentFile();
+        assertTrue(parent != null && (parent.isDirectory() || parent.mkdirs()));
+
+        SQLiteDatabase database = null;
+        try {
+            database = SQLiteDatabase.openDatabase(
+                databaseFile.getAbsolutePath(),
+                null,
+                SQLiteDatabase.OPEN_READONLY
+            );
+            List<Long> lineIds = evenlySpacedLineIds(database, requestedSampleSize);
+            try (
+                KoreanNlpAnalyzer analyzer = new KoreanNlpAnalyzer(modelDirectory);
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                    new FileOutputStream(outputFile),
+                    StandardCharsets.UTF_8
+                ))
+            ) {
+                for (long lineId : lineIds) {
+                    JSONObject reference = readLine(database, lineId);
+                    String input = reconstructInput(reference.getJSONArray("tokens"));
+                    List<KoreanNlpAnalyzer.Token> analyzed = analyzer.analyze(input);
+                    writer.write(koreanCandidateRecord(lineId, analyzed).toString());
+                    writer.newLine();
+                }
+            }
+
+            assertEquals(lineIds.size(), countLines(outputFile));
+            System.out.printf(
+                "LEMA_QUALITY_EXPORT language=%s samples=%d path=%s%n",
+                KOREAN_LANGUAGE,
+                lineIds.size(),
+                outputFile.getAbsolutePath()
+            );
+        } finally {
+            if (database != null) database.close();
+            databaseFile.delete();
+        }
+    }
+
     private static int parseSampleSize(String value) {
         int parsed;
         try {
@@ -242,6 +299,17 @@ public class AnalyzerQualityExportInstrumentedTest {
         }
         assertTrue("lemma_pack.db is missing from the Gradshow pack", found);
         return databaseFile;
+    }
+
+    private static File extractKiwiModel(Context context) throws Exception {
+        File modelDirectory = new File(context.getCacheDir(), "analyzer-quality/kiwi-model");
+        if (KoreanNlpAnalyzer.modelsAvailable(modelDirectory)) return modelDirectory;
+        deleteRecursively(modelDirectory);
+        try (InputStream input = context.getAssets().open(KOREAN_MODEL_ASSET)) {
+            KiwiModelArchive.extract(input, modelDirectory);
+        }
+        assertTrue(KoreanNlpAnalyzer.modelsAvailable(modelDirectory));
+        return modelDirectory;
     }
 
     private static List<Long> evenlySpacedLineIds(SQLiteDatabase database, int requestedSize) {
@@ -338,6 +406,42 @@ public class AnalyzerQualityExportInstrumentedTest {
         output.put("id", lineId);
         output.put("tokens", outputTokens);
         return output;
+    }
+
+    private static JSONObject koreanCandidateRecord(
+        long lineId,
+        List<KoreanNlpAnalyzer.Token> tokens
+    ) throws Exception {
+        JSONArray outputTokens = new JSONArray();
+        for (KoreanNlpAnalyzer.Token token : tokens) {
+            JSONObject outputToken = new JSONObject();
+            outputToken.put("surface", token.surface);
+            if (token.lemma != null) outputToken.put("lemma", token.lemma);
+            if (token.pos != null) outputToken.put("pos", token.pos);
+            JSONArray outputMorphs = new JSONArray();
+            for (KoreanNlpAnalyzer.Morph morph : token.morphs) {
+                JSONObject outputMorph = new JSONObject();
+                outputMorph.put("surface", morph.surface);
+                if (morph.lemma != null) outputMorph.put("lemma", morph.lemma);
+                if (morph.pos != null) outputMorph.put("pos", morph.pos);
+                outputMorphs.put(outputMorph);
+            }
+            outputToken.put("morphs", outputMorphs);
+            outputTokens.put(outputToken);
+        }
+        JSONObject output = new JSONObject();
+        output.put("id", lineId);
+        output.put("tokens", outputTokens);
+        return output;
+    }
+
+    private static void deleteRecursively(File file) {
+        if (file == null || !file.exists()) return;
+        File[] children = file.listFiles();
+        if (children != null) {
+            for (File child : children) deleteRecursively(child);
+        }
+        file.delete();
     }
 
     private static int countLines(File file) throws Exception {

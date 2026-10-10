@@ -4,4 +4,4 @@ export const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8010";
 
 export const ANDROID_PRIVACY_POLICY_URL =
-  "https://nautilus.solmi.wiki/android-app-privacy";
+  "https://lema.solmi.wiki/android-app-privacy";
