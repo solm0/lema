@@ -56,11 +56,16 @@ def find_adb() -> Path:
 def build_and_install_test_apks(
     adb: Path,
     kiwi_model_archive: Path | None = None,
+    sudachi_dictionary_archive: Path | None = None,
 ) -> None:
     android_root = ROOT / "frontend/android"
     gradle_command = ["./gradlew"]
     if kiwi_model_archive is not None:
         gradle_command.append(f"-PkiwiModelArchive={kiwi_model_archive.resolve()}")
+    if sudachi_dictionary_archive is not None:
+        gradle_command.append(
+            f"-PsudachiDictionaryArchive={sudachi_dictionary_archive.resolve()}"
+        )
     gradle_command.extend([
         ":app:assembleGradshowDebug",
         ":app:assembleGradshowDebugAndroidTest",

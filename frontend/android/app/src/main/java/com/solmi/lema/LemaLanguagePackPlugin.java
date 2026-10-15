@@ -63,6 +63,8 @@ public class LemaLanguagePackPlugin extends Plugin {
     private long koreanAnalyzerGeneration;
     private RussianNlpAnalyzer russianAnalyzer;
     private File openRussianAnalyzerDirectory;
+    private JapaneseNlpAnalyzer japaneseAnalyzer;
+    private File openJapaneseAnalyzerDirectory;
 
     @PluginMethod
     public void getSupportedLanguages(PluginCall call) {
@@ -222,6 +224,9 @@ public class LemaLanguagePackPlugin extends Plugin {
                 RussianNlpAnalyzer selectedRussianAnalyzer = "ru".equals(language)
                     ? openRussianAnalyzer()
                     : null;
+                JapaneseNlpAnalyzer selectedJapaneseAnalyzer = "ja".equals(language)
+                    ? openJapaneseAnalyzer()
+                    : null;
                 JSArray analyzedBlocks = new JSArray();
 
                 for (int index = 0; index < blocks.length(); index += 1) {
@@ -272,6 +277,23 @@ public class LemaLanguagePackPlugin extends Plugin {
                             outputToken.put("surface", token.surface);
                             outputToken.put("lemma", token.lemma != null ? token.lemma : JSONObject.NULL);
                             outputToken.put("pos", token.pos != null ? token.pos : JSONObject.NULL);
+                            tokens.put(outputToken);
+                        }
+                    } else if (!text.isEmpty() && selectedJapaneseAnalyzer != null) {
+                        for (JapaneseNlpAnalyzer.Token token : selectedJapaneseAnalyzer.analyze(text)) {
+                            JSObject outputToken = new JSObject();
+                            outputToken.put("surface", token.surface);
+                            outputToken.put("lemma", token.lemma != null ? token.lemma : JSONObject.NULL);
+                            outputToken.put("pos", token.pos != null ? token.pos : JSONObject.NULL);
+                            JSArray morphs = new JSArray();
+                            for (JapaneseNlpAnalyzer.Morph morph : token.morphs) {
+                                JSObject outputMorph = new JSObject();
+                                outputMorph.put("surface", morph.surface);
+                                outputMorph.put("lemma", morph.lemma != null ? morph.lemma : JSONObject.NULL);
+                                outputMorph.put("pos", morph.pos != null ? morph.pos : JSONObject.NULL);
+                                morphs.put(outputMorph);
+                            }
+                            outputToken.put("morphs", morphs);
                             tokens.put(outputToken);
                         }
                     }
@@ -533,6 +555,23 @@ public class LemaLanguagePackPlugin extends Plugin {
         return koreanAnalyzer;
     }
 
+    private synchronized JapaneseNlpAnalyzer openJapaneseAnalyzer() throws Exception {
+        File installedDirectory = packStore().latestReadyDirectory("ja");
+        if (installedDirectory == null) {
+            throw new IllegalStateException("Japanese language pack is not installed");
+        }
+        File modelDirectory = new File(
+            new File(installedDirectory, "models"), JapaneseNlpAnalyzer.MODEL_DIRECTORY
+        );
+        if (japaneseAnalyzer == null || !modelDirectory.equals(openJapaneseAnalyzerDirectory)) {
+            japaneseAnalyzer = new JapaneseNlpAnalyzer(
+                modelDirectory, new SqliteLemmaKeyLookup(openDatabase("ja"))
+            );
+            openJapaneseAnalyzerDirectory = modelDirectory;
+        }
+        return japaneseAnalyzer;
+    }
+
     private synchronized void scheduleKoreanAnalyzerClose() {
         long generation = ++koreanAnalyzerGeneration;
         analyzerCleanupExecutor.schedule(
@@ -619,6 +658,8 @@ public class LemaLanguagePackPlugin extends Plugin {
         closeKoreanAnalyzer();
         russianAnalyzer = null;
         openRussianAnalyzerDirectory = null;
+        japaneseAnalyzer = null;
+        openJapaneseAnalyzerDirectory = null;
     }
 
     private JSONObject missingLookupResult(

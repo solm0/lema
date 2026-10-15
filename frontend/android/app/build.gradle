@@ -12,6 +12,7 @@ def hasReleaseSigning =
 
 configurations {
     openNlpRuntimeSource
+    sudachiRuntimeSource
 }
 
 def patchedOpenNlpTools = tasks.register("patchedOpenNlpTools", Jar) {
@@ -20,6 +21,20 @@ def patchedOpenNlpTools = tasks.register("patchedOpenNlpTools", Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from({ configurations.openNlpRuntimeSource.collect { zipTree(it) } }) {
         exclude "opennlp/tools/util/XmlUtil.class"
+        exclude "META-INF/*.SF", "META-INF/*.RSA", "META-INF/*.DSA"
+    }
+}
+
+def patchedSudachi = tasks.register("patchedSudachi", Jar) {
+    archiveFileName = "sudachi-0.7.5-android.jar"
+    destinationDirectory = layout.buildDirectory.dir("generated/sudachi")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.sudachiRuntimeSource.collect { zipTree(it) } }) {
+        // The upstream implementation uses MethodHandle.invokeExact, which D8
+        // cannot translate below API 26.  The app supplies an API-24-safe
+        // implementation; Android releases mapped buffers with process GC.
+        exclude "com/worksap/nlp/sudachi/MMap.class"
+        exclude "com/worksap/nlp/sudachi/SudachiCommandLine.class"
         exclude "META-INF/*.SF", "META-INF/*.RSA", "META-INF/*.DSA"
     }
 }
@@ -99,6 +114,9 @@ def gradshowAssetsDir = file("$buildDir/generated/gradshowAssets")
 def kiwiModelArchivePath = providers.gradleProperty("kiwiModelArchive")
     .orElse(providers.environmentVariable("KIWI_MODEL_ARCHIVE"))
     .orNull
+def sudachiDictionaryArchivePath = providers.gradleProperty("sudachiDictionaryArchive")
+    .orElse(providers.environmentVariable("SUDACHI_DICTIONARY_ARCHIVE"))
+    .orNull
 
 tasks.register("prepareGradshowAssets", Sync) {
     from(file("src/main/assets")) {
@@ -122,10 +140,19 @@ tasks.register("prepareGradshowAssets", Sync) {
     from(rootProject.file("../../releases/ko/ko-v1.1.2/ko-v1.1.2-lemma.zip")) {
         into "packs"
     }
+    from(rootProject.file("../../releases/ja/ja-v1.1.2/ja-v1.1.2-lemma.zip")) {
+        into "packs"
+    }
     if (kiwiModelArchivePath) {
         from(file(kiwiModelArchivePath)) {
             into "models"
             rename { "kiwi_model_v0.24.0_base.tgz" }
+        }
+    }
+    if (sudachiDictionaryArchivePath) {
+        from(file(sudachiDictionaryArchivePath)) {
+            into "models"
+            rename { "sudachi-dictionary-core.zip" }
         }
     }
     into gradshowAssetsDir
@@ -161,6 +188,12 @@ dependencies {
     // kiwipiepy runtime. The native AAR is kept in app/libs because Kiwi does
     // not publish the Android binding to Maven Central.
     implementation files('libs/kiwi-android-v0.24.0.aar')
+    // Japanese keeps its Sudachi system dictionary outside the APK.  The
+    // language-pack installer places it under filesDir/language-packs so it
+    // follows the same install/remove lifetime as the Korean Kiwi model.
+    sudachiRuntimeSource "com.worksap.nlp:sudachi:0.7.5"
+    compileOnly "com.worksap.nlp:sudachi:0.7.5"
+    implementation files(patchedSudachi.flatMap { it.archiveFile })
     // 2.5.4+ includes MethodHandle-based Snowball stemmers that D8 cannot
     // translate for this app's Android 7 (API 24) minimum. The experiment uses
     // 2.5.3 with trusted, version-pinned models while we evaluate either raising

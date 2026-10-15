@@ -37,6 +37,23 @@ from preprocess.analyzer_quality.compare import (  # noqa: E402
 
 
 LANGUAGES: dict[str, dict[str, Any]] = {
+    "ja": {
+        "application_id": "com.solmi.lema.gradshow.debug",
+        "test_application_id": "com.solmi.lema.gradshow.debug.test",
+        "test_class": (
+            "com.solmi.lema.AnalyzerQualityExportInstrumentedTest"
+            "#exportsJapaneseCandidateJsonl"
+        ),
+        "remote_candidate": "cache/analyzer-quality/ja-android.jsonl",
+        "reference_db": ROOT / "releases/ja/ja-v1.1.2/lemma_pack.db",
+        "config": ROOT / "preprocess/analyzer_quality/configs/ja.json",
+        "baseline": ROOT / "preprocess/analyzer_quality/baselines/ja-android-sudachi.json",
+        "analyzer": {
+            "engine": "Sudachi",
+            "runtime_version": "0.7.5",
+            "dictionary": "SudachiDict core 2024-04-09",
+        },
+    },
     "de": {
         "application_id": "com.solmi.lema.gradshow.debug",
         "test_application_id": "com.solmi.lema.gradshow.debug.test",
@@ -129,6 +146,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Official kiwi_model_v0.24.0_base.tgz used for Korean device tests",
     )
     parser.add_argument(
+        "--sudachi-dictionary-archive",
+        type=Path,
+        help="SudachiDict core ZIP used for Japanese device tests",
+    )
+    parser.add_argument(
         "--candidate",
         type=Path,
         help="Existing candidate JSONL to reuse with --skip-device-run",
@@ -159,7 +181,17 @@ def main(argv: list[str] | None = None) -> int:
                     "Korean device run requires --kiwi-model-archive "
                     "pointing to kiwi_model_v0.24.0_base.tgz"
                 )
-            build_and_install_test_apks(adb, args.kiwi_model_archive)
+            if args.language == "ja" and (
+                args.sudachi_dictionary_archive is None
+                or not args.sudachi_dictionary_archive.is_file()
+            ):
+                raise SystemExit(
+                    "Japanese device run requires --sudachi-dictionary-archive "
+                    "pointing to the SudachiDict core ZIP"
+                )
+            build_and_install_test_apks(
+                adb, args.kiwi_model_archive, args.sudachi_dictionary_archive
+            )
             run_instrumentation(
                 adb,
                 settings["test_application_id"],

@@ -33,7 +33,12 @@ final class AndroidLanguagePackStore {
     private static final Pattern LANGUAGE_PATTERN = Pattern.compile("^[a-z]{2,3}$");
     private static final Pattern VERSION_PATTERN = Pattern.compile("^[0-9]+(?:\\.[0-9]+)*$");
     private static final int BUFFER_SIZE = 64 * 1024;
-    private static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("de", "en", "ko", "ru");
+    private static final List<String> SUPPORTED_LANGUAGES = Arrays.asList("de", "en", "ja", "ko", "ru");
+    static final String SUDACHI_SMALL_DICTIONARY_URL =
+        "https://huggingface.co/datasets/solm0/nautilus-releases/resolve/main/"
+            + "language-packs/ja/1.1.2/sudachi-dictionary-20240409-small.zip";
+    static final String SUDACHI_SMALL_DICTIONARY_SHA256 =
+        "904bf3a47b0feac3f9e2c0631dcc255f0950a5800fea12483599c63d410df8bd";
     static final String KIWI_MODEL_URL =
         "https://github.com/bab2min/Kiwi/releases/download/v0.24.0/"
             + "kiwi_model_v0.24.0_base.tgz";
@@ -215,6 +220,11 @@ final class AndroidLanguagePackStore {
                 )) {
                     // Opening the native analyzer verifies model/runtime compatibility.
                 }
+            } else if ("ja".equals(language)) {
+                new JapaneseNlpAnalyzer(
+                    new File(new File(staging, "models"), JapaneseNlpAnalyzer.MODEL_DIRECTORY),
+                    null
+                );
             } else if ("ru".equals(language)) {
                 new RussianNlpAnalyzer(new File(staging, "models"), null);
             }
@@ -246,6 +256,10 @@ final class AndroidLanguagePackStore {
     ) throws Exception {
         if ("ko".equals(language)) {
             installKiwiModel(modelsDirectory, progress);
+            return;
+        }
+        if ("ja".equals(language)) {
+            installSudachiDictionary(modelsDirectory, progress);
             return;
         }
 
@@ -295,6 +309,34 @@ final class AndroidLanguagePackStore {
             verifySha256(archive, KIWI_MODEL_SHA256);
             File kiwiDirectory = new File(modelsDirectory, KoreanNlpAnalyzer.MODEL_DIRECTORY);
             KiwiModelArchive.extract(archive, kiwiDirectory);
+        } finally {
+            if (archive != null) archive.delete();
+        }
+    }
+
+    private void installSudachiDictionary(
+        File modelsDirectory,
+        ProgressListener progress
+    ) throws Exception {
+        File archive = null;
+        try {
+            archive = download(
+                SUDACHI_SMALL_DICTIONARY_URL,
+                "sudachi-dictionary-",
+                ".zip",
+                0.66,
+                0.96,
+                progress,
+                "installing_model",
+                "SudachiDict small Japanese dictionary (2024-04-09)",
+                0
+            );
+            verifySha256(archive, SUDACHI_SMALL_DICTIONARY_SHA256);
+            extractZipEntry(
+                archive,
+                new File(modelsDirectory, JapaneseNlpAnalyzer.MODEL_DIRECTORY),
+                JapaneseNlpAnalyzer.SYSTEM_DICTIONARY
+            );
         } finally {
             if (archive != null) archive.delete();
         }
@@ -403,6 +445,27 @@ final class AndroidLanguagePackStore {
         }
     }
 
+    private void extractZipEntry(File archive, File targetDirectory, String filename) throws Exception {
+        ensureDirectory(targetDirectory);
+        File target = new File(targetDirectory, filename);
+        boolean found = false;
+        try (ZipInputStream zip = new ZipInputStream(
+            new BufferedInputStream(new java.io.FileInputStream(archive))
+        )) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if (!entry.isDirectory() && filename.equals(new File(entry.getName()).getName())) {
+                    copyStream(zip, target);
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found || target.length() == 0) {
+            throw new IllegalStateException("Sudachi dictionary archive does not contain " + filename);
+        }
+    }
+
     private void copyStream(InputStream input, File target) throws Exception {
         try (FileOutputStream output = new FileOutputStream(target)) {
             byte[] buffer = new byte[BUFFER_SIZE];
@@ -454,6 +517,11 @@ final class AndroidLanguagePackStore {
         if ("ko".equals(language)) {
             return KoreanNlpAnalyzer.modelsAvailable(
                 new File(modelsDirectory, KoreanNlpAnalyzer.MODEL_DIRECTORY)
+            );
+        }
+        if ("ja".equals(language)) {
+            return JapaneseNlpAnalyzer.modelsAvailable(
+                new File(modelsDirectory, JapaneseNlpAnalyzer.MODEL_DIRECTORY)
             );
         }
         if ("ru".equals(language)) return RussianNlpAnalyzer.modelsAvailable(modelsDirectory);

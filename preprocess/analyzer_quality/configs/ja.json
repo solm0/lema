@@ -1,0 +1,11 @@
+{
+  "language": "ja",
+  "unicode_form": "NFC",
+  "casefold_lemmas": false,
+  "reference_pos_map": {},
+  "candidate_pos_map": {},
+  "reference_lemma_map": {},
+  "candidate_lemma_map": {},
+  "exclude_pos": ["PUNCT", "SYM", "SPACE", "AUX", "DET", "CCONJ", "SCONJ", "PART", "PRON", "ADP", "X"],
+  "exclude_lemmas": []
+}

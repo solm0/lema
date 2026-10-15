@@ -34,15 +34,18 @@ public class AnalyzerQualityExportInstrumentedTest {
     private static final String ENGLISH_LANGUAGE = "en";
     private static final String GERMAN_LANGUAGE = "de";
     private static final String KOREAN_LANGUAGE = "ko";
+    private static final String JAPANESE_LANGUAGE = "ja";
     private static final String RUSSIAN_LANGUAGE = "ru";
     private static final String ENGLISH_PACK_ASSET = "packs/en-v1.1.2-lemma.zip";
     private static final String GERMAN_PACK_ASSET = "packs/de-v1.1.2-lemma.zip";
     private static final String KOREAN_PACK_ASSET = "packs/ko-v1.1.2-lemma.zip";
+    private static final String JAPANESE_PACK_ASSET = "packs/ja-v1.1.2-lemma.zip";
     private static final String KOREAN_MODEL_ASSET = "models/kiwi_model_v0.24.0_base.tgz";
     private static final String RUSSIAN_PACK_ASSET = "packs/ru-v1.1.2-lemma.zip";
     private static final String ENGLISH_OUTPUT_PATH = "analyzer-quality/en-android.jsonl";
     private static final String GERMAN_OUTPUT_PATH = "analyzer-quality/de-android.jsonl";
     private static final String KOREAN_OUTPUT_PATH = "analyzer-quality/ko-android.jsonl";
+    private static final String JAPANESE_OUTPUT_PATH = "analyzer-quality/ja-android.jsonl";
     private static final String RUSSIAN_OUTPUT_PATH = "analyzer-quality/ru-android.jsonl";
 
     @Test
@@ -257,6 +260,32 @@ public class AnalyzerQualityExportInstrumentedTest {
         }
     }
 
+    @Test
+    public void exportsJapaneseCandidateJsonl() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        Bundle arguments = InstrumentationRegistry.getArguments();
+        assertEquals(JAPANESE_LANGUAGE, arguments.getString("language", JAPANESE_LANGUAGE));
+        assertTrue(BuildConfig.GRADSHOW_MODE);
+        File databaseFile = extractPackDatabase(context, JAPANESE_PACK_ASSET, "japanese");
+        File dictionaryDirectory = JapaneseNlpAnalyzerInstrumentedTest.extractDictionary(context);
+        File outputFile = new File(context.getCacheDir(), JAPANESE_OUTPUT_PATH);
+        File parent = outputFile.getParentFile();
+        assertTrue(parent != null && (parent.isDirectory() || parent.mkdirs()));
+        SQLiteDatabase database = SQLiteDatabase.openDatabase(databaseFile.getAbsolutePath(), null, SQLiteDatabase.OPEN_READONLY);
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(outputFile), StandardCharsets.UTF_8))) {
+            JapaneseNlpAnalyzer analyzer = new JapaneseNlpAnalyzer(dictionaryDirectory, new SqliteLemmaKeyLookup(database));
+            for (long lineId : evenlySpacedLineIds(database, parseSampleSize(arguments.getString("sampleSize", "1000")))) {
+                JSONObject reference = readLine(database, lineId);
+                List<JapaneseNlpAnalyzer.Token> analyzed = analyzer.analyze(reconstructInput(reference.getJSONArray("tokens")));
+                writer.write(japaneseCandidateRecord(lineId, analyzed).toString());
+                writer.newLine();
+            }
+        } finally {
+            database.close();
+            databaseFile.delete();
+        }
+    }
+
     private static int parseSampleSize(String value) {
         int parsed;
         try {
@@ -427,6 +456,30 @@ public class AnalyzerQualityExportInstrumentedTest {
                 outputMorphs.put(outputMorph);
             }
             outputToken.put("morphs", outputMorphs);
+            outputTokens.put(outputToken);
+        }
+        JSONObject output = new JSONObject();
+        output.put("id", lineId);
+        output.put("tokens", outputTokens);
+        return output;
+    }
+
+    private static JSONObject japaneseCandidateRecord(long lineId, List<JapaneseNlpAnalyzer.Token> tokens) throws Exception {
+        JSONArray outputTokens = new JSONArray();
+        for (JapaneseNlpAnalyzer.Token token : tokens) {
+            JSONObject outputToken = new JSONObject();
+            outputToken.put("surface", token.surface);
+            if (token.lemma != null) outputToken.put("lemma", token.lemma);
+            if (token.pos != null) outputToken.put("pos", token.pos);
+            JSONArray morphs = new JSONArray();
+            for (JapaneseNlpAnalyzer.Morph morph : token.morphs) {
+                JSONObject outputMorph = new JSONObject();
+                outputMorph.put("surface", morph.surface);
+                if (morph.lemma != null) outputMorph.put("lemma", morph.lemma);
+                if (morph.pos != null) outputMorph.put("pos", morph.pos);
+                morphs.put(outputMorph);
+            }
+            outputToken.put("morphs", morphs);
             outputTokens.put(outputToken);
         }
         JSONObject output = new JSONObject();

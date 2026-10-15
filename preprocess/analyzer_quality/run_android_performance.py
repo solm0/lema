@@ -28,6 +28,24 @@ from preprocess.analyzer_quality.android_device import (  # noqa: E402
 
 
 LANGUAGES: dict[str, dict[str, Any]] = {
+    "ja": {
+        "application_id": "com.solmi.lema.gradshow.debug",
+        "test_application_id": "com.solmi.lema.gradshow.debug.test",
+        "test_class": (
+            "com.solmi.lema.JapaneseNlpAnalyzerInstrumentedTest"
+            "#loadsModelsAndAnalyzesOnAndroidRuntime"
+        ),
+        "remote_report": "cache/analyzer-quality/ja-android-performance.json",
+        "baseline": (
+            ROOT
+            / "preprocess/analyzer_quality/baselines/ja-android-sudachi-performance.json"
+        ),
+        "analyzer": {
+            "engine": "Sudachi",
+            "runtime_version": "0.7.5",
+            "dictionary": "SudachiDict core 2024-04-09",
+        },
+    },
     "de": {
         "application_id": "com.solmi.lema.gradshow.debug",
         "test_application_id": "com.solmi.lema.gradshow.debug.test",
@@ -193,6 +211,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         help="Official kiwi_model_v0.24.0_base.tgz used for Korean device tests",
     )
+    parser.add_argument(
+        "--sudachi-dictionary-archive",
+        type=Path,
+        help="SudachiDict core ZIP used for Japanese device tests",
+    )
     parser.add_argument("--baseline-out", type=Path)
     parser.add_argument("--max-load-ms", type=float)
     parser.add_argument("--max-heap-mb", type=float)
@@ -218,7 +241,17 @@ def main(argv: list[str] | None = None) -> int:
                 "Korean device run requires --kiwi-model-archive "
                 "pointing to kiwi_model_v0.24.0_base.tgz"
             )
-        build_and_install_test_apks(adb, args.kiwi_model_archive)
+        if args.language == "ja" and (
+            args.sudachi_dictionary_archive is None
+            or not args.sudachi_dictionary_archive.is_file()
+        ):
+            raise SystemExit(
+                "Japanese device run requires --sudachi-dictionary-archive "
+                "pointing to the SudachiDict core ZIP"
+            )
+        build_and_install_test_apks(
+            adb, args.kiwi_model_archive, args.sudachi_dictionary_archive
+        )
 
     reports: list[dict[str, Any]] = []
     with tempfile.TemporaryDirectory(prefix=f"lema-{args.language}-performance-") as directory:
