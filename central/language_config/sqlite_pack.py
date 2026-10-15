@@ -2,17 +2,13 @@ import json
 import sqlite3
 import threading
 from pathlib import Path
-from typing import Iterable
 
-
-LEMMA_TABLES = {
-    "lines",
-    "lemma_stats",
-}
 
 PACK_DB_SUFFIXES = (".sqlite3", ".sqlite", ".db")
-
-LEGACY_DB_NAMES = (
+LEMMA_DB_NAMES = (
+    "lemma_pack.sqlite3",
+    "lemma_pack.sqlite",
+    "lemma_pack.db",
     "language_pack.sqlite3",
     "language_pack.sqlite",
     "language_pack.db",
@@ -21,15 +17,9 @@ LEGACY_DB_NAMES = (
     "pack.db",
 )
 
-LEMMA_DB_NAMES = (
-    "lemma_pack.sqlite3",
-    "lemma_pack.sqlite",
-    "lemma_pack.db",
-    *LEGACY_DB_NAMES,
-)
 
-def _find_named_db(version_path: Path, preferred_names: tuple[str, ...]) -> Path | None:
-    if not version_path.exists() or not version_path.is_dir():
+def find_pack_db(version_path: Path) -> Path | None:
+    if not version_path.is_dir():
         return None
 
     candidates = [
@@ -37,223 +27,102 @@ def _find_named_db(version_path: Path, preferred_names: tuple[str, ...]) -> Path
         for path in sorted(version_path.iterdir())
         if path.is_file() and path.suffix.lower() in PACK_DB_SUFFIXES
     ]
-
+    preferred_order = {name: index for index, name in enumerate(LEMMA_DB_NAMES)}
+    candidates = [path for path in candidates if path.name in preferred_order]
     if not candidates:
         return None
-
-    preferred_order = {name: index for index, name in enumerate(preferred_names)}
-    matching = [path for path in candidates if path.name in preferred_order]
-
-    if not matching:
-        return None
-
-    matching.sort(
-        key=lambda path: (
-            preferred_order[path.name],
-            len(path.name),
-            path.name,
-        )
-    )
-    return matching[0]
-
-
-def find_lemma_db(version_path: Path) -> Path | None:
-    return _find_named_db(version_path, LEMMA_DB_NAMES)
-
-
-def find_pack_db(version_path: Path) -> Path | None:
-    return find_lemma_db(version_path)
-
-
-def has_required_tables(
-    db_path: Path,
-    required_tables: Iterable[str] = LEMMA_TABLES,
-) -> bool:
-    try:
-        conn = sqlite3.connect(db_path)
-        try:
-            rows = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table'"
-            ).fetchall()
-        finally:
-            conn.close()
-    except sqlite3.Error:
-        return False
-
-    existing = {name for (name,) in rows}
-    return set(required_tables).issubset(existing)
+    return min(candidates, key=lambda path: (preferred_order[path.name], path.name))
 
 
 class LanguagePackDB:
     def __init__(self, db_path: Path):
         self.db_path = Path(db_path)
-        self.lemma_db_path = self._resolve_db_path(self.db_path)
         self._local = threading.local()
 
-    def _resolve_db_path(self, path: Path) -> Path:
-        if path.is_dir():
-            lemma_db_path = find_lemma_db(path)
-        else:
-            lemma_db_path = path
+    def _connection(self) -> sqlite3.Connection:
+        connection = getattr(self._local, "connection", None)
+        if connection is None:
+            connection = sqlite3.connect(self.db_path, check_same_thread=False)
+            connection.row_factory = sqlite3.Row
+            self._local.connection = connection
+        return connection
 
-        if lemma_db_path is None:
-            raise ValueError(f"No lemma db found for {path}")
+    def close(self) -> None:
+        connection = getattr(self._local, "connection", None)
+        if connection is not None:
+            connection.close()
+            self._local.connection = None
 
-        return Path(lemma_db_path)
-
-    def _get_conn(self) -> sqlite3.Connection:
-        conn = getattr(self._local, "conn", None)
-
-        if conn is None:
-            conn = sqlite3.connect(self.lemma_db_path, check_same_thread=False)
-            conn.row_factory = sqlite3.Row
-            self._local.conn = conn
-
-        return conn
-
-    def _fetch_json_payload(self, table: str, key_column: str, key: str):
+    def _payload(self, table: str, key_column: str, key: str):
         try:
-            row = self._get_conn().execute(
-                f"SELECT payload FROM {table} WHERE {key_column} = ?",
-                (key,),
+            row = self._connection().execute(
+                f"SELECT payload FROM {table} WHERE {key_column} = ?", (key,)
             ).fetchone()
         except sqlite3.Error:
             return None
-
         if row is None:
             return None
-
         try:
             return json.loads(row["payload"])
         except (TypeError, json.JSONDecodeError):
             return None
 
-    def _fetch_json_payloads(self, table: str, key_column: str, keys: list[str]):
+    def _payloads(self, table: str, key_column: str, keys: list[str]) -> dict:
         if not keys:
             return {}
 
         result = {}
-        chunk_size = 900
-
-        for start in range(0, len(keys), chunk_size):
-            chunk = keys[start:start + chunk_size]
+        for start in range(0, len(keys), 900):
+            chunk = keys[start:start + 900]
             placeholders = ",".join("?" for _ in chunk)
-
             try:
-                rows = self._get_conn().execute(
-                    (
-                        f"SELECT {key_column} AS key, payload "
-                        f"FROM {table} "
-                        f"WHERE {key_column} IN ({placeholders})"
-                    ),
+                rows = self._connection().execute(
+                    f"SELECT {key_column} AS key, payload FROM {table} "
+                    f"WHERE {key_column} IN ({placeholders})",
                     chunk,
                 ).fetchall()
             except sqlite3.Error:
                 continue
-
             for row in rows:
                 try:
                     result[row["key"]] = json.loads(row["payload"])
                 except (TypeError, json.JSONDecodeError):
                     continue
-
         return result
 
     def has_lemma_key(self, key: str) -> bool:
         try:
-            row = self._get_conn().execute(
-                "SELECT 1 FROM lemma_stats WHERE lemma_key = ? LIMIT 1",
-                (key,),
-            ).fetchone()
+            return self._connection().execute(
+                "SELECT 1 FROM lemma_stats WHERE lemma_key = ? LIMIT 1", (key,)
+            ).fetchone() is not None
         except sqlite3.Error:
             return False
 
-        return row is not None
-
-    def get_line_ids(self, key: str):
-        stats = self._fetch_json_payload("lemma_stats", "lemma_key", key)
-
-        if not isinstance(stats, dict):
-            return []
-
-        line_ids = stats.get("lines", [])
+    def get_line_ids(self, key: str) -> list[str]:
+        payload = self._payload("lemma_stats", "lemma_key", key)
+        line_ids = payload.get("lines", []) if isinstance(payload, dict) else []
         return line_ids if isinstance(line_ids, list) else []
 
     def get_furigana(self, key: str) -> str | None:
-        stats = self._fetch_json_payload("lemma_stats", "lemma_key", key)
-
-        if not isinstance(stats, dict):
-            return None
-
-        furigana = stats.get("furigana")
-        if not isinstance(furigana, str):
-            return None
-
-        furigana = furigana.strip()
-        return furigana or None
+        payload = self._payload("lemma_stats", "lemma_key", key)
+        value = payload.get("furigana") if isinstance(payload, dict) else None
+        return value.strip() if isinstance(value, str) and value.strip() else None
 
     def get_lemma_frequencies(self, keys: list[str]) -> dict[str, int]:
-        stats_by_key = self._fetch_json_payloads("lemma_stats", "lemma_key", keys)
-        frequencies = {}
-
-        for key, stats in stats_by_key.items():
-            if not isinstance(stats, dict):
-                continue
-            frequency = stats.get("freq")
+        result = {}
+        for key, payload in self._payloads("lemma_stats", "lemma_key", keys).items():
+            frequency = payload.get("freq") if isinstance(payload, dict) else None
             if isinstance(frequency, int) and frequency > 0:
-                frequencies[key] = frequency
-
-        return frequencies
-
-    def get_lines(self, line_ids: list[str]):
-        rows = self._fetch_json_payloads("lines", "line_id", line_ids)
-        result = []
-
-        for line_id in line_ids:
-            payload = rows.get(line_id)
-
-            if not isinstance(payload, dict):
-                continue
-
-            if "line_id" not in payload:
-                payload = {"line_id": line_id, **payload}
-
-            result.append(payload)
-
+                result[key] = frequency
         return result
 
-    def find_line_ids_by_token_forms(self, forms: list[str], limit: int = 1200):
-        normalized_forms = [form.strip() for form in forms if isinstance(form, str) and form.strip()]
-
-        if not normalized_forms:
-            return []
-
-        conditions = []
-        params: list[str | int] = []
-
-        for form in normalized_forms:
-            lower_form = form.lower()
-            capitalized_form = lower_form[:1].upper() + lower_form[1:]
-
-            for variant in {lower_form, capitalized_form}:
-                conditions.append("payload LIKE ?")
-                params.append(f'%\"surface\": \"{variant}\"%')
-                conditions.append("payload LIKE ?")
-                params.append(f'%\"lemma\": \"{variant}\"%')
-
-        params.append(limit)
-
-        try:
-            rows = self._get_conn("lemma").execute(
-                (
-                    "SELECT line_id "
-                    "FROM lines "
-                    f"WHERE {' OR '.join(conditions)} "
-                    "LIMIT ?"
-                ),
-                params,
-            ).fetchall()
-        except sqlite3.Error:
-            return []
-
-        return [row["line_id"] for row in rows]
+    def get_lines(self, line_ids: list[str]) -> list[dict]:
+        payloads = self._payloads("lines", "line_id", line_ids)
+        result = []
+        for line_id in line_ids:
+            payload = payloads.get(line_id)
+            if isinstance(payload, dict):
+                if "line_id" not in payload:
+                    payload = {"line_id": line_id, **payload}
+                result.append(payload)
+        return result

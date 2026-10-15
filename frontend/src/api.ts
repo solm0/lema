@@ -53,10 +53,10 @@ import {
   lookupNativeLemmas,
   uninstallNativePack,
 } from "./nativeLanguagePack";
+import { PACK_CATALOG } from "./generated/packCatalog";
 
 const DEFAULT_CENTRAL_API = "https://lema.solmi.wiki/api";
 const DEFAULT_ELECTRON_LOCAL_API = "http://localhost:8010/api";
-const DEFAULT_WEB_LOCAL_API = "http://localhost:8000/api";
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
@@ -88,7 +88,7 @@ function resolveCentralApi() {
   );
 }
 
-function resolveLocalApi(centralApi: string) {
+function resolveLocalApi() {
   const platform = getAppPlatform();
 
   if (platform === "electron") {
@@ -99,22 +99,11 @@ function resolveLocalApi(centralApi: string) {
     );
   }
 
-  if (platform === "mobile") {
-    return trimTrailingSlash(
-      import.meta.env.VITE_MOBILE_LOCAL_API
-        ?? `${centralApi}/mobile`,
-    );
-  }
-
-  return trimTrailingSlash(
-    import.meta.env.VITE_WEB_LOCAL_API
-      ?? import.meta.env.VITE_LOCAL_API
-      ?? DEFAULT_WEB_LOCAL_API,
-  );
+  return "";
 }
 
 export const CENTRAL_API = resolveCentralApi();
-export const LOCAL_API = resolveLocalApi(CENTRAL_API);
+export const LOCAL_API = resolveLocalApi();
 
 export type LatestVersionPlatform = "desktop" | "android";
 
@@ -404,23 +393,20 @@ async function analyzeBlocksBatch(
   blocks: AnalyzeBlockInput[],
   language: string,
 ) {
-  if (isCapacitorApp() && await canAnalyzeWithNativePack(language)) {
-    return analyzeWithNativePack(blocks, language);
+  if (isCapacitorApp()) {
+    if (await canAnalyzeWithNativePack(language)) {
+      return analyzeWithNativePack(blocks, language);
+    }
+    throw new Error("language_pack_required");
   }
 
-  const remoteAnalysis = !isElectronApp();
-  const headers = remoteAnalysis
-    ? authHeaders()
-    : { "Content-Type": "application/json" };
-
-  if (!headers) {
-    throw new Error("unauthorized");
+  if (!isElectronApp()) {
+    throw new Error("local_analysis_unavailable");
   }
 
-  const request = remoteAnalysis ? centralFetch : fetch;
-  const res = await request(`${LOCAL_API}/analyze`, {
+  const res = await fetch(`${LOCAL_API}/analyze`, {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       blocks,
       language,
@@ -543,24 +529,46 @@ export async function lemmaLookup(
   language: string
 ): Promise<Record<string, LemmaData>> {
   const output: Record<string, LemmaData> = {};
-  const useNativePack =
-    isCapacitorApp() && await canLookupWithNativePack(language);
-  const profile = useNativePack ? await getOfflineLemmaProfile() : null;
+
+  if (isCapacitorApp()) {
+    if (!await canLookupWithNativePack(language)) {
+      throw new Error("language_pack_required");
+    }
+
+    const profile = await getOfflineLemmaProfile();
+    for (let start = 0; start < items.length; start += MAX_LOOKUP_BATCH_ITEMS) {
+      const batch = items.slice(start, start + MAX_LOOKUP_BATCH_ITEMS);
+      Object.assign(output, await lookupNativeLemmas(batch, language, profile));
+    }
+    return output;
+  }
+
+  if (!isElectronApp()) {
+    if (language !== "en") {
+      throw new Error("local_lookup_unavailable");
+    }
+
+    for (let start = 0; start < items.length; start += MAX_LOOKUP_BATCH_ITEMS) {
+      const batch = items.slice(start, start + MAX_LOOKUP_BATCH_ITEMS);
+      const res = await centralFetch(`${CENTRAL_API}/landing/lookup_batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: batch }),
+      });
+
+      if (!res.ok) throw new Error("landing lookup_batch failed");
+      Object.assign(output, await res.json() as Record<string, LemmaData>);
+    }
+
+    return output;
+  }
 
   for (let start = 0; start < items.length; start += MAX_LOOKUP_BATCH_ITEMS) {
     const batch = items.slice(start, start + MAX_LOOKUP_BATCH_ITEMS);
-
-    if (useNativePack && profile) {
-      Object.assign(output, await lookupNativeLemmas(batch, language, profile));
-      continue;
-    }
-
-    const headers = authHeaders() ?? {};
     const res = await fetch(`${LOCAL_API}/lookup_batch`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...headers,
       },
       body: JSON.stringify({
         items: batch,
@@ -579,20 +587,36 @@ export async function lemmaLookupOne(
   item: { lemma:string; pos:string; },
   language: string
 ) {
-  if (isCapacitorApp() && await canLookupWithNativePack(language)) {
+  if (isCapacitorApp()) {
+    if (!await canLookupWithNativePack(language)) {
+      throw new Error("language_pack_required");
+    }
     return lookupNativeLemma(
       item,
       language,
       await getOfflineLemmaProfile(),
     );
   }
-  const headers = authHeaders() ?? {}
+
+  if (!isElectronApp()) {
+    if (language !== "en") {
+      throw new Error("local_lookup_unavailable");
+    }
+
+    const res = await centralFetch(`${CENTRAL_API}/landing/lookup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item),
+    });
+
+    if (!res.ok) throw new Error("landing lookup failed");
+    return res.json() as Promise<LemmaData>;
+  }
 
   const res = await fetch(`${LOCAL_API}/lookup`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...headers,
     },
     body: JSON.stringify({...item, language})
   })
@@ -645,7 +669,7 @@ export async function setInterest(
 }
 
 async function invalidateLocalLemmaProfileCache() {
-  if (isCapacitorApp()) return;
+  if (!isElectronApp()) return;
   const headers = authHeaders();
   if (!headers) return;
   await fetch(`${LOCAL_API}/lemma/profile/cache`, {
@@ -768,25 +792,19 @@ export async function getPacks(): Promise<PackCatalogEntry[]> {
       corpus: [{ "Data source": "Bundled exhibition pack" }, { "Corpora used": "English" }],
     }];
   }
-  const res = await centralFetch(`${CENTRAL_API}/lang/packs`);
+  let packs: PackCatalogEntry[] = PACK_CATALOG;
 
-  if (!res.ok) {
-    throw new Error("pack fetch failed");
+  if (isElectronApp()) {
+    const res = await fetch(`${LOCAL_API}/lang/packs`);
+    if (!res.ok) throw new Error("pack fetch failed");
+    packs = await res.json() as PackCatalogEntry[];
+  } else if (isCapacitorApp()) {
+    const supportedLanguages = new Set(await getSupportedNativePackLanguages());
+    packs = packs.filter((pack) => supportedLanguages.has(pack.lang));
   }
 
-  const data: unknown = await res.json();
-
-  if (Array.isArray(data)) {
-    let packs = data as PackCatalogEntry[];
-    if (isCapacitorApp()) {
-      const supportedLanguages = new Set(await getSupportedNativePackLanguages());
-      packs = packs.filter((pack) => supportedLanguages.has(pack.lang));
-    }
-    writePackCatalogSnapshot(packs);
-    return packs;
-  }
-
-  return [];
+  writePackCatalogSnapshot(packs);
+  return packs;
 }
 
 // 설치 상태
@@ -804,6 +822,8 @@ export async function getInstalled() {
     return getInstalledNativePacks();
   }
 
+  if (!isElectronApp()) return [];
+
   return fetch(`${LOCAL_API}/lang/installed`).then(r => r.json());
 }
 
@@ -816,6 +836,10 @@ export async function installPack(pack: {
 }) {
   if (isCapacitorApp()) {
     return installNativePack(pack);
+  }
+
+  if (!isElectronApp()) {
+    throw new Error("local_pack_install_unavailable");
   }
 
   return fetch(`${LOCAL_API}/lang/install`, {
@@ -835,6 +859,10 @@ export async function uninstallPack(pack: {
     return { status: "ok" };
   }
 
+  if (!isElectronApp()) {
+    throw new Error("local_pack_install_unavailable");
+  }
+
   return fetch(`${LOCAL_API}/lang/uninstall`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -846,6 +874,9 @@ export async function uninstallPack(pack: {
 export async function getProgress(taskId: string) {
   if (isCapacitorApp()) {
     return getNativePackInstallProgress(taskId);
+  }
+  if (!isElectronApp()) {
+    throw new Error("local_pack_install_unavailable");
   }
   return fetch(`${LOCAL_API}/lang/progress/${taskId}`).then(r => r.json());
 }

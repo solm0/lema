@@ -27,8 +27,9 @@ Codex용 운영 가이드는 각 폴더의 `AGENTS.md`를 참고하면 됩니다
 
 - Electron은 계속 로컬 언어 백엔드를 사용합니다.
   - 기본 로컬 API 기준: `http://localhost:8000/api`
-- Mobile은 계정/콘텐츠 호출에 중앙 API를 사용해야 합니다.
-  - 분석, lookup, predict, search는 `central`의 `/api/mobile/*` 엔드포인트를 사용합니다.
+- Mobile은 계정 및 어휘 상태 동기화에만 중앙 API를 사용합니다.
+  - 분석과 lookup은 설치된 기기 언어 팩에서 수행하며, 중앙 서버로 텍스트를 보내지 않습니다.
+- 웹 랜딩 데모의 동적 영어 lemma 확장만 중앙의 읽기 전용 영어 SQLite 조회 API를 사용합니다. 분석 기능이나 다른 언어 팩은 중앙에 두지 않습니다.
 - Electron/macOS는 AppleScript로 데스크톱 플레이어의 now-playing 정보를 로컬에서 읽습니다.
 - Android는 active media session 기반으로 now-playing을 읽으며 notification access가 필요합니다.
 
@@ -153,13 +154,12 @@ Android workflow는 Secret이 모두 있으면 signed APK를 만들고, 없으�
   - `VITE_ELECTRON_CENTRAL_API`
   - `VITE_ELECTRON_LOCAL_API`
   - `VITE_MOBILE_CENTRAL_API`
-  - `VITE_MOBILE_LOCAL_API`
 
 계정 이메일 인증과 비밀번호 재설정 페이지는 중앙 API 도메인에서 직접 서빙합니다.
 
 ## Data and packs
 
-- 언어 팩은 `central/data/static/<lang>/<version>/...` 아래에 둡니다.
+- 언어 팩 정의는 `shared/manifests/language_packs.py`에 두며, Electron은 이를 로컬 백엔드에서 읽고 Android 카탈로그는 빌드 때 생성합니다.
 - 가사 페이지는 한 줄당 한 block을 저장합니다.
 - 각 block은 이후 재생 동기화를 위해 `timestamp_ms`를 가질 수 있습니다.
 - 트랙 메타데이터가 있으면 클라이언트에서 LRCLIB 기반으로 가사를 매칭합니다.

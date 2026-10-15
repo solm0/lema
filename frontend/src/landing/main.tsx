@@ -204,7 +204,7 @@ const chromePrivacyCopy: PrivacyCopy = {
 const androidPrivacyCopy: PrivacyCopy = {
   en: {
     title: "Lema Android App Privacy Policy",
-    updatedAt: "Last updated: August 31, 2026",
+    updatedAt: "Last updated: October 15, 2026",
     intro:
       "The Lema Android app (the \"App\") helps users read and analyze foreign-language text and find lyrics for music playing on their device. This Privacy Policy explains what information the App processes, why it is used, and when it is shared.",
     sections: [
@@ -237,7 +237,7 @@ const androidPrivacyCopy: PrivacyCopy = {
         heading: "4. Sharing and Third-Party Services",
         paragraphs: [
           "To find lyrics, the App sends the current song title and artist name to the LRCLIB service at lrclib.net. It does not send your Lema account identifier with this request.",
-          "Account data, interested-lemma changes, and text submitted for mobile language analysis may be sent to Lema servers. Pages, notebooks, and annotations are stored in the device's local library and are not synchronized to Lema servers.",
+          "Account data and interested-lemma changes may be sent to Lema servers for account features and optional vocabulary synchronization. Text submitted for mobile language analysis, pages, notebooks, and annotations stay in the device's local library and are not synchronized to Lema servers.",
           "We do not sell personal information or use it for personalized or third-party advertising.",
         ],
       },
@@ -269,7 +269,7 @@ const androidPrivacyCopy: PrivacyCopy = {
   },
   ko: {
     title: "Lema Android 앱 개인정보처리방침",
-    updatedAt: "최종 업데이트: 2026년 8월 31일",
+    updatedAt: "최종 업데이트: 2026년 10월 15일",
     intro:
       "Lema Android 앱(이하 \"앱\")은 외국어 텍스트를 읽고 분석하며, 기기에서 재생 중인 음악의 가사를 찾을 수 있도록 돕습니다. 본 개인정보처리방침은 앱이 어떤 정보를 처리하고, 왜 사용하며, 언제 공유하는지 설명합니다.",
     sections: [
@@ -302,7 +302,7 @@ const androidPrivacyCopy: PrivacyCopy = {
         heading: "4. 정보 공유 및 외부 서비스",
         paragraphs: [
           "가사를 찾기 위해 현재 곡 제목과 아티스트 이름을 LRCLIB 서비스(lrclib.net)에 전송합니다. 이 요청에는 Lema 계정 식별자를 함께 보내지 않습니다.",
-          "계정 정보, 표제어 즐겨찾기, 모바일 언어 분석을 위한 텍스트는 Lema 서버로 전송될 수 있습니다. 페이지, 노트북, 주석은 기기의 로컬 라이브러리에 저장되며 Lema 서버와 동기화되지 않습니다.",
+          "계정 정보와 표제어 즐겨찾기 변경은 계정 기능 및 선택적인 어휘 동기화를 위해 Lema 서버로 전송될 수 있습니다. 모바일 언어 분석을 위한 텍스트, 페이지, 노트북, 주석은 기기의 로컬 라이브러리에 저장되며 Lema 서버와 동기화되지 않습니다.",
           "개인정보를 판매하거나 개인 맞춤 광고 또는 제3자 광고에 사용하지 않습니다.",
         ],
       },

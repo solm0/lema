@@ -7,6 +7,7 @@ export type PackCatalogEntry = {
   corpus: {
     "Data source"?: string;
     "Corpora used"?: string;
+    "Note"?: string;
   }[];
 };
 

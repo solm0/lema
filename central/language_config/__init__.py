@@ -1,9 +1,1 @@
-from .registry import load_language
-
-
-def get_config(lang: str):
-    return load_language(lang)
-
-
-def get_nlp(lang: str):
-    return load_language(lang)["get_nlp"]()
+"""Minimal language-pack readers retained for the public English landing demo."""

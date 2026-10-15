@@ -1,18 +1,9 @@
 import os
 from pathlib import Path
 
-import bootstrap_paths  # noqa: F401
 from sqlalchemy import text
 
 from db import engine, Base
-from language_config.model_store import (
-    download_model,
-    ensure_model_directories,
-    model_exists,
-)
-from packs import list_languages
-from runtime_paths import get_runtime_state_root
-from shared.manifests import mark_runtime_consumers
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,37 +12,14 @@ from fastapi.staticfiles import StaticFiles
 from routers.auth_router import router as auth_router
 from routers.lemmas_router import router as lemmas_router
 from routers.internal_router import router as internal_router
-from routers.mobile_router import router as mobile_router
 from routers.demo_router import router as demo_router
+from routers.landing_lookup_router import router as landing_lookup_router
 from routers.version_router import router as version_router
 
 BASE_DIR = Path(__file__).resolve().parent
 LANDING_DIR = BASE_DIR / "static" / "landing"
 
 app = FastAPI()
-STATE_ROOT = get_runtime_state_root()
-
-
-def ensure_language_models():
-    ensure_model_directories()
-
-    for lang in list_languages():
-        if model_exists(lang):
-            print(f"[skip] model exists: {lang}")
-            mark_runtime_consumers(STATE_ROOT, lang)
-            continue
-
-        try:
-            print(f"[stanza] downloading: {lang}")
-            download_model(lang)
-
-            mark_runtime_consumers(STATE_ROOT, lang)
-
-        except Exception as e:
-            print(f"Failed downloading {lang}: {e}")
-
-
-ensure_language_models()
 
 app.add_middleware(
     CORSMiddleware,
@@ -75,8 +43,8 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(lemmas_router)
 app.include_router(internal_router)
-app.include_router(mobile_router)
 app.include_router(demo_router)
+app.include_router(landing_lookup_router)
 app.include_router(version_router)
 
 Base.metadata.create_all(bind=engine)

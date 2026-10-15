@@ -22,6 +22,10 @@ Electron의 `kiwipiepy`와 같은 계열인 Kiwi 0.24를 사용한다. 한국어
 `filesDir/language-packs/<lang>/<version>`에 저장한다. 폴더 안에는
 `lemma_pack.db`와 `models/`가 함께 있어야 설치 완료로 판단한다.
 
+설치 가능 언어 팩 카탈로그는 `shared/manifests/language_packs.py`가 원본이다.
+`npm run build`와 `npm run cap:sync`는 이 원본에서 Android/WebView용
+`src/generated/packCatalog.ts`를 생성한다. 중앙 서버는 팩 목록이나 팩 SQLite를 제공하지 않는다.
+
 Kiwi CoNg 모델은 네이티브 메모리를 많이 사용하므로 한국어 분석기는 연속 분석 중에는
 재사용하되 마지막 사용 30초 후 닫는다. 한국어 성능 측정에서는 Java heap뿐 아니라
 native/total PSS도 함께 확인해야 한다. Samsung SM-S906N 기준 1,000문장 품질 게이트는

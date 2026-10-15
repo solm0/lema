@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
-from packs import PACKS
 
 from db import get_db
 from models import User, UserLemma
@@ -45,7 +44,3 @@ def batch_check_interests(
 
     interests = [row[0] for row in rows]
     return {"interests": interests, "favorites": interests}
-
-@router.get("/lang/packs")
-def get_packs():
-    return PACKS

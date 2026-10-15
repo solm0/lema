@@ -8,6 +8,7 @@ import asyncio
 import secrets
 import datetime
 import hashlib
+import ipaddress
 import json
 import logging
 import time
@@ -28,7 +29,6 @@ from services.auth_rate_limits import (
   login_attempt_limiter,
   normalize_email,
 )
-from services.analysis_access import get_client_ip
 from services.password_reset_limits import password_reset_attempt_limiter
 from services.password_security import (
   MAX_PASSWORD_LENGTH,
@@ -43,6 +43,30 @@ from services.password_security import (
 # -----------------------------
 
 load_dotenv()
+
+
+def get_client_ip(request: Request) -> str:
+  """Return the client IP while only trusting configured reverse proxies."""
+  peer_ip = request.client.host if request.client else "unknown"
+  trusted_proxies = {
+    item.strip()
+    for item in os.getenv("TRUSTED_PROXY_IPS", "127.0.0.1,::1").split(",")
+    if item.strip()
+  }
+
+  if peer_ip in trusted_proxies:
+    for item in reversed(request.headers.get("x-forwarded-for", "").split(",")):
+      try:
+        forwarded_ip = str(ipaddress.ip_address(item.strip()))
+      except ValueError:
+        continue
+      if forwarded_ip not in trusted_proxies:
+        return forwarded_ip
+
+  try:
+    return str(ipaddress.ip_address(peer_ip))
+  except ValueError:
+    return peer_ip
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = "HS256"

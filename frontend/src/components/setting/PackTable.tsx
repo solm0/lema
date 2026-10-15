@@ -19,6 +19,7 @@ export type Pack = {
   corpus: {
     "Data source"?: string;
     "Corpora used"?: string;
+    "Note"?: string;
   }[];
 };
 

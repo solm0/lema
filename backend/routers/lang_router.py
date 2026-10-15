@@ -1,11 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks
 import uuid
-import httpx
-import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
-load_dotenv()
 from services.installer import (
     get_install_state,
     install_pack,
@@ -15,7 +11,6 @@ from services.installer import (
 
 router = APIRouter(prefix="/api/lang", tags=["lang"])
 
-CENTRAL_API = (os.getenv("CENTRAL_API") or "https://lema.solmi.wiki/api").rstrip("/")
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 if str(ROOT_DIR) not in sys.path:
@@ -25,24 +20,16 @@ from shared.manifests import PACKS
 
 
 # -----------------------------
-# PACK LIST FROM CENTRAL
+# PACK CATALOG
 # -----------------------------
 
 def fetch_packs():
-    supported_languages = {pack["lang"] for pack in PACKS}
+    return PACKS
 
-    try:
-        with httpx.Client(http2=False, timeout=10.0) as client:
-            res = client.get(f"{CENTRAL_API}/lang/packs")
-            res.raise_for_status()
-            return [
-                pack
-                for pack in res.json()
-                if pack.get("lang") in supported_languages
-            ]
-    except Exception as exc:
-        print(f"[lang_router] failed to fetch packs from {CENTRAL_API}: {exc}")
-        return PACKS
+
+@router.get("/packs")
+def get_packs():
+    return fetch_packs()
 
 # -----------------------------
 # INSTALLED STATUS
