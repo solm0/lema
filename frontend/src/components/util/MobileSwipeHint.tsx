@@ -57,8 +57,8 @@ export function MobileSwipeHint({
         >
           <span className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
             checked
-              ? "border-neutral-400 bg-neutral-400 text-white"
-              : "border-neutral-500 bg-white/80"
+              ? "border-neutral-400 bg-neutral-400 text-neutral-50"
+              : "border-neutral-500 bg-neutral-50/80"
           }`}>
             {checked ? <Check className="h-3 w-3" /> : null}
           </span>

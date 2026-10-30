@@ -6,137 +6,76 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import {
+  isDarkTheme,
+  resolveTheme,
+  type ResolvedThemeId,
+  type ThemeId,
+} from "../themes";
+import { useSettings } from "./useSettings";
 
-export type Theme = "light" | "dark";
-
-type ThemeContextValue = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  switchTheme: () => void;
-};
-
-const STORAGE_KEY = "theme";
 const MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
-const ThemeContext =
-  createContext<ThemeContextValue | null>(null);
+type ThemeContextValue = {
+  theme: ThemeId;
+  resolvedTheme: ResolvedThemeId;
+  isDark: boolean;
+  setTheme: (theme: ThemeId) => void;
+};
 
-function isTheme(value: string | null): value is Theme {
-  return value === "light" || value === "dark";
+const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+function systemPrefersDark() {
+  return typeof window !== "undefined" && window.matchMedia(MEDIA_QUERY).matches;
 }
 
-function getSystemTheme(): Theme {
-  return window.matchMedia(MEDIA_QUERY).matches
-    ? "dark"
-    : "light";
-}
+export function applyTheme(theme: ThemeId, prefersDark = systemPrefersDark()) {
+  if (typeof document === "undefined") return;
 
-function getStoredTheme(): Theme | null {
-  const storedTheme =
-    window.localStorage.getItem(STORAGE_KEY);
-
-  return isTheme(storedTheme) ? storedTheme : null;
-}
-
-export function resolveInitialTheme(): Theme {
-  if (typeof window === "undefined") {
-    return "light";
-  }
-
-  return getStoredTheme() ?? getSystemTheme();
-}
-
-export function applyTheme(theme: Theme) {
-  if (typeof document === "undefined") {
-    return;
-  }
-
+  const resolvedTheme = resolveTheme(theme, prefersDark);
   const root = document.documentElement;
 
-  root.classList.toggle("dark", theme === "dark");
-  root.dataset.theme = theme;
-  root.style.colorScheme = theme;
+  root.classList.toggle("dark", isDarkTheme(resolvedTheme));
+  root.dataset.theme = resolvedTheme;
+  root.style.colorScheme = isDarkTheme(resolvedTheme) ? "dark" : "light";
 }
 
-export function ThemeProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const [theme, setThemeState] = useState<Theme>(() =>
-    resolveInitialTheme()
-  );
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const { settings, setSettings } = useSettings();
+  const [prefersDark, setPrefersDark] = useState(systemPrefersDark);
+  const resolvedTheme = resolveTheme(settings.theme, prefersDark);
+  const isDark = isDarkTheme(resolvedTheme);
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    applyTheme(settings.theme, prefersDark);
+  }, [settings.theme, prefersDark]);
 
   useEffect(() => {
     const media = window.matchMedia(MEDIA_QUERY);
-
-    const syncSystemTheme = () => {
-      if (getStoredTheme() !== null) {
-        return;
-      }
-
-      setThemeState(getSystemTheme());
-    };
+    const syncSystemTheme = () => setPrefersDark(media.matches);
 
     syncSystemTheme();
     media.addEventListener("change", syncSystemTheme);
-
-    return () => {
-      media.removeEventListener(
-        "change",
-        syncSystemTheme
-      );
-    };
+    return () => media.removeEventListener("change", syncSystemTheme);
   }, []);
 
   const value = useMemo(
     () => ({
-      theme,
-      setTheme: (nextTheme: Theme) => {
-        window.localStorage.setItem(
-          STORAGE_KEY,
-          nextTheme
-        );
-        setThemeState(nextTheme);
-      },
-      switchTheme: () => {
-        setThemeState((currentTheme) => {
-          const nextTheme =
-            currentTheme === "dark"
-              ? "light"
-              : "dark";
-
-          window.localStorage.setItem(
-            STORAGE_KEY,
-            nextTheme
-          );
-
-          return nextTheme;
-        });
+      theme: settings.theme,
+      resolvedTheme,
+      isDark,
+      setTheme: (theme: ThemeId) => {
+        setSettings((previous) => ({ ...previous, theme }));
       },
     }),
-    [theme]
+    [isDark, resolvedTheme, setSettings, settings.theme],
   );
 
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {
   const context = useContext(ThemeContext);
-
-  if (!context) {
-    throw new Error(
-      "useTheme must be used inside ThemeProvider"
-    );
-  }
-
+  if (!context) throw new Error("useTheme must be used inside ThemeProvider");
   return context;
 }

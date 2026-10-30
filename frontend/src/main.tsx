@@ -4,7 +4,6 @@ import './index.css'
 import App from './App.tsx'
 import {
   applyTheme,
-  resolveInitialTheme,
   ThemeProvider,
 } from './components/useTheme.tsx'
 import { I18nProvider, resolveInitialLocale } from './i18n.tsx'
@@ -23,7 +22,7 @@ async function bootstrap() {
     console.error('Could not initialize the secure auth session.', error)
   }
 
-  applyTheme(resolveInitialTheme())
+  applyTheme("system")
   const initialLocale = resolveInitialLocale()
 
   createRoot(document.getElementById('root')!).render(

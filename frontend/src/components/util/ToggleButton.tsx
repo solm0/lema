@@ -8,9 +8,9 @@ export default function ThemeToggle({
 }: {
   compact?: boolean;
 }) {
-  const { theme, switchTheme } = useTheme();
+  const { isDark, setTheme } = useTheme();
   const { t } = useI18n();
-  const isDark = theme === "dark";
+  const switchTheme = () => setTheme(isDark ? "lema-light" : "lema-dark");
 
   return (
     <button

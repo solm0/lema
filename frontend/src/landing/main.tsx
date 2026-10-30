@@ -13,7 +13,7 @@ import LandingHeader from "./LandingHeader";
 import { applyTheme } from "../components/useTheme";
 import { I18nProvider, resolveInitialLocale } from "../i18n";
 
-applyTheme("light");
+applyTheme("lema-light");
 const initialLocale = resolveInitialLocale();
 const DEV_LANDING_HOME_PATH = "/landing/index.html";
 const DEV_CHROME_PRIVACY_PATH = "/landing/chrome-extension-privacy/index.html";

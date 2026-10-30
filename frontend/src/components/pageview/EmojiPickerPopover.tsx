@@ -30,7 +30,7 @@ export default function EmojiPickerPopover({
 
   close: () => void;
 }) {
-  const { theme } = useTheme();
+  const { isDark } = useTheme();
   const PICKER_WIDTH = 320;
   const PICKER_HEIGHT = 420;
   const mobile = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
@@ -83,7 +83,7 @@ export default function EmojiPickerPopover({
       <EmojiPicker
         emojiStyle={EmojiStyle.NATIVE}
         theme={
-          theme === "dark"
+          isDark
             ? Theme.DARK
             : Theme.LIGHT
         }

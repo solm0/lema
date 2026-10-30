@@ -12,8 +12,9 @@ import { type User } from "../../types";
 import Button, { IconButtonEvent } from "../util/Button";
 import { useLocation, useNavigate } from "react-router-dom";
 import PackTable from "./PackTable";
-import ThemeToggle, { SettingToggle } from "../util/ToggleButton";
+import { SettingToggle } from "../util/ToggleButton";
 import { useSettings } from "../useSettings";
+import { themeOptions, type ThemeId } from "../../themes";
 import { isCapacitorApp } from "../../platform";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import NotificationPermissionModal from "./NotificationPermissionModal";
@@ -453,6 +454,13 @@ export default function Setting() {
     }));
   }
 
+  function handleThemeChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextTheme = themeOptions.find(({ id }) => id === event.target.value)?.id;
+    if (!nextTheme) return;
+
+    setSettings((prev) => ({ ...prev, theme: nextTheme as ThemeId }));
+  }
+
   return (
     <>
       <div className="w-full h-full overflow-y-scroll overflow-x-hidden flex flex-col gap-7 pr-3 z-30 pl-3 md:pl-6 bg-neutral-50 pb-7">
@@ -475,7 +483,15 @@ export default function Setting() {
 
               <div className="flex items-center gap-2">
                 <span>{t("Theme")}</span>
-                <ThemeToggle />
+                <select
+                  value={settings.theme}
+                  onChange={handleThemeChange}
+                  className="border border-neutral-200 rounded-sm py-0.5 text-sm focus:outline-none hover:bg-neutral-100"
+                >
+                  {themeOptions.map(({ id, label }) => (
+                    <option key={id} value={id}>{t(label)}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex items-center gap-2">
@@ -526,7 +542,7 @@ export default function Setting() {
               >
                 <div
                   className={`
-                    h-4 w-4 rounded-full bg-white shadow-sm
+                    h-4 w-4 rounded-full bg-neutral-50 shadow-sm
                     transition-transform duration-200
                     ${
                       settings.now_playing_notifications

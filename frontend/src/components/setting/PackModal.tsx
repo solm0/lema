@@ -184,7 +184,7 @@ export default function PackModal({
           <div className="w-full h-3 rounded-full bg-neutral-200 overflow-hidden">
             {displayedPercent > 0 ? (
               <div
-                className="h-full bg-black transition-all duration-300"
+                className="h-full bg-neutral-900 transition-all duration-300"
                 style={{ width: `${displayedPercent}%` }}
               />
             ) : (

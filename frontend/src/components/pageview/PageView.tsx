@@ -386,16 +386,6 @@ export default function PageView() {
       {result && (
         <>
           <div
-            className="absolute w-full h-12 z-30 inset-0 backdrop-blur-lg"
-            style={{
-              WebkitMaskImage:
-                "linear-gradient(to bottom, black 0%, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.4) 70%, transparent 100%)",
-              maskImage:
-                "linear-gradient(to bottom, black 0%, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.4) 70%, transparent 100%)",
-            }}
-          />
-
-          <div
             className="relative flex h-full min-w-0 flex-1 overflow-hidden"
           >
             <PageContent
@@ -421,6 +411,11 @@ export default function PageView() {
               setAnnotations={setAnnotations}
               horizontalAlign="center"
             />
+            {loadingLemma && !loadingPage && !noPack && (
+              <div className="pointer-events-none absolute bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-full bg-neutral-50/90 px-3 py-1 text-xs text-neutral-500 shadow-sm backdrop-blur-sm md:bottom-4">
+                {t("Fetching lemmas...")}
+              </div>
+            )}
           </div>
 
           <ResponsiveSideLayout
@@ -442,12 +437,6 @@ export default function PageView() {
             )}
 
           </ResponsiveSideLayout>
-
-          {loadingLemma && !loadingPage && !noPack && (
-            <div className="pointer-events-none absolute bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-full bg-neutral-50/90 px-3 py-1 text-xs text-neutral-500 shadow-sm backdrop-blur-sm md:bottom-4">
-              {t("Fetching lemmas...")}
-            </div>
-          )}
         </>
       )}
       <KnownWordsMilestoneToast

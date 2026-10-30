@@ -200,7 +200,7 @@ function PlayingWaveform({ playing }: { playing: boolean }) {
       {[0, 1, 2, 3].map((bar) => (
         <div
           key={bar}
-          className={`w-[3px] rounded-full bg-black ${
+          className={`w-[3px] rounded-full bg-neutral-900 ${
             playing ? "animate-waveform" : ""
           }`}
           style={{

@@ -7,6 +7,7 @@ import type {
   Dispatch,
   SetStateAction,
 } from "react";
+import { isThemeId, type ThemeId } from "../themes";
 
 const STORAGE_KEY = "lema_settings";
 const LEGACY_STORAGE_KEY = "nautilus_settings";
@@ -14,12 +15,14 @@ const LEGACY_STORAGE_KEY = "nautilus_settings";
 export type AppSettings = {
   lemma_info: boolean;
   system_language: "en" | "ko";
+  theme: ThemeId;
   now_playing_notifications: boolean;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
   lemma_info: false,
   system_language: "en",
+  theme: "system",
   now_playing_notifications: true,
 };
 
@@ -51,9 +54,12 @@ function loadSettings(): AppSettings {
     cachedSettings = {
       ...DEFAULT_SETTINGS,
       ...parsed,
+      theme: isThemeId(parsed.theme)
+        ? parsed.theme
+        : legacyThemeToThemeId(localStorage.getItem("theme")),
     };
 
-    if (!localStorage.getItem(STORAGE_KEY)) {
+    if (!localStorage.getItem(STORAGE_KEY) || !isThemeId(parsed.theme)) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedSettings));
     }
 
@@ -62,6 +68,12 @@ function loadSettings(): AppSettings {
     cachedSettings = DEFAULT_SETTINGS;
     return cachedSettings ?? DEFAULT_SETTINGS;
   }
+}
+
+function legacyThemeToThemeId(value: string | null): ThemeId {
+  if (value === "dark") return "lema-dark";
+  if (value === "light") return "lema-light";
+  return "system";
 }
 
 function updateSettings(

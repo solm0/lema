@@ -57,7 +57,7 @@ export default function KnownWordsMilestoneToast({
           if (!open) onClose();
         }}
         duration={4000}
-        className="milestone-toast-root border-neutral-200 bg-white/95 text-neutral-800 backdrop-blur-md"
+        className="milestone-toast-root border-neutral-200 bg-neutral-50/95 text-neutral-800 backdrop-blur-md"
       >
         <ToastTitle className="flex items-center gap-2 text-sm">
           <PartyPopper className="h-5 w-5 shrink-0 text-fuchsia-500" />
