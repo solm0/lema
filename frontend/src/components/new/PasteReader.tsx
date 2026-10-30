@@ -87,7 +87,7 @@ export default function PasteReader({
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
         className="w-full h-full resize-none rounded-sm focus:outline-none bg-neutral-50/80 p-2"
-        placeholder={t("Paste text here\n\nTip !!!\n\nAccuracy improves when punctuation and line breaks are used properly in sentences.")}
+        placeholder={t("Accuracy improves when punctuation and line breaks are used properly in sentences.")}
         spellCheck={false}
       />
       {analysisError ? (

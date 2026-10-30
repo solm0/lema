@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 
-import type { Notebook, Page } from "./PageLayout";
+import type { Notebook, Page, SelectedItem } from "./PageLayout";
 import { MiniPopup } from "../util/MiniPopup";
 import { IconButtonEvent } from "../util/Button";
 import { useI18n } from "../../i18n";
@@ -30,12 +30,14 @@ function ActionButton({
   icon,
   label,
   onClick,
+  onAction,
   danger = false,
   disabled = false,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  onAction?: () => void;
   danger?: boolean;
   disabled?: boolean;
 }) {
@@ -46,10 +48,11 @@ function ActionButton({
       onClick={(event) => {
         event.stopPropagation();
         if (disabled) return;
+        onAction?.();
         onClick();
       }}
       disabled={disabled}
-      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
+      className={`flex w-full select-none items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${
         disabled
           ? "text-neutral-500 opacity-50"
           : danger
@@ -75,11 +78,14 @@ export default function PageCard({
   dragActive = false,
   isDragTarget = false,
   dropFlashed = false,
+  selectedItemKeys,
   onToggleNotebook,
   onTogglePinned,
   onMove,
   onDelete,
+  onMenuAction,
   onPagePointerDown,
+  onSelect,
   onOpenPage,
   consumeSuppressedClick,
   registerNotebookTarget,
@@ -98,11 +104,17 @@ export default function PageCard({
   dragActive?: boolean;
   isDragTarget?: boolean;
   dropFlashed?: boolean;
+  selectedItemKeys?: Set<string>;
   onToggleNotebook?: () => void;
   onTogglePinned?: () => void;
   onMove?: () => void;
   onDelete: () => void;
+  onMenuAction?: () => void;
   onPagePointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void;
+  onSelect?: (
+    item: SelectedItem,
+    event: React.MouseEvent<HTMLDivElement>
+  ) => boolean;
   onOpenPage?: () => void;
   consumeSuppressedClick?: () => boolean;
   registerNotebookTarget?: (element: HTMLDivElement | null) => void;
@@ -128,9 +140,15 @@ export default function PageCard({
   const menuOpen = openPopupId === menuPopupId;
 
   const isActivePage = page?.id === currentPageId;
+  const selectionItem: SelectedItem = page
+    ? { type: "page", id: page.id }
+    : { type: "notebook", id: notebook!.id };
+  const selected = selectedItemKeys?.has(
+    `${selectionItem.type}:${selectionItem.id}`
+  );
   const disableServerActions = false;
 
-  const leftPadding = 4 + level * 19;
+  const leftPadding = 8 + level * 20;
 
   const trailingVisible =
     editing || (!isMobileLike && (hovered || menuOpen));
@@ -220,7 +238,9 @@ export default function PageCard({
     window.addEventListener("pointercancel", handleNotebookLongPressEnd);
   };
 
-  const handleClick = () => {
+  const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (onSelect?.(selectionItem, event)) return;
+
     if (item.type === "page") {
       if (consumeSuppressedClick?.()) {
         return;
@@ -246,6 +266,7 @@ export default function PageCard({
           icon={<Plus size={13} />}
           label={t("Create page")}
           disabled={false}
+          onAction={onMenuAction}
           onClick={() => {
             navigate("/new?mode=paste", { state: { notebookId: notebook.id } });
             setOpenPopupId(null);
@@ -257,6 +278,7 @@ export default function PageCard({
         icon={<Pencil size={13} />}
         label={t("Rename")}
         disabled={disableServerActions}
+        onAction={onMenuAction}
         onClick={() => {
           setEditing(true);
           setOpenPopupId(null);
@@ -268,6 +290,7 @@ export default function PageCard({
           icon={<Folder size={13} />}
           label={t("Move")}
           disabled={false}
+          onAction={onMenuAction}
           onClick={() => {
             onMove();
             setOpenPopupId(null);
@@ -280,6 +303,7 @@ export default function PageCard({
           icon={<Pin size={13} fill={isPinned ? "currentColor" : "transparent"} />}
           label={isPinned ? t("Unpin") : t("Pin")}
           disabled={offline}
+          onAction={onMenuAction}
           onClick={() => {
             onTogglePinned();
             setOpenPopupId(null);
@@ -292,6 +316,7 @@ export default function PageCard({
         label={t("Delete")}
         danger
         disabled={disableServerActions || (GRADSHOW_MODE && page?.id === GRADSHOW_PAGE_ID)}
+        onAction={onMenuAction}
         onClick={() => {
           onDelete();
           setOpenPopupId(null);
@@ -309,13 +334,15 @@ export default function PageCard({
       }}
       onPointerDown={handlePointerDown}
       onClick={handleClick}
-      className={`group relative min-h-10 md:min-h-8 flex items-center cursor-pointer rounded-md transition-all active:bg-neutral-400/10 ${
+      className={`group relative min-h-10 md:min-h-7 flex items-center cursor-pointer rounded-md transition-all active:bg-neutral-400/10 ${
         dragging
           ? "bg-neutral-200/90"
           : isDragTarget
             ? "bg-neutral-200/80 ring-1 ring-neutral-300"
             : dropFlashed
               ? "bg-neutral-200/70"
+              : selected
+                ? "bg-neutral-400/20"
               : isActivePage
                 ? "bg-neutral-400/20"
                 : hovered && !dragActive
@@ -326,7 +353,7 @@ export default function PageCard({
         paddingLeft: leftPadding,
       }}
     >
-      <div className="flex w-full min-h-8 items-center gap-1.5 pr-2">
+      <div className="flex w-full items-center gap-1.5 pr-1">
         {notebook &&
           <div className="flex shrink-0 items-center gap-1 text-neutral-500">
             {expanded ? (
@@ -337,11 +364,11 @@ export default function PageCard({
           </div>
         }
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 text-[0.8rem]">
           {editing ? (
             <input
               data-no-drag="true"
-              className="w-full rounded-md border border-neutral-300 bg-neutral-50 px-2 py-1 text-sm focus:outline-none"
+              className="w-full rounded-md border border-neutral-300 bg-transparent px-2 py-1 focus:outline-none"
               value={value}
               onClick={(event) => event.stopPropagation()}
               onChange={(event) => setValue(event.target.value)}
@@ -358,7 +385,7 @@ export default function PageCard({
             />
           ) : (
             <div className="flex min-w-0 items-center gap-2">
-              <p className="truncate text-sm text-neutral-800 select-none">
+              <p className={`truncate font-[450] select-none ${selected || isActivePage || (!isMobileLike && hovered) ? 'text-neutral-800' : 'text-neutral-500'}`}>
                 {item.type === "page" ? item.page.name : item.notebook.name}
               </p>
               {page ? (

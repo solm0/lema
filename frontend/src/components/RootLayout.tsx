@@ -41,9 +41,13 @@ type LayoutContextType = {
   setPanelOpen: (open: boolean) => void;
   pageSidebarOpen: boolean;
   setPageSidebarOpen: (open: boolean) => void;
+  pageSidebarWidth: number;
+  setPageSidebarWidth: (width: number) => void;
 };
 
 const PAGE_SIDEBAR_OPEN_STORAGE_KEY = "pages.sidebar.open";
+const PAGE_SIDEBAR_WIDTH_STORAGE_KEY = "pages.sidebar.width";
+const DEFAULT_PAGE_SIDEBAR_WIDTH = 256;
 
 const LayoutContext =
   createContext<LayoutContextType | null>(null);
@@ -64,6 +68,13 @@ function loadPageSidebarOpen() {
   } catch {
     return true;
   }
+}
+
+function loadPageSidebarWidth() {
+  if (typeof window === "undefined") return DEFAULT_PAGE_SIDEBAR_WIDTH;
+
+  const saved = Number(window.localStorage.getItem(PAGE_SIDEBAR_WIDTH_STORAGE_KEY));
+  return Number.isFinite(saved) ? saved : DEFAULT_PAGE_SIDEBAR_WIDTH;
 }
 
 
@@ -101,6 +112,8 @@ export default function RootLayout() {
     useState(false);
   const [pageSidebarOpen, setPageSidebarOpen] =
     useState(() => loadPageSidebarOpen());
+  const [pageSidebarWidth, setPageSidebarWidth] =
+    useState(() => loadPageSidebarWidth());
 
   const isPagePath =
     matchPath("/page/:id", location.pathname) !==
@@ -114,6 +127,15 @@ export default function RootLayout() {
       JSON.stringify(pageSidebarOpen)
     );
   }, [pageSidebarOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(
+      PAGE_SIDEBAR_WIDTH_STORAGE_KEY,
+      String(pageSidebarWidth)
+    );
+  }, [pageSidebarWidth]);
 
   useEffect(() => {
     if (GRADSHOW_MODE) return;
@@ -276,8 +298,10 @@ export default function RootLayout() {
       setPanelOpen,
       pageSidebarOpen,
       setPageSidebarOpen,
+      pageSidebarWidth,
+      setPageSidebarWidth,
     }),
-    [panelOpen, pageSidebarOpen]
+    [panelOpen, pageSidebarOpen, pageSidebarWidth]
   );
 
   return (

@@ -44,7 +44,7 @@ export function NewPage() {
   };
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center bg-neutral-transparent">
+    <div className="relative flex h-full w-full items-center justify-center bg-neutral-100">
       <button
         type="button"
         onClick={() => navigate("/lyric")}

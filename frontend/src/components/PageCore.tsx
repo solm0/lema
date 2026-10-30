@@ -657,20 +657,23 @@ export default function PageCore({
           <div
             data-page-header="true"
             className={`
-              flex w-full max-w-[48em] flex-col gap-7 pb-14 select-text font-pretendard
-              ${pageSource === 'lrclib' ? 'items-start text-left' : 'items-center text-center'}
+              flex w-full max-w-[48em] flex-col gap-14 pb-14 select-text font-pretendard
+              items-start text-left
             `}
             style={{ userSelect: "text", WebkitUserSelect: "text" }}
           >
 
-            <h1 className="w-full text-4xl select-text leading-[1.3em] font-bold">
+            <h1
+              className="font-body w-full text-3xl select-text leading-[1.2em] font-bold tracking-tight"
+              data-font-language={language}
+            >
               {pageName?.trim() || "Untitled page"}
             </h1>
 
             {/* metadata */}
-            <div className={`flex flex-col gap-4 text-sm ${pageSource === 'lrclib' ? 'items-start' : 'items-center'} `}>
+            <div className="flex flex-col items-start gap-1 -translate-x-1 text-left text-sm font-medium">
               {pageSource && pageSource !== 'user' ? (
-                <div className="flex gap-1.5 items-center font-pretendard text-neutral-400 text-xs">
+                <div className="flex gap-1.5 items-center font-pretendard text-neutral-400 py-1 px-1">
                   <FileInput size={13}/>
                   <span>{pageSource}</span>
                 </div>
@@ -687,7 +690,7 @@ export default function PageCore({
                   <div
                     key={`${item}-${index}`}
                     className={`
-                      group relative flex flex-col gap-1 rounded px-1 -translate-x-1 py-1 transition-colors
+                      group relative flex flex-col gap-1 rounded px-1 py-1 transition-colors
                       ${!isEditing && !isCoarsePointer ? 'hover:bg-neutral-200/50' : ''}
                       ${interactionHighlighted ? 'bg-neutral-200/50' : ''}
                       ${menuOpen ? 'z-90' : 'z-0'}
@@ -748,9 +751,7 @@ export default function PageCore({
                     {isEditing ? (
                       <input
                         type="text"
-                        className={`field-sizing-content min-w-[2ch] max-w-[min(78vw,42rem)] border-0 bg-transparent p-0 outline-none ${
-                          pageSource === 'lrclib' ? 'text-left' : 'text-center'
-                        }`}
+                        className="field-sizing-content min-w-[2ch] max-w-[min(78vw,42rem)] border-0 bg-transparent p-0 text-left outline-none"
                         value={draftMetadata}
                         onChange={(event) => setDraftMetadata(event.target.value)}
                         onBlur={() => void handleSaveMetadata()}
@@ -766,11 +767,7 @@ export default function PageCore({
                       />
                     ) : (
                       <div
-                        className={`flex flex-col ${
-                          pageSource === 'lrclib'
-                            ? 'items-start text-left'
-                            : 'items-center text-center'
-                        } ${isCoarsePointer ? 'select-none' : 'select-text'}`}
+                        className={`flex flex-col items-start text-left ${isCoarsePointer ? 'select-none' : 'select-text'}`}
                       >
                         {item.startsWith('https://')
                           ? (
@@ -836,21 +833,19 @@ export default function PageCore({
                     setDraftMetadata("");
                     setEditingMetadataIndex(-1);
                   }}
-                  className={`-translate-x-1 flex items-center gap-2 rounded px-1 py-1 text-neutral-400 transition-colors ${
+                  className={`flex items-center gap-2 rounded px-1 py-1 text-neutral-400 transition-colors ${
                     !isCoarsePointer ? "hover:bg-neutral-200/50" : ""
                   }`}
                 >
                   <Plus size={14} />
-                  <span className="font-pretendard text-xs">{t("Add metadata")}</span>
+                  <span className="font-pretendard">{t("Add metadata")}</span>
                 </button>
               ) : null}
 
               {canManageMetadata && editingMetadataIndex === -1 ? (
                 <input
                   type="text"
-                  className={`field-sizing-content min-w-[2ch] max-w-[min(78vw,42rem)] border-0 bg-transparent p-0 outline-none placeholder:text-neutral-400 ${
-                    pageSource === 'lrclib' ? 'text-left' : 'text-center'
-                  }`}
+                  className="field-sizing-content min-w-[2ch] max-w-[min(78vw,42rem)] border-0 bg-transparent p-0 text-left outline-none placeholder:text-neutral-400"
                   placeholder={t("Add metadata")}
                   value={draftMetadata}
                   onChange={(event) => setDraftMetadata(event.target.value)}
@@ -871,6 +866,13 @@ export default function PageCore({
           </div>
         ) : null}
 
+        <div
+          className={
+            isLyricPage
+              ? `flex w-full flex-col translate-x-[-0.15em] ${containerAlignClass} gap-y-[1.5em]`
+              : "contents"
+          }
+        >
         {blocks.map((block, blockIndex) => (
           (() => {
             const visualState = getLyricLineVisualState(
@@ -896,9 +898,10 @@ export default function PageCore({
                 data-block-index={blockIndex}
                 data-lyric-line={block.timestamp_ms != null ? "true" : "false"}
                 className={`
-                  relative z-1 flex w-full max-w-[48em] flex-wrap content-start justify-between
+                  relative z-1 flex w-full max-w-[48em] flex-wrap content-start
+                  ${isLyricPage ? "justify-start" : "justify-between"}
                   after:basis-0 after:flex-auto after:content-['']
-                  transition-all duration-300 origin-left gap-y-1
+                  transition-all duration-300 origin-left
                   ${language === "ko" || language === "ja" ? "leading-10" : ""}
                   ${block.tokens?.length === 0 && 'h-[1.7em] shrink-0'}
                   ${visualState.blockMinHeightClass}
@@ -952,13 +955,14 @@ export default function PageCore({
                           : "false"
                       }
                       className={[
-                        "relative z-10 flex flex-col px-1",
+                        "relative z-10 flex flex-col",
+                        language === "ja" ? 'px-0!' : 'px-[0.15em]',
                         settings.lemma_info && pageId
                           ? isActiveLine
                             ? "min-h-[4em] h-auto gap-2"
                             : "min-h-[4em] h-auto gap-1"
                           : isLyricPage
-                            ? "h-auto min-h-[1.6em] gap-0 justify-center"
+                            ? "h-auto min-h-[1.3em] gap-0 justify-center"
                           : pageId
                             ? "min-h-[1.5em] h-auto gap-0"
                             : "",
@@ -1026,6 +1030,7 @@ export default function PageCore({
             );
           })()
         ))}
+        </div>
         </div>
 
         <TokenHighlightOverlay

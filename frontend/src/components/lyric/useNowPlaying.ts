@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   enrichNowPlayingWithLyrics,
@@ -35,7 +35,14 @@ export function useNowPlaying({
   const [loading, setLoading] = useState(true);
   const [lyricsLoading, setLyricsLoading] = useState(false);
   const [tick, setTick] = useState(0);
+  const [refreshToken, setRefreshToken] = useState(0);
   const didLoadTrackRef = useRef(false);
+
+  const refresh = useCallback(() => {
+    didLoadTrackRef.current = false;
+    setLoading(true);
+    setRefreshToken((token) => token + 1);
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -64,7 +71,7 @@ export function useNowPlaying({
     return () => {
       cancelled = true;
     };
-  }, [enabled]);
+  }, [enabled, refreshToken]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -147,7 +154,7 @@ export function useNowPlaying({
       cancelled = true;
       window.clearInterval(intervalId);
     };
-  }, [enabled, permission?.granted, permission?.supported, pollMs]);
+  }, [enabled, permission?.granted, permission?.supported, pollMs, refreshToken]);
 
   useEffect(() => {
     if (!enabled || !track?.is_playing) return;
@@ -180,5 +187,6 @@ export function useNowPlaying({
     activeLyricIndex,
     lyricsLoading,
     hasTrack: Boolean(track?.track),
+    refresh,
   };
 }

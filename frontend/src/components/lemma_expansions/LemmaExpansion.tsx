@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Check, Star } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Circle, Copy, Star } from "lucide-react";
 import LemmaKwic from "./LemmaKwic";
 import type { LemmaData } from "../pageTypes";
 import { useI18n } from "../../i18n";
@@ -13,7 +13,7 @@ export default function LemmaExpansion({
   lemmaInfo,
   interestKeys,
   isKnown,
-  onMarkKnown,
+  onToggleKnown,
 }: {
   data: LemmaData;
   onSelect: (tokenKey: string) => void;
@@ -22,15 +22,21 @@ export default function LemmaExpansion({
   lemmaInfo?: Record<string, LemmaData>;
   interestKeys?: Set<string>;
   isKnown: boolean;
-  onMarkKnown: () => Promise<void>;
+  onToggleKnown: (next: boolean) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [visible, setVisible] = useState(false);
   const [showKnownConfirmation, setShowKnownConfirmation] = useState(false);
+  const [copyIconState, setCopyIconState] = useState<"idle" | "copied" | "hidden">("idle");
+  const copyIconTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => () => {
+    if (copyIconTimerRef.current !== null) window.clearTimeout(copyIconTimerRef.current);
   }, []);
 
   const parts = data.key.split("_");
@@ -40,8 +46,32 @@ export default function LemmaExpansion({
   const isInterested = interestKeys?.has(globalKey) ?? data.is_interested;
 
   const handleKnownClick = () => {
-    setShowKnownConfirmation(true);
-    void onMarkKnown();
+    const nextKnown = !isKnown;
+    if (nextKnown) setShowKnownConfirmation(true);
+    else setShowKnownConfirmation(false);
+    void onToggleKnown(nextKnown);
+  };
+
+  const copyLemma = async () => {
+    try {
+      await navigator.clipboard.writeText(lemma);
+    } catch {
+      const textArea = document.createElement("textarea");
+      textArea.value = lemma;
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      textArea.remove();
+    }
+
+    if (copyIconTimerRef.current !== null) window.clearTimeout(copyIconTimerRef.current);
+    setCopyIconState("copied");
+    copyIconTimerRef.current = window.setTimeout(() => {
+      setCopyIconState("hidden");
+      copyIconTimerRef.current = null;
+    }, 1200);
   };
 
   return (
@@ -82,36 +112,50 @@ export default function LemmaExpansion({
               {data.furigana}
             </span>
           )}
-          <div className="flex flex-col items-center md:hidden">
-            <span className="max-w-36 truncate text-sm leading-tight text-neutral-700">{lemma}</span>
+          <div className="flex flex-col items-center">
+            <div
+              className="group/lemma relative"
+              onMouseEnter={() => {
+                if (copyIconState === "hidden") setCopyIconState("idle");
+              }}
+              onMouseLeave={() => setCopyIconState("idle")}
+            >
+              <button
+                type="button"
+                aria-label={t("Copy “{lemma}”", { lemma })}
+                className="font-body max-w-36 truncate text-sm leading-tight text-neutral-700 md:max-w-40 md:text-xl md:font-semibold"
+                data-font-language={language}
+                onClick={() => void copyLemma()}
+              >
+                {lemma}
+              </button>
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute left-full top-1/2 ml-1 -translate-y-1/2 p-1 text-neutral-400 transition-opacity md:block ${
+                copyIconState === "hidden"
+                  ? "opacity-0"
+                  : copyIconState === "copied"
+                    ? "opacity-100"
+                    : "opacity-0 group-hover/lemma:opacity-100"
+                } hidden`}
+              >
+                {copyIconState === "copied" ? <Check size={15} /> : <Copy size={15} />}
+              </span>
+            </div>
             <span className="text-[9px] leading-4 text-neutral-400">{pos}</span>
           </div>
-          {isKnown && !showKnownConfirmation ? (
-            <div className="hidden h-10 min-w-24 max-w-40 flex-col items-center justify-center px-2 md:flex">
-              <span className="max-w-full truncate text-sm leading-tight text-neutral-700">{lemma}</span>
-              <span className="text-[9px] leading-4 text-neutral-400">{pos}</span>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className={`group relative hidden h-10 min-w-24 max-w-40 flex-col items-center justify-center rounded-lg px-2 transition-colors md:flex ${
-                showKnownConfirmation
-                  ? "border-none bg-neutral-100"
-                  : "border border-neutral-200 bg-neutral-50 hover:bg-neutral-100"
-              }`}
-              onClick={handleKnownClick}
-              disabled={showKnownConfirmation}
-            >
-              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] text-neutral-500 opacity-0 transition-opacity group-hover:opacity-100">
-                {t("I know this word")}
-              </span>
-              <span className="relative max-w-full">
-                <span className="block truncate text-sm leading-tight text-neutral-700">{lemma}</span>
-              </span>
-              <span className="text-[9px] leading-4 text-neutral-400">{pos}</span>
-            </button>
-          )}
         </div>
+
+        <button
+          type="button"
+          aria-label={isKnown ? t("Known word") : t("I know this word")}
+          className={`absolute bottom-5 right-5 flex h-7 w-7 items-center justify-center transition-colors ${
+            isKnown ? "text-neutral-700" : "text-neutral-300 hover:text-neutral-500"
+          }`}
+          onClick={handleKnownClick}
+        >
+          {isKnown ? <Check size={19} strokeWidth={2.5} /> : <Circle size={17} />}
+        </button>
 
         <Toast
           open={showKnownConfirmation}

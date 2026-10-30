@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { App as CapacitorApp } from "@capacitor/app";
 
 import Button from "../util/Button";
 import LanguageSelect from "../util/LanguageSelect";
@@ -223,6 +224,7 @@ export default function LyricPage() {
     activeLyricIndex,
     lyricsLoading,
     hasTrack,
+    refresh,
   } = useNowPlaying();
 
   const [language, setLanguage] = useState<{
@@ -239,6 +241,39 @@ export default function LyricPage() {
   const [savedPageId, setSavedPageId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  const refreshAfterAccessRef = useRef(false);
+
+  useEffect(() => {
+    if (!mobileApp) return;
+
+    const refreshAfterReturning = () => {
+      if (!refreshAfterAccessRef.current) return;
+      refreshAfterAccessRef.current = false;
+      refresh();
+    };
+    const handleVisibilityChange = () => {
+      if (!document.hidden) refreshAfterReturning();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    let listenerHandle: Awaited<ReturnType<typeof CapacitorApp.addListener>> | null = null;
+    let disposed = false;
+    void CapacitorApp.addListener("appStateChange", ({ isActive }) => {
+      if (isActive) refreshAfterReturning();
+    }).then((handle) => {
+      if (disposed) {
+        void handle.remove();
+      } else {
+        listenerHandle = handle;
+      }
+    });
+
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      void listenerHandle?.remove();
+    };
+  }, [mobileApp, refresh]);
 
   const blocks = useMemo(
     () =>
@@ -353,7 +388,7 @@ export default function LyricPage() {
     blocks.length === 0;
 
   return (
-    <div className={`flex flex-col items-start h-full w-full gap-2 pr-4 pb-18 md:pb-4 md:pr-6 pl-3 md:pl-6 ${mobileApp ? 'bg-neutral-200' : 'bg-neutral-transparent'}`}>
+    <div className={`flex flex-col items-start h-full w-full gap-2 pr-4 pb-18 md:pb-4 md:pr-6 pl-3 md:pl-6 ${mobileApp ? 'bg-neutral-200' : 'bg-neutral-100'}`}>
 
       <div className="flex flex-col gap-2 pt-12 pb-2">
         <h2>{t("Get lyrics")}</h2>
@@ -494,6 +529,7 @@ export default function LyricPage() {
         onClose={() => setOpenAccessConsent(false)}
         onAccept={() => {
           setOpenAccessConsent(false);
+          refreshAfterAccessRef.current = true;
           void openNowPlayingPermissionSettings();
         }}
       />

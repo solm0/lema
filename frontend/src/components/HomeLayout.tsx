@@ -121,13 +121,13 @@ export function Side() {
 
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 h-16 w-full border-t bg-neutral-transparent border-neutral-200 flex justify-around p-3 text-sm items-center z-50 backdrop-blur-sm">
+      <div className="fixed bottom-0 left-0 h-14 w-full border-t bg-neutral-100 border-neutral-200 flex justify-around p-3 text-sm items-center z-50 backdrop-blur-sm">
         {content}
         {settingsButtons}
       </div>
     )
   } else return (
-    <div className="pt-12 top-0 left-0 h-full w-9 bg-neutral-transparent border-neutral-300 flex flex-col text-sm items-center gap-2 z-50">
+    <div className="pt-12 top-0 left-0 h-full w-9 bg-neutral-100 border-neutral-300 flex flex-col text-sm items-center gap-2 z-50">
       {content}
       {settingsButtons}
     </div>

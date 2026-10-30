@@ -11,7 +11,7 @@ import { TokenInLemmaExpansion } from "./TokenInLemmaExpansion";
 import type { KwicData, LemmaData } from "../pageTypes";
 import { IconButton } from "../util/Button";
 import { AlignCenterVertical } from "lucide-react";
-import { lemmaLookup } from "../../api";
+import { lemmaLookupProgressively } from "../../api";
 import { getLookupKey, getLookupKeyForMorph } from "../tokenLookup";
 import { useI18n } from "../../i18n";
 
@@ -184,7 +184,8 @@ const KwicRow = forwardRef<KwicRowHandle, KwicRowProps>(function KwicRow(
   const renderToken = (t: Token, j: number) => (
     <div
       key={j}
-      className="relative isolate h-full flex items-center px-1 shrink-0 font-medium"
+      className="font-body relative isolate h-full flex items-center px-[0.15em] shrink-0 font-medium"
+      data-font-language={language}
       onMouseEnter={(e) =>
         setHovered({
           pos: t.pos,
@@ -204,7 +205,7 @@ const KwicRow = forwardRef<KwicRowHandle, KwicRowProps>(function KwicRow(
       {/* pointer-events-none으로 stacking context 충돌 방지 */}
       <div
         className={[
-          "transition-colors pointer-events-none absolute inset-0 z-0 h-10",
+          "transition-colors pointer-events-none absolute inset-0 z-0 h-12",
           hovered.pos === t.pos ? "bg-accent opacity-50" : "opacity-0",
         ].join(" ")}
       />
@@ -242,7 +243,7 @@ const KwicRow = forwardRef<KwicRowHandle, KwicRowProps>(function KwicRow(
             : " · debug unavailable"}
         </div>
       )}
-      <div className="flex min-w-full w-max items-center whitespace-nowrap">
+      <div className="flex text-lg min-w-full w-max items-center whitespace-nowrap">
         <div
           ref={leadingGutterRef}
           className="shrink-0"
@@ -250,20 +251,20 @@ const KwicRow = forwardRef<KwicRowHandle, KwicRowProps>(function KwicRow(
         />
         <div
           ref={leftRef}
-          className="flex h-10 shrink-0 justify-end"
+          className="flex h-12 shrink-0 justify-end"
         >
           {left.map((t, j) => renderToken(t, j))}
         </div>
 
-        <div ref={targetRef} className="relative px-2 flex shrink-0 items-center h-10 cursor-default">
+        <div ref={targetRef} className="relative px-2 flex shrink-0 items-center h-12 cursor-default">
           <div className="absolute inset-0 opacity-50 pointer-events-none" />
-          <span className="inline-flex h-full items-center">
+          <span className="font-body inline-flex h-full items-center" data-font-language={language}>
             {highlightIntersect(target.surface, baseLemma)}
           </span>
         </div>
 
         <div
-          className="flex h-10 shrink-0 justify-start"
+          className="flex h-12 shrink-0 justify-start"
         >
           {right.map((t, j) => renderToken(t, j))}
         </div>
@@ -306,19 +307,18 @@ export default function LemmaKwic({
   const [availableKeys, setAvailableKeys] = useState<Record<string, LemmaData>>(
     () => lemmaInfo ?? {},
   );
+  const availableKeysRef = useRef<Record<string, LemmaData>>(lemmaInfo ?? {});
   const [loadingLemma, setLoadingLemma] = useState(false);
   const [showCenterButton, setShowCenterButton] = useState(false);
 
   const canSelectKey = (tokenKey: string) => {
-    if (availableKeys[tokenKey] != null) {
-      return true;
-    }
-
-    return !attemptedKeysRef.current.has(tokenKey);
+    return availableKeys[tokenKey] != null;
   };
 
   useEffect(() => {
-    setAvailableKeys(lemmaInfo ?? {});
+    const nextAvailableKeys = lemmaInfo ?? {};
+    availableKeysRef.current = nextAvailableKeys;
+    setAvailableKeys(nextAvailableKeys);
   }, [lemmaInfo]);
 
   useEffect(() => {
@@ -373,7 +373,7 @@ export default function LemmaKwic({
     return items.filter(({ lemma, pos }) => {
       const key = `${lemma}_${pos}`;
 
-      if (availableKeys[key] != null) {
+      if (availableKeysRef.current[key] != null) {
         return false;
       }
 
@@ -387,7 +387,7 @@ export default function LemmaKwic({
 
       return true;
     });
-  }, [availableKeys, data, language]);
+  }, [data, language, lemmaInfo]);
 
   useEffect(() => {
     if (lookupItems.length === 0) {
@@ -403,12 +403,22 @@ export default function LemmaKwic({
     pendingKeys.forEach((key) => inflightKeysRef.current.add(key));
     setLoadingLemma(true);
 
-    void lemmaLookup(lookupItems, language)
-      .then((lookupData) => {
+    void lemmaLookupProgressively(lookupItems, language, {
+      batchSize: 25,
+      concurrency: 2,
+      onBatch: (lookupData) => {
         if (cancelled) return;
 
+        setAvailableKeys((prev) => {
+          const nextAvailableKeys = { ...prev, ...lookupData };
+          availableKeysRef.current = nextAvailableKeys;
+          return nextAvailableKeys;
+        });
+      },
+    })
+      .then(() => {
+        if (cancelled) return;
         pendingKeys.forEach((key) => attemptedKeysRef.current.add(key));
-        setAvailableKeys((prev) => ({ ...prev, ...lookupData }));
       })
       .catch(() => {})
       .finally(() => {

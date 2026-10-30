@@ -15,7 +15,6 @@ type Props = {
 const MIN_DESKTOP_WIDTH = 160;
 const DEFAULT_DESKTOP_WIDTH = 400;
 const LEFT_NAV_WIDTH = 36;
-const PAGE_SIDEBAR_WIDTH = 256;
 const DESKTOP_REMAINDER = 160;
 const STORAGE_KEY = "lemma-side-layout-width";
 const SWIPE_HINT_DISMISSED_KEY = "lema_lemma_swipe_hint_dismissed";
@@ -56,7 +55,7 @@ export default function ResponsiveSideLayout({
   onSwipeRight,
   children,
 }: Props) {
-  const { pageSidebarOpen } = useLayout();
+  const { pageSidebarOpen, pageSidebarWidth } = useLayout();
   const [isMobile, setIsMobile] = useState(
     () => isCapacitorApp() || (typeof window !== "undefined" && window.innerWidth < 768),
   );
@@ -69,6 +68,8 @@ export default function ResponsiveSideLayout({
     () => typeof window === "undefined" ? 1280 : window.innerWidth,
   );
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const resizeCloseArmedRef = useRef(false);
+  const [resizeCloseArmed, setResizeCloseArmed] = useState(false);
 
   const [mobileMounted, setMobileMounted] = useState(false);
   const [mobileVisible, setMobileVisible] = useState(false);
@@ -86,8 +87,12 @@ export default function ResponsiveSideLayout({
 
   const maxDesktopWidth = Math.max(
     MIN_DESKTOP_WIDTH,
-    viewportWidth - LEFT_NAV_WIDTH
-      - (pageSidebarOpen ? PAGE_SIDEBAR_WIDTH : 0) - DESKTOP_REMAINDER,
+    Math.min(
+      viewportWidth * 0.8,
+      viewportWidth - LEFT_NAV_WIDTH
+        - (pageSidebarOpen ? Math.min(pageSidebarWidth, viewportWidth / 2) : 0)
+        - DESKTOP_REMAINDER,
+    ),
   );
   const constrainedDesktopWidth = clamp(
     desktopWidth,
@@ -191,13 +196,21 @@ export default function ResponsiveSideLayout({
     event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     resizeRef.current = { startX: event.clientX, startWidth: constrainedDesktopWidth };
+    resizeCloseArmedRef.current = false;
+    setResizeCloseArmed(false);
   };
 
   const onResizePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const resize = resizeRef.current;
     if (!resize) return;
+    const nextWidth = resize.startWidth + resize.startX - event.clientX;
+    const shouldClose = nextWidth < MIN_DESKTOP_WIDTH;
+
+    resizeCloseArmedRef.current = shouldClose;
+    setResizeCloseArmed(shouldClose);
+
     setDesktopWidth(clamp(
-      resize.startWidth + resize.startX - event.clientX,
+      nextWidth,
       MIN_DESKTOP_WIDTH,
       maxDesktopWidth,
     ));
@@ -206,7 +219,22 @@ export default function ResponsiveSideLayout({
   const onResizePointerEnd = () => {
     if (!resizeRef.current) return;
     resizeRef.current = null;
+    const shouldClose = resizeCloseArmedRef.current;
+    resizeCloseArmedRef.current = false;
+    setResizeCloseArmed(false);
+
+    if (shouldClose) {
+      onClose();
+      return;
+    }
+
     window.localStorage.setItem(STORAGE_KEY, String(constrainedDesktopWidth));
+  };
+
+  const onResizePointerCancel = () => {
+    resizeRef.current = null;
+    resizeCloseArmedRef.current = false;
+    setResizeCloseArmed(false);
   };
 
   if (!isMobile) {
@@ -222,16 +250,22 @@ export default function ResponsiveSideLayout({
         }}
       >
         <div
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-0 z-40 bg-neutral-300/50 transition-opacity duration-150 ${
+            resizeCloseArmed ? "opacity-100" : "opacity-0"
+          }`}
+        />
+        <div
           aria-label="Resize lemma sidebar"
           className="group absolute inset-y-0 left-0 z-50 w-3 -translate-x-1/2 cursor-col-resize touch-none"
           onPointerDown={onResizePointerDown}
           onPointerMove={onResizePointerMove}
           onPointerUp={onResizePointerEnd}
-          onPointerCancel={onResizePointerEnd}
+          onPointerCancel={onResizePointerCancel}
         >
-          <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-neutral-300 transition-[width,background-color] group-hover:w-1 group-hover:bg-neutral-400" />
+          <div className="absolute inset-y-0 left-1/2 w-0.75 -translate-x-1/2 bg-neutral-200 transition-[width,background-color] group-hover:w-1 group-hover:bg-neutral-400" />
         </div>
-        <div className="h-full min-h-0 min-w-0 w-full overflow-hidden border-l border-neutral-200">
+        <div className="h-full min-h-0 min-w-0 w-full overflow-hidden">
           {children}
         </div>
       </aside>

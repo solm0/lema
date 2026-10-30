@@ -1,4 +1,4 @@
-import { FileInput, Languages, ListFilter, X } from "lucide-react";
+import { FileInput, Languages, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useI18n } from "../../i18n";
@@ -37,7 +37,7 @@ export function FilterSelect({
     >
       <label
         className={`relative flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-full transition-colors hover:bg-neutral-400/20 ${
-          selectedValue ? "h-6 flex-1 pl-1.5 pr-0.5" : "h-6 w-6"
+          selectedValue ? "h-6 flex-1 pl-1.5 pr-1.5" : "h-6 w-6"
         }`}
         title={title}
       >
@@ -69,7 +69,7 @@ export function FilterSelect({
             event.stopPropagation();
             onChange(null);
           }}
-          className="mr-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-400/25 hover:text-neutral-800"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-400/25 hover:text-neutral-800"
           title={title}
         >
           <X size={12} />
@@ -92,7 +92,6 @@ export function LanguageFilter({
 
   return (
     <div className="flex min-w-0 items-center gap-0.5 overflow-hidden text-xs">
-      <ListFilter size={12} className="mx-1 text-neutral-500 opacity-65" />
       <FilterSelect
         icon={<Languages size={14} />}
         options={languages.map((language) => ({ label: language, value: language }))}
@@ -134,7 +133,6 @@ export function PageFilters({
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden text-xs pl-0.5">
-      <ListFilter size={12} className="text-neutral-500 opacity-65 mx-1" />
       <FilterSelect
         icon={<Languages size={14} />}
         options={languageOptions}

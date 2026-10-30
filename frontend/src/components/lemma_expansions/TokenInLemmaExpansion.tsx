@@ -75,7 +75,7 @@ export function TokenInLemmaExpansion({
               }}
               className={`
                 transition-all
-                ${isCenter ? 'cursor-default' : morphSelectable ? 'hover:font-[480] cursor-pointer' : 'cursor-default'}
+                ${isCenter ? 'cursor-default' : morphSelectable ? 'cursor-pointer' : 'cursor-default'}
                 ${morphSelectable ? (inheritTextColor ? 'text-inherit' : 'text-neutral-700') : 'text-neutral-400 pointer-events-none'}
               `}
             >
@@ -95,7 +95,7 @@ export function TokenInLemmaExpansion({
       }}
       className={`
         transition-all
-        ${isCenter ? 'cursor-default' : tokenSelectable ? 'hover:font-[480] cursor-pointer' : 'cursor-default'}
+        ${isCenter ? 'cursor-default' : tokenSelectable ? 'cursor-pointer' : 'cursor-default'}
         ${isMutedToken ? 'text-neutral-400 pointer-events-none' : inheritTextColor ? 'text-inherit' : 'text-neutral-600'}
         ${className}
       `}

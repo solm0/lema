@@ -122,7 +122,7 @@ export default function New() {
   }, [result]);
 
   return (
-    <div className="flex flex-col items-start h-full w-full gap-2 pr-4 pb-18 md:pb-4 md:pr-6 pl-3 md:pl-6 bg-neutral-transparent">
+    <div className="flex flex-col items-start h-full w-full gap-2 pr-4 pb-18 md:pb-4 md:pr-6 pl-3 md:pl-6 bg-neutral-100">
 
       {/* SECTION 1: HEADER */}
       <div className="flex flex-col gap-2 pt-12 pb-2">

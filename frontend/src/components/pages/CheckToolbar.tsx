@@ -1,31 +1,18 @@
-import { FolderInput, Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { IconButton } from "../util/Button";
-import type { SelectedItem } from "./PageLayout";
 import { useI18n } from "../../i18n";
 
 export default function CheckToolbar({
-  selectedItems,
   clear,
-  onMove,
   onDelete
 }: {
-  selectedItems: SelectedItem[];
   clear: () => void;
-  onMove: () => void;
   onDelete: () => void;
 }) {
   const { t } = useI18n();
-  const pageIds = selectedItems
-    .filter(i => i.type === "page")
-    .map(i => i.id);
   return (
-    <div className="flex gap-1 h-6">
-      <IconButton icon={
-        <div className="flex gap-1 items-center">
-          <span className="text-xs pb-px">{t("Clear search")}</span>
-        </div>
-      } onClick={clear}/>
-      <IconButton icon={<FolderInput size={14} />} onClick={onMove} disabled={pageIds.length === 0}/>
+    <div className="flex h-6 select-none gap-1">
+      <IconButton icon={<X size={14} />} onClick={clear} title={t("Clear selection")} />
       <IconButton icon={<Trash2 className="text-red-600" size={14} />} onClick={onDelete}/>
     </div>
   );

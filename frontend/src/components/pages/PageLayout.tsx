@@ -6,6 +6,7 @@ import { Preferences } from "@capacitor/preferences";
 import MoveModal from "./MoveModal";
 import { useI18n } from "../../i18n";
 import PageCard from "./PageCard";
+import CheckToolbar from "./CheckToolbar";
 import { PageFilters, type PageInputSource } from "./PageFilters";
 import { Toolbar } from "./Toolbar";
 
@@ -34,6 +35,7 @@ const DRAG_SCROLL_MAX_STEP = 18;
 const PAGE_BACK_SWIPE_START_PX = 28;
 const PAGE_BACK_SWIPE_DISTANCE_PX = 80;
 const MOBILE_PAGE_TRANSITION_MS = 280;
+const MIN_DESKTOP_SIDEBAR_WIDTH = 160;
 
 export type Page = {
   id: string;
@@ -58,7 +60,8 @@ export type SelectedItem = {
 
 type DeleteTarget =
   | { type: "page"; item: Page }
-  | { type: "notebook"; item: Notebook };
+  | { type: "notebook"; item: Notebook }
+  | { type: "selection"; items: SelectedItem[] };
 
 type DragGesture = {
   page: Page;
@@ -150,7 +153,12 @@ export default function PageLayout() {
   const currentPageId = id ?? null;
   const mobileApp = isCapacitorApp();
 
-  const { pageSidebarOpen, setPageSidebarOpen } = useLayout();
+  const {
+    pageSidebarOpen,
+    setPageSidebarOpen,
+    pageSidebarWidth,
+    setPageSidebarWidth,
+  } = useLayout();
 
   const [pages, setPages] = useState<Page[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
@@ -173,11 +181,16 @@ export default function PageLayout() {
   );
   const [openPopupId, setOpenPopupId] = useState<string | null>(null);
   const [isMobileLike, setIsMobileLike] = useState(detectMobileLike);
+  const [viewportWidth, setViewportWidth] = useState(
+    () => (typeof window === "undefined" ? 1280 : window.innerWidth)
+  );
+  const [sidebarCloseArmed, setSidebarCloseArmed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLanguages, setFilterLanguages] = useState<string[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<PageInputSource | null>(null);
+  const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
   const [mobilePageDragX, setMobilePageDragX] = useState(0);
   const [mobilePageDragging, setMobilePageDragging] = useState(false);
   const [mobilePageExiting, setMobilePageExiting] = useState(false);
@@ -198,6 +211,9 @@ export default function PageLayout() {
   const hasLoadedOnceRef = useRef(false);
   const autoScrollFrameRef = useRef<number | null>(null);
   const autoScrollVelocityRef = useRef(0);
+  const selectionAnchorRef = useRef<SelectedItem | null>(null);
+  const sidebarResizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const sidebarCloseArmedRef = useRef(false);
 
   const reload = async () => {
     if (!hasLoadedOnceRef.current) {
@@ -269,12 +285,70 @@ export default function PageLayout() {
   useEffect(() => {
     const updateMobileState = () => {
       setIsMobileLike(detectMobileLike());
+      setViewportWidth(window.innerWidth);
     };
 
     updateMobileState();
     window.addEventListener("resize", updateMobileState);
     return () => window.removeEventListener("resize", updateMobileState);
   }, []);
+
+  const maxDesktopSidebarWidth = Math.max(
+    MIN_DESKTOP_SIDEBAR_WIDTH,
+    Math.min(viewportWidth / 2, viewportWidth - 160)
+  );
+  const constrainedDesktopSidebarWidth = Math.min(
+    Math.max(pageSidebarWidth, MIN_DESKTOP_SIDEBAR_WIDTH),
+    maxDesktopSidebarWidth
+  );
+
+  const handleSidebarResizeStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    sidebarResizeRef.current = {
+      startX: event.clientX,
+      startWidth: constrainedDesktopSidebarWidth,
+    };
+    sidebarCloseArmedRef.current = false;
+    setSidebarCloseArmed(false);
+  };
+
+  const handleSidebarResizeMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const resize = sidebarResizeRef.current;
+    if (!resize) return;
+
+    const nextWidth = resize.startWidth + event.clientX - resize.startX;
+    const shouldClose = nextWidth < MIN_DESKTOP_SIDEBAR_WIDTH;
+    sidebarCloseArmedRef.current = shouldClose;
+    setSidebarCloseArmed(shouldClose);
+    setPageSidebarWidth(
+      Math.min(
+        Math.max(nextWidth, MIN_DESKTOP_SIDEBAR_WIDTH),
+        maxDesktopSidebarWidth
+      )
+    );
+  };
+
+  const handleSidebarResizeEnd = () => {
+    if (!sidebarResizeRef.current) return;
+
+    sidebarResizeRef.current = null;
+    const shouldClose = sidebarCloseArmedRef.current;
+    sidebarCloseArmedRef.current = false;
+    setSidebarCloseArmed(false);
+
+    if (shouldClose) {
+      setPageSidebarOpen(false);
+      return;
+    }
+
+  };
+
+  const handleSidebarResizeCancel = () => {
+    sidebarResizeRef.current = null;
+    sidebarCloseArmedRef.current = false;
+    setSidebarCloseArmed(false);
+  };
 
   useEffect(() => {
     if (!id) {
@@ -483,6 +557,113 @@ export default function PageLayout() {
       ),
     [pagesByNotebookId, pinnedPageIds]
   );
+
+  const selectionItems = useMemo(() => {
+    if (showFilteredResults) {
+      return filteredItems.map(({ item }) =>
+        item.type === "page"
+          ? { type: "page" as const, id: item.page.id }
+          : { type: "notebook" as const, id: item.notebook.id }
+      );
+    }
+
+    const items: SelectedItem[] = pinnedPages.map((page) => ({
+      type: "page",
+      id: page.id,
+    }));
+
+    for (const notebook of sortByCreatedDesc(notebooks)) {
+      items.push({ type: "notebook", id: notebook.id });
+
+      if (expandedNotebookIds.has(notebook.id)) {
+        for (const page of pagesByNotebookId.get(notebook.id) ?? []) {
+          if (!pinnedPageIds.includes(page.id)) {
+            items.push({ type: "page", id: page.id });
+          }
+        }
+      }
+    }
+
+    for (const page of rootPages) {
+      items.push({ type: "page", id: page.id });
+    }
+
+    return items;
+  }, [
+    expandedNotebookIds,
+    filteredItems,
+    notebooks,
+    pagesByNotebookId,
+    pinnedPageIds,
+    pinnedPages,
+    rootPages,
+    showFilteredResults,
+  ]);
+
+  const selectedItemKeys = useMemo(
+    () => new Set(selectedItems.map((item) => `${item.type}:${item.id}`)),
+    [selectedItems]
+  );
+
+  const handleItemSelection = (
+    item: SelectedItem,
+    event: React.MouseEvent<HTMLDivElement>
+  ) => {
+    if (isMobileLike) {
+      return false;
+    }
+
+    if (!event.shiftKey && !event.metaKey && !event.ctrlKey) {
+      if (selectedItems.length > 0) clearSelection();
+      selectionAnchorRef.current = item;
+      return false;
+    }
+
+    const itemKey = `${item.type}:${item.id}`;
+
+    if (event.shiftKey) {
+      const anchor = selectionAnchorRef.current;
+      const anchorIndex = anchor
+        ? selectionItems.findIndex(
+            (candidate) =>
+              candidate.type === anchor.type && candidate.id === anchor.id
+          )
+        : -1;
+      const itemIndex = selectionItems.findIndex(
+        (candidate) => candidate.type === item.type && candidate.id === item.id
+      );
+
+      if (anchorIndex === -1 || itemIndex === -1) {
+        selectionAnchorRef.current = item;
+        setSelectedItems([item]);
+      } else {
+        const [start, end] =
+          anchorIndex < itemIndex ? [anchorIndex, itemIndex] : [itemIndex, anchorIndex];
+        setSelectedItems(selectionItems.slice(start, end + 1));
+      }
+
+      return true;
+    }
+
+    selectionAnchorRef.current = item;
+    setSelectedItems((previous) => {
+      const alreadySelected = previous.some(
+        (candidate) => `${candidate.type}:${candidate.id}` === itemKey
+      );
+      return alreadySelected
+        ? previous.filter(
+            (candidate) => `${candidate.type}:${candidate.id}` !== itemKey
+          )
+        : [...previous, item];
+    });
+
+    return true;
+  };
+
+  const clearSelection = () => {
+    selectionAnchorRef.current = null;
+    setSelectedItems([]);
+  };
 
   const toggleNotebook = (notebookId: string) => {
     setExpandedNotebookIds((prev) => {
@@ -768,7 +949,7 @@ export default function PageLayout() {
     page: Page,
     event: React.PointerEvent<HTMLDivElement>
   ) => {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || event.shiftKey || event.metaKey || event.ctrlKey) return;
 
     const target = event.target as HTMLElement;
     if (target.closest("[data-no-drag='true']")) return;
@@ -826,11 +1007,30 @@ export default function PageLayout() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
 
-    await deleteLocalItem(deleteTarget.type, deleteTarget.item.id);
+    if (deleteTarget.type === "selection") {
+      await Promise.all(
+        deleteTarget.items
+          .filter((item) => item.type === "page")
+          .map((item) => deleteLocalItem(item.type, item.id))
+      );
+      await Promise.all(
+        deleteTarget.items
+          .filter((item) => item.type === "notebook")
+          .map((item) => deleteLocalItem(item.type, item.id))
+      );
+      clearSelection();
+    } else {
+      await deleteLocalItem(deleteTarget.type, deleteTarget.item.id);
+    }
 
     setOpenPopupId(null);
     setDeleteTarget(null);
     await reload();
+  };
+
+  const deleteSelectedItems = async () => {
+    if (selectedItems.length === 0) return;
+    setDeleteTarget({ type: "selection", items: selectedItems });
   };
 
   const togglePinnedPage = (page: Page) => {
@@ -959,7 +1159,7 @@ export default function PageLayout() {
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder={t("Find...")}
-          className="min-w-0 flex-1 bg-transparent text-xs text-neutral-700 placeholder:text-neutral-400 focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent text-sm text-neutral-700 placeholder:text-neutral-400 focus:outline-none"
           onKeyDown={(event) => {
             if (event.key === "Escape") closeSearch();
           }}
@@ -988,7 +1188,7 @@ export default function PageLayout() {
   ) : offline && !hasLoadedOnceRef.current ? (
     <OfflineState onRetry={() => void reload()} />
   ) : (
-    <div className="flex flex-col px-2 md:px-1 pb-14 pt-0">
+    <div className="flex flex-col px-2 md:px-0 pb-14 pt-0 gap-1">
       {showFilteredResults ? (
         filteredItems.length > 0 ? (
           filteredItems.map(({ key, item }) => (
@@ -997,6 +1197,9 @@ export default function PageLayout() {
               item={item}
               level={0}
               currentPageId={currentPageId}
+              selectedItemKeys={selectedItemKeys}
+              onSelect={handleItemSelection}
+              onMenuAction={clearSelection}
               expanded={item.type === "notebook" ? expandedNotebookIds.has(item.notebook.id) : false}
               reload={reload}
               isMobileLike={isMobileLike}
@@ -1056,6 +1259,9 @@ export default function PageLayout() {
               item={{ type: "page", page }}
               level={0}
               currentPageId={currentPageId}
+              selectedItemKeys={selectedItemKeys}
+              onSelect={handleItemSelection}
+              onMenuAction={clearSelection}
               reload={reload}
               isMobileLike={isMobileLike}
               isPinned={pinnedPageIds.includes(page.id)}
@@ -1079,7 +1285,7 @@ export default function PageLayout() {
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
-      {!isMobileLike || location.pathname === "/" ? <div className="w-full justify-between flex z-30 py-1 items-center h-8 pr-2 pl-1 md:pl-0">
+      {!isMobileLike || location.pathname === "/" ? <div className="w-full justify-between flex z-30 py-1 items-center h-8 pr-2 pl-1">
         {searchOpen ? (
           searchControl
         ) : (
@@ -1092,15 +1298,22 @@ export default function PageLayout() {
               onLanguageChange={setSelectedLanguage}
               onSourceChange={setSelectedSource}
             />
-            <Toolbar
-              reload={reload}
-              onSearch={() => {
-                setSelectedLanguage(null);
-                setSelectedSource(null);
-                setSearchOpen(true);
-              }}
-              disabled={mobileApp && offline}
-            />
+            {selectedItems.length > 0 ? (
+              <CheckToolbar
+                clear={clearSelection}
+                onDelete={() => void deleteSelectedItems()}
+              />
+            ) : (
+              <Toolbar
+                reload={reload}
+                onSearch={() => {
+                  setSelectedLanguage(null);
+                  setSelectedSource(null);
+                  setSearchOpen(true);
+                }}
+                disabled={mobileApp && offline}
+              />
+            )}
           </>
         )}
       </div> : null}
@@ -1111,6 +1324,7 @@ export default function PageLayout() {
         </p>
       ) : null}
 
+      <div ref={sidebarScrollRef} className="min-h-0 flex-1 overflow-y-auto pt-2 pr-2">
       {!showFilteredResults && pinnedPages.length > 0 ? (
         <div className="px-2 md:px-1 pt-2 pb-1 border-b border-neutral-400/70">
           <div className="flex flex-col">
@@ -1120,6 +1334,9 @@ export default function PageLayout() {
                 item={{ type: "page", page }}
                 level={0}
                 currentPageId={currentPageId}
+                selectedItemKeys={selectedItemKeys}
+                onSelect={handleItemSelection}
+                onMenuAction={clearSelection}
                 reload={reload}
                 isMobileLike={isMobileLike}
                 isPinned
@@ -1140,7 +1357,6 @@ export default function PageLayout() {
         </div>
       ) : null}
 
-      <div ref={sidebarScrollRef} className="min-h-0 flex-1 overflow-y-auto pt-2">
         {sidebarListContent}
       </div>
     </div>
@@ -1188,7 +1404,7 @@ export default function PageLayout() {
         <div
           key={`notebook-tree-${notebook.id}`}
           ref={(element) => registerNotebookTarget(notebook.id, element)}
-          className={`rounded-md transition-colors ${
+          className={`rounded-md transition-colors flex flex-col gap-1 ${
             dragTargetNotebookId === notebook.id
               ? "bg-neutral-200/80 ring-1 ring-neutral-300"
               : dropFlashNotebookId === notebook.id
@@ -1200,6 +1416,9 @@ export default function PageLayout() {
             item={{ type: "notebook", notebook }}
             level={0}
             currentPageId={currentPageId}
+            selectedItemKeys={selectedItemKeys}
+            onSelect={handleItemSelection}
+            onMenuAction={clearSelection}
             expanded={isExpanded}
             reload={reload}
             isMobileLike={isMobileLike}
@@ -1221,6 +1440,9 @@ export default function PageLayout() {
                   item={{ type: "page", page }}
                   level={1}
                   currentPageId={currentPageId}
+                  selectedItemKeys={selectedItemKeys}
+                  onSelect={handleItemSelection}
+                  onMenuAction={clearSelection}
                   reload={reload}
                   isMobileLike={isMobileLike}
                   isPinned={pinnedPageIds.includes(page.id)}
@@ -1257,7 +1479,7 @@ export default function PageLayout() {
             } ${
               dragTargetNotebookId === ROOT_DROP_ID
                 ? "bg-neutral-200/55"
-                : "bg-neutral-transparent"
+                : "bg-neutral-100"
             }`}
           >
             {sidebarContent}
@@ -1265,16 +1487,36 @@ export default function PageLayout() {
         ) : (
           <div
             ref={rootDropRef}
-            className={`relative shrink-0 flex flex-col pt-11 transition-[width,color] duration-200 ${
-              currentPageId === null || pageSidebarOpen
-                ? "w-64 overflow-y-auto"
-                : "w-0 overflow-hidden"
-            } ${
+            className={`relative shrink-0 flex flex-col overflow-hidden pt-11 transition-[width,color] duration-200 ${
               dragTargetNotebookId === ROOT_DROP_ID
                 ? "bg-neutral-200/55"
-                : "bg-neutral-transparent"
+                : "bg-neutral-100"
             }`}
+            style={{
+              width: pageSidebarOpen ? constrainedDesktopSidebarWidth : 0,
+              minWidth: pageSidebarOpen ? constrainedDesktopSidebarWidth : 0,
+              maxWidth: pageSidebarOpen ? constrainedDesktopSidebarWidth : 0,
+              flexBasis: pageSidebarOpen ? constrainedDesktopSidebarWidth : 0,
+            }}
           >
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-0 z-40 bg-neutral-300/50 transition-opacity duration-150 ${
+                sidebarCloseArmed ? "opacity-100" : "opacity-0"
+              }`}
+            />
+            {pageSidebarOpen ? (
+              <div
+                aria-label="Resize pages sidebar"
+                className="group absolute inset-y-0 right-0 z-50 w-3 translate-x-1/2 cursor-col-resize touch-none"
+                onPointerDown={handleSidebarResizeStart}
+                onPointerMove={handleSidebarResizeMove}
+                onPointerUp={handleSidebarResizeEnd}
+                onPointerCancel={handleSidebarResizeCancel}
+              >
+                <div className="absolute inset-y-0 left-1/2 w-0.75 -translate-x-1/2 bg-neutral-200 transition-[width,background-color] group-hover:w-1 group-hover:bg-neutral-400" />
+              </div>
+            ) : null}
             {sidebarContent}
           </div>
         )}
@@ -1351,11 +1593,19 @@ export default function PageLayout() {
         <div className="flex flex-col gap-7">
           <h2>
             {t("Delete")}{" "}
-            {deleteTarget?.type === "page" ? t("page") : t("notebook")}
-            {deleteTarget ? ` "${deleteTarget.item.name}"` : ""}?
+            {deleteTarget?.type === "selection"
+              ? `${deleteTarget.items.length} ${t("items")}`
+              : deleteTarget?.type === "page"
+                ? t("page")
+                : t("notebook")}
+            {deleteTarget && deleteTarget.type !== "selection"
+              ? ` "${deleteTarget.item.name}"`
+              : ""}?
           </h2>
 
-          {deleteTarget?.type === "notebook" ? (
+          {(deleteTarget?.type === "notebook" ||
+            (deleteTarget?.type === "selection" &&
+              deleteTarget.items.some((item) => item.type === "notebook"))) ? (
             <p>{t("Deleting a notebook will also delete the pages inside it.")}</p>
           ) : null}
 

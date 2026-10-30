@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Chiron+Hei+HK:wght@100..900&family=Commissioner:wght@100..900&family=Finlandica+Text:wght@400..700&family=Source+Sans+3:ital,wght@0,200..900;1,200..900&display=swap");
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -8,6 +9,12 @@
 }
 
 :root {
+  /* Page and lemma-body typography. Swap the Latin/Cyrillic test font here. */
+  /* --font-body-latin: "Source Sans 3", sans-serif; */
+  /* --font-body-latin: "Finlandica Text", sans-serif; */
+  --font-body-latin: "Commissioner", sans-serif;
+  --font-body-ko: "Chiron Hei HK", "Pretendard", sans-serif;
+  --font-body-ja: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
   --app-page-bg: #f7f6f4;
   --app-surface-bg: #fbfaf8;
   --app-border: #e2dfdb;
@@ -25,7 +32,6 @@
   --app-neutral-800: #312d29;
   --app-neutral-900: #24211e;
   --app-neutral-950: #191715;
-  --app-neutral-transparent: #fbfaf8bb;
   --app-green-50: #effaf2;
   --app-green-100: #daf4e0;
   --app-green-200: #b7e7c3;
@@ -60,6 +66,18 @@
   }
 }
 
+.font-body {
+  font-family: var(--font-body-latin);
+}
+
+.font-body[data-font-language="ko"] {
+  font-family: var(--font-body-ko);
+}
+
+.font-body[data-font-language="ja"] {
+  font-family: var(--font-body-ja);
+}
+
 .dark {
   --app-page-bg: #161514;
   --app-surface-bg: #282523;
@@ -78,7 +96,6 @@
   --app-neutral-800: #efebe5;
   --app-neutral-900: #f6f2ed;
   --app-neutral-950: #fcf9f5;
-  --app-neutral-transparent: #282523cc;
   --app-green-50: #112118;
   --app-green-100: #163022;
   --app-green-200: #1d4330;
@@ -126,12 +143,12 @@ p {
 }
 
 h2 {
-  font-size: var(--text-2xl);
-  font-weight: var(--font-weight-medium);
+  font-family: var(--font-body-latin), var(--font-body-ko);
+  font-size: 1.6rem;
+  font-weight: var(--font-weight-semibold);
   line-height: var(--leading-tight);
   z-index: 50;
   word-break: keep-all;
-  font-family: var(--font-pretendard);
 }
 
 h3 {
@@ -142,7 +159,6 @@ h3 {
 
 @theme inline {
   --font-pretendard: "Pretendard", sans-serif;
-  --color-neutral-transparent: var(--app-neutral-transparent);
   --color-neutral-50: var(--app-neutral-50);
   --color-neutral-100: var(--app-neutral-100);
   --color-neutral-200: var(--app-neutral-200);

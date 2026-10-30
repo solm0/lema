@@ -117,15 +117,15 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
     return () => window.clearTimeout(timer);
   }, [activeGlobalKey, interestKeys]);
 
-  const markActiveKnown = useCallback(async () => {
+  const setActiveKnown = useCallback(async (isKnown: boolean) => {
     if (!activeGlobalKey) return;
     await profileLoadRef.current;
-    if (profileRef.current[activeGlobalKey]?.is_known) return;
     const current = profileRef.current[activeGlobalKey];
+    if ((current?.is_known ?? false) === isKnown) return;
     const next: UserLemmaState = {
       key: activeGlobalKey,
       exposure_count: current?.exposure_count ?? 0,
-      is_known: true,
+      is_known: isKnown,
       is_interested: current?.is_interested
         ?? interestKeys?.has(activeGlobalKey)
         ?? false,
@@ -134,12 +134,15 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
     profileRef.current = { ...profileRef.current, [activeGlobalKey]: next };
     setProfile(profileRef.current);
     const activeLanguage = activeGlobalKey.split("/").at(-1) ?? language;
-    const knownCount = (knownCountsRef.current[activeLanguage] ?? 0) + 1;
+    const knownCount = Math.max(
+      0,
+      (knownCountsRef.current[activeLanguage] ?? 0) + (isKnown ? 1 : -1),
+    );
     knownCountsRef.current = {
       ...knownCountsRef.current,
       [activeLanguage]: knownCount,
     };
-    if (isKnownWordsMilestone(knownCount)) {
+    if (isKnown && isKnownWordsMilestone(knownCount)) {
       const milestone = { count: knownCount, language: activeLanguage };
       if (isCapacitorApp() || window.innerWidth < 768) {
         onKnownWordsMilestone?.(milestone);
@@ -147,12 +150,14 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
         setKnownWordsMilestone(milestone);
       }
     }
-    const saved = await updateLemmaState(activeGlobalKey, { is_known: true });
+    const saved = await updateLemmaState(activeGlobalKey, { is_known: isKnown });
     if (saved) {
       profileRef.current = { ...profileRef.current, [activeGlobalKey]: saved };
       setProfile(profileRef.current);
     }
   }, [activeGlobalKey, interestKeys, language, onKnownWordsMilestone]);
+
+  const markActiveKnown = useCallback(() => setActiveKnown(true), [setActiveKnown]);
 
   useImperativeHandle(ref, () => ({ markActiveKnown }), [markActiveKnown]);
 
@@ -226,7 +231,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
           lemmaInfo={lemmaInfo}
           interestKeys={interestKeys}
           isKnown={activeGlobalKey ? profile[activeGlobalKey]?.is_known ?? false : false}
-          onMarkKnown={markActiveKnown}
+          onToggleKnown={setActiveKnown}
         />
       </div>
     </div>

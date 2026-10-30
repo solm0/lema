@@ -549,8 +549,6 @@ export default function PageContent({
           panelData?.type === 'lemma' &&
           key === panelData?.data.key;
         const isSelected = range && index >= range[0] && index <= range[1];
-        const isStart = range && index === range[0];
-        const isEnd = range && index === range[1];
         const hasGapFillHighlight = isInHover || isInPanel;
 
         return {
@@ -568,21 +566,17 @@ export default function PageContent({
             cursor: info ? "pointer" : "default",
           },
           className: `
-            font-pretendard px-1 transition-all text-[18px] md:text-[20px]
-            ${info && 'hover:font-[600]'}
-            ${isInPanelLemma ? 'font-bold' : ''}
+            font-body px-1 transition-all
+            ${language === "ko" || language === "ja" ? "leading-[1.8] text-xl" : "text-[1.4rem] tracking-[-0.02em]"}
+            ${language === "ja" ? 'font-[600]' : 'font-[630]'}
+            ${isInPanelLemma ? 'font-bold!' : ''}
             ${hasGapFillHighlight ? 'bg-neutral-300 after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-neutral-300 after:content-[\"\"]' : ''}
-            ${isSelected && !isStart && !isEnd && 'bg-neutral-200! after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-neutral-200 after:content-[\"\"]'}
-            ${isStart && 'bg-linear-to-r from-neutral-300 to-neutral-200 after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-neutral-200 after:content-[\"\"]'}
-            ${isEnd && 'bg-linear-to-r from-neutral-200 to-neutral-300'}
-            ${
-              info
-                ? 'font-semibold'
-                : "font-medium text-neutral-400"
-            }
+            ${isSelected && 'bg-neutral-200 after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-neutral-200 after:content-[\"\"]'}
+            ${!info && "text-neutral-400"}
             `,
           "data-gap-fill-active":
             isSelected || isInPanel || isInHover ? "true" : undefined,
+          "data-font-language": language,
         };
       }}
       renderTokenContent={({ token }) => renderTokenSurface(token)}

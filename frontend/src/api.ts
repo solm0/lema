@@ -583,6 +583,46 @@ export async function lemmaLookup(
   return output;
 }
 
+export async function lemmaLookupProgressively(
+  items: { lemma: string; pos: string }[],
+  language: string,
+  {
+    batchSize = 25,
+    concurrency = 2,
+    onBatch,
+  }: {
+    batchSize?: number;
+    concurrency?: number;
+    onBatch?: (data: Record<string, LemmaData>) => void;
+  } = {},
+): Promise<Record<string, LemmaData>> {
+  const output: Record<string, LemmaData> = {};
+  const batches = Array.from(
+    { length: Math.ceil(items.length / batchSize) },
+    (_, index) => items.slice(index * batchSize, (index + 1) * batchSize),
+  );
+  let nextBatchIndex = 0;
+
+  const worker = async () => {
+    while (nextBatchIndex < batches.length) {
+      const batch = batches[nextBatchIndex];
+      nextBatchIndex += 1;
+      const data = await lemmaLookup(batch, language);
+      Object.assign(output, data);
+      onBatch?.(data);
+    }
+  };
+
+  await Promise.all(
+    Array.from(
+      { length: Math.min(concurrency, batches.length) },
+      () => worker(),
+    ),
+  );
+
+  return output;
+}
+
 export async function lemmaLookupOne(
   item: { lemma:string; pos:string; },
   language: string
