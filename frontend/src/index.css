@@ -87,6 +87,14 @@ html[data-theme="lema-light"] {
   font-family: var(--font-body-ja);
 }
 
+@media (max-width: 767px) {
+  .mobile-page-heading {
+    font-size: var(--text-lg);
+    line-height: var(--text-lg--line-height);
+    text-align: center;
+  }
+}
+
 html[data-theme="lema-dark"] {
   --app-page-bg: #161514;
   --app-surface-bg: #282523;

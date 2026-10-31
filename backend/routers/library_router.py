@@ -114,6 +114,12 @@ def delete_notebook(notebook_id: str, library: LibraryStore = Depends(store)):
     return {"ok": True}
 
 
+@router.delete("/reset")
+def reset_library(library: LibraryStore = Depends(store)):
+    library.clear()
+    return {"ok": True}
+
+
 @router.get("/annotations")
 def list_annotations(library: LibraryStore = Depends(store)):
     return {"items": library.list_annotations(), "next_cursor": None}

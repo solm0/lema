@@ -24,6 +24,7 @@ export default function App() {
           <Route element={<HomeLayout />} >
             <Route element={<PageLayout />}>
               <Route path="/" element={<NewPage />} />
+              <Route path="/pages" element={null} />
               <Route path="/page/:id" element={<PageView />} />
             </Route>
             <Route path="/setting" element={<Setting />} />

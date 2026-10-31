@@ -11,7 +11,7 @@ export type KnownWordsMilestone = {
   language: string;
 };
 
-const LANGUAGE_NAMES: Record<string, string> = {
+export const LANGUAGE_NAMES: Record<string, string> = {
   ru: "Russian",
   de: "German",
   en: "English",
@@ -31,20 +31,26 @@ export default function KnownWordsMilestoneToast({
 }) {
   const { locale, t } = useI18n();
   const [isMobile, setIsMobile] = useState(
-    () => isCapacitorApp() || (typeof window !== "undefined" && window.innerWidth < 768),
+    () =>
+      isCapacitorApp() ||
+      (typeof window !== "undefined" && window.innerWidth < 768)
   );
 
   useEffect(() => {
-    const update = () => setIsMobile(isCapacitorApp() || window.innerWidth < 768);
+    const update = () =>
+      setIsMobile(isCapacitorApp() || window.innerWidth < 768);
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
 
   const viewport = (
-    <ToastViewport className={isMobile
-      ? "fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[2147483647] w-full p-3"
-      : "absolute inset-x-0 top-0 z-[2147483647] mx-auto w-full max-w-md p-3"
-    } />
+    <ToastViewport
+      className={
+        isMobile
+          ? "fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[2147483647] w-full p-3"
+          : "absolute inset-x-0 top-0 z-[2147483647] mx-auto w-full max-w-md p-3"
+      }
+    />
   );
 
   if (!milestone) return null;
@@ -64,12 +70,16 @@ export default function KnownWordsMilestoneToast({
           <span>
             {t("You marked {count} {language} words as known!", {
               count: new Intl.NumberFormat(locale).format(milestone.count),
-              language: t(LANGUAGE_NAMES[milestone.language] ?? milestone.language),
+              language: t(
+                LANGUAGE_NAMES[milestone.language] ?? milestone.language
+              ),
             })}
           </span>
         </ToastTitle>
       </Toast>
-      {isMobile && typeof document !== "undefined" ? createPortal(viewport, document.body) : viewport}
+      {isMobile && typeof document !== "undefined"
+        ? createPortal(viewport, document.body)
+        : viewport}
     </ToastProvider>
   );
 }

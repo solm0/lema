@@ -1,13 +1,22 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import hashlib
 import json
+from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from db import get_db
-from models import User, UserLemma, UserLemmaExample, UserLemmaMilestone
+from models import (
+    User,
+    UserLemma,
+    UserLemmaExample,
+    UserLemmaMilestone,
+    UserRecapItem,
+    UserRecapWeek,
+)
 from services.lemma_example_limits import lemma_example_write_limiter
 from .auth_router import get_current_user
 
@@ -52,6 +61,21 @@ class LemmaExampleRequest(BaseModel):
     match_indices: list[int] = Field(min_length=1, max_length=32)
 
 
+class RecapQuestionRequest(BaseModel):
+    """A client-selected local-language-pack question snapshot.
+
+    The central service deliberately has no language-pack corpus.  The client
+    picks the examples using its installed pack, then saves this payload so a
+    refresh or another device resumes the identical question.
+    """
+
+    question: dict[str, Any]
+
+
+class RecapAnswerRequest(BaseModel):
+    choice_key: str = Field(min_length=1, max_length=600)
+
+
 MAX_EXAMPLES_PER_USER = 10_000
 DATABASE_PAGE_SIZE = 10
 
@@ -66,10 +90,166 @@ def _key_parts(key: str) -> tuple[str, str, str]:
 
 def _decay(state: UserLemma) -> int:
     """A read-only 0–100 score: 100 after one year without a state change."""
-    origin = state.created_at or state.updated_at or datetime.utcnow()
+    origin = state.last_recap_succeeded_at or state.created_at or state.updated_at or datetime.utcnow()
     age_days = max(0, (datetime.utcnow() - origin).total_seconds() / 86_400)
     age_days = max(0, age_days - (state.decay_reduction_days or 0))
     return min(100, round(age_days / 365 * 100))
+
+
+RECAP_GROUP_SIZE = 8
+RECAP_SESSION_SIZE = 2
+
+
+def _recap_day(timezone: str) -> date:
+    try:
+        return datetime.now(ZoneInfo(timezone)).date()
+    except ZoneInfoNotFoundError as exc:
+        raise HTTPException(status_code=422, detail="invalid timezone") from exc
+
+
+def _week_start(day: date) -> date:
+    return day - timedelta(days=day.weekday())
+
+
+def _week_key(day: date) -> str:
+    return _week_start(day).isoformat()
+
+
+def _serialize_recap_item(item: UserRecapItem) -> dict:
+    return {
+        "id": item.id,
+        "lemma_key": item.lemma_key,
+        "position": item.position,
+        "status": item.status,
+        "attempt_count": item.attempt_count,
+    }
+
+
+def _client_question(question_json: str | None) -> dict | None:
+    if not question_json:
+        return None
+    question = json.loads(question_json)
+    # The answer remains server-side after a question is frozen.
+    question.pop("answer_key", None)
+    return question
+
+
+def _expire_old_recap_weeks(db: Session, user_id: int, current_week: str, now: datetime) -> None:
+    old_weeks = db.query(UserRecapWeek).filter(
+        UserRecapWeek.user_id == user_id,
+        UserRecapWeek.week_start < current_week,
+        UserRecapWeek.expired_at.is_(None),
+        UserRecapWeek.completed_at.is_(None),
+    ).all()
+    for week in old_weeks:
+        db.query(UserRecapItem).filter(
+            UserRecapItem.recap_week_id == week.id,
+            UserRecapItem.kind == "test",
+            UserRecapItem.status == "pending",
+        ).update({"status": "expired"}, synchronize_session=False)
+        week.expired_at = now
+
+
+def _select_showcase_lemmas(db: Session, user_id: int, week_start: date) -> list[str]:
+    """Apply the agreed priority order, with no hidden repetition correction."""
+    recent_failure_cutoff = datetime.combine(week_start - timedelta(days=7), datetime.min.time())
+    rows = db.query(UserLemma).filter(
+        UserLemma.user_id == user_id,
+        (UserLemma.is_known.is_(True)) | (UserLemma.is_interested.is_(True)),
+        (UserLemma.last_recap_failed_at.is_(None)) | (UserLemma.last_recap_failed_at < recent_failure_cutoff),
+    ).all()
+
+    def by_decay(states: list[UserLemma]) -> list[UserLemma]:
+        return sorted(states, key=lambda state: (_decay(state), state.id), reverse=True)
+
+    # 1) known with the highest decay; 2) interested with high decay; 3) up
+    # to two interested lemmas added during the preceding calendar week.
+    recent_start = datetime.combine(week_start - timedelta(days=7), datetime.min.time())
+    recent_end = datetime.combine(week_start, datetime.min.time())
+    tiers = [
+        by_decay([row for row in rows if row.is_known]),
+        by_decay([row for row in rows if row.is_interested]),
+        by_decay([
+            row for row in rows
+            if row.is_interested and row.created_at and recent_start <= row.created_at < recent_end
+        ])[:2],
+    ]
+    selected: list[str] = []
+    for tier in tiers:
+        for row in tier:
+            if row.lemma_key not in selected:
+                selected.append(row.lemma_key)
+            if len(selected) == RECAP_GROUP_SIZE:
+                return selected
+    return selected
+
+
+def _ensure_recap_week(db: Session, user_id: int, timezone: str) -> tuple[UserRecapWeek, date]:
+    today = _recap_day(timezone)
+    current_week = _week_key(today)
+    now = datetime.utcnow()
+    _expire_old_recap_weeks(db, user_id, current_week, now)
+    week = db.query(UserRecapWeek).filter_by(user_id=user_id, week_start=current_week).first()
+    if week is not None:
+        db.commit()
+        return week, today
+
+    previous_week_key = (_week_start(today) - timedelta(days=7)).isoformat()
+    previous = db.query(UserRecapWeek).filter_by(
+        user_id=user_id,
+        week_start=previous_week_key,
+    ).first()
+    week = UserRecapWeek(user_id=user_id, week_start=current_week)
+    db.add(week)
+    db.flush()
+
+    if previous is not None:
+        previous_showcase = db.query(UserRecapItem).filter_by(
+            recap_week_id=previous.id,
+            kind="showcase",
+        ).order_by(UserRecapItem.position.asc()).limit(RECAP_GROUP_SIZE).all()
+        for position, item in enumerate(previous_showcase, start=1):
+            db.add(UserRecapItem(
+                recap_week_id=week.id,
+                lemma_key=item.lemma_key,
+                kind="test",
+                position=position,
+            ))
+
+    for position, lemma_key in enumerate(_select_showcase_lemmas(db, user_id, _week_start(today)), start=1):
+        db.add(UserRecapItem(
+            recap_week_id=week.id,
+            lemma_key=lemma_key,
+            kind="showcase",
+            position=position,
+        ))
+    db.commit()
+    db.refresh(week)
+    return week, today
+
+
+def _get_recap_item(db: Session, user_id: int, item_id: int) -> tuple[UserRecapWeek, UserRecapItem]:
+    row = db.query(UserRecapItem, UserRecapWeek).join(
+        UserRecapWeek, UserRecapItem.recap_week_id == UserRecapWeek.id,
+    ).filter(
+        UserRecapItem.id == item_id,
+        UserRecapWeek.user_id == user_id,
+        UserRecapItem.kind == "test",
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="recap item not found")
+    item, week = row
+    return week, item
+
+
+def _mark_recap_complete_if_needed(db: Session, week: UserRecapWeek, now: datetime) -> None:
+    pending = db.query(UserRecapItem).filter_by(
+        recap_week_id=week.id,
+        kind="test",
+        status="pending",
+    ).count()
+    if pending == 0 and week.completed_at is None:
+        week.completed_at = now
 
 
 def _known_word_milestone(count: int) -> bool:
@@ -244,6 +424,190 @@ def get_lemma_milestones(
         if len(entries) < 3:
             entries.append({"count": row.known_count, "achieved_at": row.achieved_at.isoformat()})
     return {"items": grouped}
+
+
+@router.get("/lemma/recap")
+def get_recap(
+    timezone: str = Query(default="UTC", min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return this week's fixed test group and its next-week showcase."""
+    week, today = _ensure_recap_week(db, current_user.id, timezone)
+    tests = db.query(UserRecapItem).filter_by(
+        recap_week_id=week.id,
+        kind="test",
+    ).order_by(UserRecapItem.position.asc()).all()
+    showcase = db.query(UserRecapItem).filter_by(
+        recap_week_id=week.id,
+        kind="showcase",
+    ).order_by(UserRecapItem.position.asc()).all()
+    pending = [item for item in tests if item.status == "pending"]
+    today_key = today.isoformat()
+    active_session = [item for item in pending if item.session_date == today_key]
+    return {
+        "week_start": week.week_start,
+        "available": bool(tests),
+        "state": (
+            "warming_up" if not tests else
+            "completed" if week.completed_at else
+            "daily_complete" if week.last_session_date == today_key and not active_session else
+            "ready"
+        ),
+        "remaining_count": len(pending),
+        "test_items": [_serialize_recap_item(item) for item in tests],
+        "showcase_items": [_serialize_recap_item(item) for item in showcase],
+    }
+
+
+@router.post("/lemma/recap/session")
+def start_recap_session(
+    timezone: str = Query(default="UTC", min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Open (or resume) today's one two-word Revival session."""
+    week, today = _ensure_recap_week(db, current_user.id, timezone)
+    if week.completed_at or week.expired_at:
+        raise HTTPException(status_code=409, detail="recap week is not active")
+    today_key = today.isoformat()
+    all_tests = db.query(UserRecapItem).filter_by(
+        recap_week_id=week.id,
+        kind="test",
+    ).order_by(UserRecapItem.position.asc()).all()
+    if not all_tests:
+        raise HTTPException(status_code=409, detail="recap is warming up")
+
+    session_items = [
+        item for item in all_tests
+        if item.session_date == today_key and item.status == "pending"
+    ]
+    if not session_items:
+        if week.last_session_date == today_key:
+            raise HTTPException(status_code=409, detail="today's recap is complete")
+        session_items = [item for item in all_tests if item.status == "pending"][:RECAP_SESSION_SIZE]
+        if not session_items:
+            _mark_recap_complete_if_needed(db, week, datetime.utcnow())
+            db.commit()
+            raise HTTPException(status_code=409, detail="recap week is complete")
+        for item in session_items:
+            item.session_date = today_key
+        week.last_session_date = today_key
+        db.commit()
+    return {
+        "week_start": week.week_start,
+        "items": [_serialize_recap_item(item) for item in session_items],
+    }
+
+
+@router.put("/lemma/recap/items/{item_id}/question")
+def save_recap_question(
+    item_id: int,
+    req: RecapQuestionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Freeze a locally generated question the first time it is displayed."""
+    week, item = _get_recap_item(db, current_user.id, item_id)
+    if week.completed_at or week.expired_at or item.status != "pending":
+        raise HTTPException(status_code=409, detail="recap item is not active")
+    if item.session_date is None:
+        raise HTTPException(status_code=409, detail="recap session has not been started")
+    if item.question_json is None:
+        answer_key = req.question.get("answer_key")
+        options = req.question.get("options")
+        if not isinstance(answer_key, str) or not answer_key:
+            raise HTTPException(status_code=422, detail="question answer_key is required")
+        if not isinstance(options, list) or len(options) != 4:
+            raise HTTPException(status_code=422, detail="question must contain four options")
+        option_keys = {
+            option.get("key") for option in options
+            if isinstance(option, dict) and isinstance(option.get("key"), str)
+        }
+        if answer_key not in option_keys:
+            raise HTTPException(status_code=422, detail="answer_key must be one of the options")
+        item.question_json = json.dumps(req.question, ensure_ascii=False, separators=(",", ":"))
+        db.commit()
+    return {"item": _serialize_recap_item(item), "question": _client_question(item.question_json)}
+
+
+@router.post("/lemma/recap/items/{item_id}/answer")
+def answer_recap_question(
+    item_id: int,
+    req: RecapAnswerRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    week, item = _get_recap_item(db, current_user.id, item_id)
+    if week.completed_at or week.expired_at or item.status != "pending":
+        raise HTTPException(status_code=409, detail="recap item is not active")
+    if item.session_date is None:
+        raise HTTPException(status_code=409, detail="recap session has not been started")
+    if not item.question_json:
+        raise HTTPException(status_code=409, detail="recap question has not been created")
+    question = json.loads(item.question_json)
+    answer_key = question.get("answer_key")
+    now = datetime.utcnow()
+    correct = req.choice_key == answer_key
+    item.attempt_count = min(2, (item.attempt_count or 0) + 1)
+    if correct:
+        item.status = "passed"
+        item.answered_at = now
+        lemma = db.query(UserLemma).filter_by(
+            user_id=current_user.id,
+            lemma_key=item.lemma_key,
+        ).first()
+        if lemma is not None:
+            lemma.last_recap_succeeded_at = now
+            lemma.updated_at = now
+    elif item.attempt_count >= 2:
+        item.status = "failed"
+        item.answered_at = now
+        lemma = db.query(UserLemma).filter_by(
+            user_id=current_user.id,
+            lemma_key=item.lemma_key,
+        ).first()
+        if lemma is not None:
+            lemma.last_recap_failed_at = now
+    if item.status != "pending":
+        _mark_recap_complete_if_needed(db, week, now)
+    db.commit()
+    return {
+        "correct": correct,
+        "retry_available": not correct and item.status == "pending",
+        "status": item.status,
+        "answer_key": answer_key if item.status != "pending" else None,
+        "week_completed": week.completed_at is not None,
+    }
+
+
+@router.delete("/lemma/profile")
+def reset_lemma_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete every cloud-synced vocabulary record for the current user."""
+    user_id = current_user.id
+    db.query(UserLemmaExample).filter(
+        UserLemmaExample.user_id == user_id,
+    ).delete(synchronize_session=False)
+    db.query(UserLemmaMilestone).filter(
+        UserLemmaMilestone.user_id == user_id,
+    ).delete(synchronize_session=False)
+    recap_weeks = db.query(UserRecapWeek.id).filter(
+        UserRecapWeek.user_id == user_id,
+    ).subquery()
+    db.query(UserRecapItem).filter(
+        UserRecapItem.recap_week_id.in_(recap_weeks),
+    ).delete(synchronize_session=False)
+    db.query(UserRecapWeek).filter(
+        UserRecapWeek.user_id == user_id,
+    ).delete(synchronize_session=False)
+    db.query(UserLemma).filter(
+        UserLemma.user_id == user_id,
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"ok": True}
 
 
 @router.delete("/lemma/state")

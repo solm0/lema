@@ -3,6 +3,7 @@ import {
   deleteAccount,
   getLatestVersionInfo,
   isNewerVersion,
+  resetLemmaProfile,
   type LatestVersionInfo,
   updateName,
   verifyToken,
@@ -15,7 +16,7 @@ import PackTable from "./PackTable";
 import { SettingToggle } from "../util/ToggleButton";
 import { useSettings } from "../useSettings";
 import { themeOptions, type ThemeId } from "../../themes";
-import { isCapacitorApp } from "../../platform";
+import { isCapacitorApp, isElectronApp } from "../../platform";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import NotificationPermissionModal from "./NotificationPermissionModal";
 import { useI18n } from "../../i18n";
@@ -29,7 +30,7 @@ import { clearStoredSession, updateStoredUser } from "../../authSession";
 import OfflineState from "../util/OfflineState";
 import { isNetworkError } from "../../network";
 import { ANDROID_PRIVACY_POLICY_URL } from "../../config";
-import { exportLocalLibrary, importLocalLibrary } from "../../localLibrary";
+import { clearLocalLibrary, exportLocalLibrary, importLocalLibrary } from "../../localLibrary";
 import ThemeLogo from "../ThemeLogo";
 import { GRADSHOW_MODE, GRADSHOW_USER } from "../../gradshow/mode";
 
@@ -75,7 +76,7 @@ function AppVersionSection() {
 
   return (
     <section className="w-full flex flex-col gap-6 items-start">
-      <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! w-full pb-1">{t("App version")}</h3>
+      <h3 className="sticky top-0 bg-neutral-50 font-pretendard! w-full pb-1">{t("App version")}</h3>
       <div className="flex items-center gap-2 text-sm">
         <ThemeLogo
           variant="transparent"
@@ -148,12 +149,17 @@ function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
 
   return (
     <section className="w-full flex flex-col gap-6 items-start">
-      <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10 w-full pb-1">
+      <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full pb-1">
         {t("Local library")}
       </h3>
-      <p className="max-w-xl text-sm text-neutral-600">
-        {t("Pages, notebooks, and annotations are stored only on this device. Export a backup to move or restore them on another device.")}
-      </p>
+      <div className="max-w-xl text-sm text-neutral-600 flex flex-col gap-4">
+        <p >
+          {t("Pages, notebooks, and annotations are stored only on this device. Export a backup to move or restore them on another device.")}
+        </p>
+        <p className="opacity-60">
+          {t("Import keeps existing data and merges the selected library. Conflicting copies are preserved separately.")}
+        </p>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Button
           text={busy === "export" ? t("Exporting...") : t("Export library")}
@@ -166,9 +172,6 @@ function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
           disabled={disabled || busy !== null}
         />
       </div>
-      <p className="text-xs text-neutral-500">
-        {t("Import keeps existing data and merges the selected library. Conflicting copies are preserved separately.")}
-      </p>
       {message ? <p className="text-sm text-neutral-700">{message}</p> : null}
     </section>
   );
@@ -177,13 +180,20 @@ function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
 export function UserProfile() {
   const { t } = useI18n();
   const mobileApp = isCapacitorApp();
+  const localLibraryAvailable = mobileApp || isElectronApp();
   const [editing, setEditing] = useState(false);
   const [user, setUser] = useState<User | null>(GRADSHOW_MODE ? GRADSHOW_USER : null);
   const [value, setValue] = useState("");
   const [openLogoutModal, setOpenLogoutModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
+  const [openResetVocabularyModal, setOpenResetVocabularyModal] = useState(false);
+  const [openResetLibraryModal, setOpenResetLibraryModal] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [resetVocabularyError, setResetVocabularyError] = useState("");
+  const [resetLibraryError, setResetLibraryError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [resettingVocabulary, setResettingVocabulary] = useState(false);
+  const [resettingLibrary, setResettingLibrary] = useState(false);
   const [offline, setOffline] = useState(
     mobileApp && !GRADSHOW_MODE && typeof navigator !== "undefined" ? !navigator.onLine : false,
   );
@@ -266,6 +276,39 @@ export function UserProfile() {
     }
   }
 
+  async function handleResetVocabulary() {
+    setResettingVocabulary(true);
+    setResetVocabularyError("");
+
+    try {
+      await resetLemmaProfile();
+      setOpenResetVocabularyModal(false);
+    } catch (error) {
+      setResetVocabularyError(
+        error instanceof Error ? error.message : "Could not reset vocabulary records.",
+      );
+    } finally {
+      setResettingVocabulary(false);
+    }
+  }
+
+  async function handleResetLocalLibrary() {
+    setResettingLibrary(true);
+    setResetLibraryError("");
+
+    try {
+      await clearLocalLibrary();
+      window.dispatchEvent(new Event("lema:library-changed"));
+      setOpenResetLibraryModal(false);
+    } catch (error) {
+      setResetLibraryError(
+        error instanceof Error ? error.message : "Could not reset the local library.",
+      );
+    } finally {
+      setResettingLibrary(false);
+    }
+  }
+
   return (
     <>
       {mobileApp && offline && !GRADSHOW_MODE ? (
@@ -311,6 +354,28 @@ export function UserProfile() {
         <div className="flex gap-2">
           <Button onClick={() => setOpenLogoutModal(true)} text={t("Logout")} />
         </div>
+
+        <Button
+          onClick={() => {
+            setResetVocabularyError("");
+            setOpenResetVocabularyModal(true);
+          }}
+          text={t("Reset vocabulary records")}
+          disabled={resettingVocabulary}
+          red
+        />
+
+        {localLibraryAvailable && (
+          <Button
+            onClick={() => {
+              setResetLibraryError("");
+              setOpenResetLibraryModal(true);
+            }}
+            text={t("Reset local library")}
+            disabled={resettingLibrary}
+            red
+          />
+        )}
 
         <Button
           onClick={() => {
@@ -361,6 +426,58 @@ export function UserProfile() {
                 </>
             )}
           </>
+        </div>
+      </ResponsiveModal>
+
+      <ResponsiveModal
+        open={openResetVocabularyModal}
+        onClose={() => setOpenResetVocabularyModal(false)}
+      >
+        <div className="flex flex-col gap-7 md:pb-3">
+          <h2>{t("Reset vocabulary records?")}</h2>
+          {offline ? (
+            <p className="text-sm text-neutral-500">
+              {t("You're offline. Check your connection and try again.")}
+            </p>
+          ) : (
+            <>
+              <p className="pr-8 text-sm text-neutral-500">
+                {t("This deletes all vocabulary records stored for this account: known and interested words, exposure counts, memos, saved personal examples, and milestones. It also clears this device's offline vocabulary cache. Pages, notebooks, annotations, app settings, and downloaded language packs will remain.")}
+              </p>
+              {resetVocabularyError && (
+                <p className="text-sm text-red-600">{resetVocabularyError}</p>
+              )}
+              <Button
+                text={resettingVocabulary ? t("Resetting...") : t("Reset vocabulary records")}
+                onClick={handleResetVocabulary}
+                disabled={resettingVocabulary}
+                fit
+                red
+              />
+            </>
+          )}
+        </div>
+      </ResponsiveModal>
+
+      <ResponsiveModal
+        open={openResetLibraryModal}
+        onClose={() => setOpenResetLibraryModal(false)}
+      >
+        <div className="flex flex-col gap-7 md:pb-3">
+          <h2>{t("Reset local library?")}</h2>
+          <p className="pr-8 text-sm text-neutral-500">
+            {t("This deletes every page, analysis result, notebook, annotation, and page metadata stored for this account on this device. Your account, vocabulary records, app settings, downloaded language packs, and local libraries on other devices will remain.")}
+          </p>
+          {resetLibraryError && (
+            <p className="text-sm text-red-600">{resetLibraryError}</p>
+          )}
+          <Button
+            text={resettingLibrary ? t("Resetting...") : t("Reset local library")}
+            onClick={handleResetLocalLibrary}
+            disabled={resettingLibrary}
+            fit
+            red
+          />
         </div>
       </ResponsiveModal>
       </>
@@ -463,13 +580,13 @@ export default function Setting() {
 
   return (
     <>
-      <div className="w-full h-full overflow-y-scroll overflow-x-hidden flex flex-col gap-7 pr-3 z-30 pl-3 md:pl-6 bg-neutral-50 pb-7">
-        <h2 className="top-0 pt-12 z-30">{t("Settings")}</h2>
+      <div className="w-full h-full overflow-y-scroll overflow-x-hidden flex flex-col gap-21 pr-3 z-30 pl-3 md:pl-6 bg-neutral-50 pb-7">
+        <h2 className="mobile-page-heading top-0 pt-12 z-30">{t("Settings")}</h2>
 
         <AppVersionSection />
 
         <section className="w-full flex flex-col gap-6 items-start">
-          <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Preferences")}</h3>
+          <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Preferences")}</h3>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col items-start text-sm gap-3">
               <div className="flex items-center gap-2">
@@ -522,7 +639,7 @@ export default function Setting() {
 
         {mobileApp && !GRADSHOW_MODE && (
           <section className="w-full flex flex-col gap-7 items-start">
-            <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10">{t("Notifications")}</h3>
+            <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10">{t("Notifications")}</h3>
             <div className="flex items-center gap-2 text-sm">
               <span>{t("now playing alerts")}</span>
               <button
@@ -574,7 +691,7 @@ export default function Setting() {
         )}
 
         <section className="w-full flex flex-col gap-6">
-          <h3 ref={languagePacksRef} className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Language packs")}</h3>
+          <h3 ref={languagePacksRef} className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Language packs")}</h3>
           <p className="text-sm">
             {t("To reduce storage, keep a single language version.")}
           </p>
@@ -588,8 +705,30 @@ export default function Setting() {
 
         <LocalLibrarySection disabled={GRADSHOW_MODE} />
 
+         <section className="w-full flex flex-col gap-6 items-start">
+          <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full">{t("Debug")}</h3>
+          <div className="flex flex-col items-start text-sm gap-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span>{t("Don't show this again")}</span>
+              <SettingToggle
+                settingKey="hide_lemma_swipe_hint"
+                value={settings.hide_lemma_swipe_hint}
+                toggleSetting={toggleSetting}
+              />
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span>KWIC debug</span>
+              <SettingToggle
+                settingKey="show_kwic_debug"
+                value={settings.show_kwic_debug}
+                toggleSetting={toggleSetting}
+              />
+            </div>
+          </div>
+        </section>
+
         <section className="w-full flex flex-col gap-6 items-start">
-          <h3 className="sticky top-0 pt-8 md:pt-12 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Profile")}</h3>
+          <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Profile")}</h3>
           <fieldset
             disabled={GRADSHOW_MODE}
             className={GRADSHOW_MODE ? "min-w-0 border-0 p-0 opacity-45 pointer-events-none" : "min-w-0 border-0 p-0"}

@@ -126,7 +126,7 @@ export default function New() {
 
       {/* SECTION 1: HEADER */}
       <div className="flex flex-col gap-2 pt-12 pb-2">
-        <h2 className="flex items-baseline gap-4">
+        <h2 className="mobile-page-heading flex items-baseline gap-4">
           {t("Paste text")}
         </h2>
 

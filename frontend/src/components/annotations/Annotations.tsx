@@ -63,7 +63,7 @@ export default function Annotations() {
   return (
     <div className="flex flex-col gap-14 w-full h-full overflow-y-scroll px-3 md:px-6 bg-neutral-50">
       <div className="sticky top-0 z-30 flex flex-col gap-7 bg-neutral-50 pt-12">
-        <h2>{t("Annotations")}</h2>
+        <h2 className="mobile-page-heading">{t("Annotations")}</h2>
         <div className="flex min-w-0 items-center gap-0.5 overflow-hidden pl-0.5 text-xs">
           <FilterSelect
             icon={<Tags size={14} />}

@@ -37,11 +37,15 @@ public class LemaLibraryPlugin extends Plugin {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private volatile String activeUserId;
 
-    private LemaLibraryDatabase.LibraryDao dao() {
+    private LemaLibraryDatabase database() {
         if (activeUserId == null) {
             throw new IllegalStateException("library profile is not active");
         }
-        return LemaLibraryDatabase.get(getContext(), activeUserId).libraryDao();
+        return LemaLibraryDatabase.get(getContext(), activeUserId);
+    }
+
+    private LemaLibraryDatabase.LibraryDao dao() {
+        return database().libraryDao();
     }
 
     private void run(PluginCall call, Runnable work) {
@@ -204,6 +208,18 @@ public class LemaLibraryPlugin extends Plugin {
             int changed = "notebook".equals(type) ? dao().deleteNotebook(id) : dao().deletePage(id);
             if (changed == 0) call.reject("item not found");
             else call.resolve();
+        });
+    }
+
+    @PluginMethod
+    public void clearLibrary(PluginCall call) {
+        run(call, () -> {
+            database().runInTransaction(() -> {
+                dao().clearAnnotations();
+                dao().clearPages();
+                dao().clearNotebooks();
+            });
+            call.resolve();
         });
     }
 

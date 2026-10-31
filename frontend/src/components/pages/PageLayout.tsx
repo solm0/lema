@@ -1285,7 +1285,12 @@ export default function PageLayout() {
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
-      {!isMobileLike || location.pathname === "/" ? <div className="w-full justify-between flex z-30 py-1 items-center h-8 pr-2 pl-1">
+      {isMobileLike && currentPageId === null ? (
+        <h2 className="mobile-page-heading shrink-0 px-12 pt-3 pb-2">
+          {t("Pages")}
+        </h2>
+      ) : null}
+      {!isMobileLike || location.pathname === "/pages" ? <div className="w-full justify-between flex z-30 py-1 items-center h-8 pr-2 pl-1">
         {searchOpen ? (
           searchControl
         ) : (
@@ -1521,7 +1526,7 @@ export default function PageLayout() {
           </div>
         )}
 
-        {!isMobileLike || currentPageId !== null ? (
+        {!isMobileLike || currentPageId !== null || location.pathname === "/" ? (
           <div
             className={`${
               isMobileLike

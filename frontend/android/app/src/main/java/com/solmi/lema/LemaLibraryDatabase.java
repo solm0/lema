@@ -353,5 +353,14 @@ public abstract class LemaLibraryDatabase extends RoomDatabase {
 
         @Query("DELETE FROM annotations WHERE id = :id")
         int deleteAnnotation(String id);
+
+        @Query("DELETE FROM annotations")
+        void clearAnnotations();
+
+        @Query("DELETE FROM pages")
+        void clearPages();
+
+        @Query("DELETE FROM notebooks")
+        void clearNotebooks();
     }
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { isCapacitorApp } from "../../platform";
 import { useLayout } from "../RootLayout";
+import { useSettings } from "../useSettings";
 import { MobileSwipeHint, MobileSwipeHintCard } from "./MobileSwipeHint";
 import { getMobileSwipeHintMotionStyle } from "./mobileSwipeHintMotion";
 
@@ -17,27 +18,10 @@ const DEFAULT_DESKTOP_WIDTH = 400;
 const LEFT_NAV_WIDTH = 36;
 const DESKTOP_REMAINDER = 160;
 const STORAGE_KEY = "lemma-side-layout-width";
-const SWIPE_HINT_DISMISSED_KEY = "lema_lemma_swipe_hint_dismissed";
 const SWIPE_DURATION_MS = 220;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
-}
-
-function isSwipeHintDismissed() {
-  try {
-    return window.localStorage.getItem(SWIPE_HINT_DISMISSED_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function rememberSwipeHintDismissal() {
-  try {
-    window.localStorage.setItem(SWIPE_HINT_DISMISSED_KEY, "true");
-  } catch {
-    // The hint can still be dismissed for the current expansion.
-  }
 }
 
 function isInteractive(target: EventTarget | null) {
@@ -61,6 +45,7 @@ export default function ResponsiveSideLayout({
     setLemmaPanelLeft,
     setLemmaPanelWidth,
   } = useLayout();
+  const { settings, setSettings } = useSettings();
   const [isMobile, setIsMobile] = useState(
     () => isCapacitorApp() || (typeof window !== "undefined" && window.innerWidth < 768),
   );
@@ -155,16 +140,18 @@ export default function ResponsiveSideLayout({
     setDismissing(false);
     setDragX(0);
     setHideSwipeHintPermanently(false);
-    setShowSwipeHint(!isSwipeHintDismissed());
+    setShowSwipeHint(!settings.hide_lemma_swipe_hint);
     const id = requestAnimationFrame(() => {
       requestAnimationFrame(() => setMobileVisible(true));
     });
     return () => cancelAnimationFrame(id);
-  }, [isMobile, open]);
+  }, [isMobile, open, settings.hide_lemma_swipe_hint]);
 
   const finishMobileClose = useCallback((direction: -1 | 0 | 1) => {
     if (dismissing) return;
-    if (showSwipeHint && hideSwipeHintPermanently) rememberSwipeHintDismissal();
+    if (showSwipeHint && hideSwipeHintPermanently) {
+      setSettings((prev) => ({ ...prev, hide_lemma_swipe_hint: true }));
+    }
     setDismissing(true);
     setMobileVisible(false);
     setDragX(direction * window.innerWidth * 1.15);
@@ -175,12 +162,14 @@ export default function ResponsiveSideLayout({
       setDragX(0);
       onClose();
     }, SWIPE_DURATION_MS);
-  }, [dismissing, hideSwipeHintPermanently, onClose, onSwipeRight, showSwipeHint]);
+  }, [dismissing, hideSwipeHintPermanently, onClose, onSwipeRight, setSettings, showSwipeHint]);
 
   const dismissSwipeHint = useCallback(() => {
-    if (hideSwipeHintPermanently) rememberSwipeHintDismissal();
+    if (hideSwipeHintPermanently) {
+      setSettings((prev) => ({ ...prev, hide_lemma_swipe_hint: true }));
+    }
     setShowSwipeHint(false);
-  }, [hideSwipeHintPermanently]);
+  }, [hideSwipeHintPermanently, setSettings]);
 
   const onMobilePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (showSwipeHint || dismissing || isInteractive(event.target)) return;

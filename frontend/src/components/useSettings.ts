@@ -11,12 +11,15 @@ import { isThemeId, type ThemeId } from "../themes";
 
 const STORAGE_KEY = "lema_settings";
 const LEGACY_STORAGE_KEY = "nautilus_settings";
+const LEGACY_SWIPE_HINT_DISMISSED_KEY = "lema_lemma_swipe_hint_dismissed";
 
 export type AppSettings = {
   lemma_info: boolean;
   system_language: "en" | "ko";
   theme: ThemeId;
   now_playing_notifications: boolean;
+  hide_lemma_swipe_hint: boolean;
+  show_kwic_debug: boolean;
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -24,6 +27,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   system_language: "en",
   theme: "system",
   now_playing_notifications: true,
+  hide_lemma_swipe_hint: false,
+  show_kwic_debug: false,
 };
 
 let cachedSettings: AppSettings | null = null;
@@ -44,16 +49,28 @@ function loadSettings(): AppSettings {
     const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
 
     if (!raw) {
-      cachedSettings = DEFAULT_SETTINGS;
-      return cachedSettings ?? DEFAULT_SETTINGS;
+      cachedSettings = {
+        ...DEFAULT_SETTINGS,
+        hide_lemma_swipe_hint:
+          localStorage.getItem(LEGACY_SWIPE_HINT_DISMISSED_KEY) === "true",
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedSettings));
+      return cachedSettings;
     }
 
     const parsed = JSON.parse(raw);
 
     // 새 필드 추가돼도 기본값 merge
+    const legacySwipeHintDismissed =
+      localStorage.getItem(LEGACY_SWIPE_HINT_DISMISSED_KEY) === "true";
+
     cachedSettings = {
       ...DEFAULT_SETTINGS,
       ...parsed,
+      hide_lemma_swipe_hint:
+        typeof parsed.hide_lemma_swipe_hint === "boolean"
+          ? parsed.hide_lemma_swipe_hint
+          : legacySwipeHintDismissed,
       theme: isThemeId(parsed.theme)
         ? parsed.theme
         : legacyThemeToThemeId(localStorage.getItem("theme")),

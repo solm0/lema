@@ -115,6 +115,16 @@ def ensure_user_lemma_schema():
                 )
             )
 
+        if "last_recap_succeeded_at" not in columns:
+            conn.execute(
+                text("ALTER TABLE user_lemmas ADD COLUMN last_recap_succeeded_at DATETIME")
+            )
+
+        if "last_recap_failed_at" not in columns:
+            conn.execute(
+                text("ALTER TABLE user_lemmas ADD COLUMN last_recap_failed_at DATETIME")
+            )
+
         if "updated_at" not in columns:
             conn.execute(text("ALTER TABLE user_lemmas ADD COLUMN updated_at DATETIME"))
             conn.execute(text("UPDATE user_lemmas SET updated_at = CURRENT_TIMESTAMP"))

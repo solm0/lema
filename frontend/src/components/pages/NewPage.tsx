@@ -44,25 +44,8 @@ export function NewPage() {
   };
 
   return (
-    <div className="relative flex h-full w-full items-center justify-center bg-neutral-100">
-      <button
-        type="button"
-        onClick={() => navigate("/lyric")}
-        disabled={GRADSHOW_MODE}
-        className="fixed right-4 bottom-20 md:right-6 md:bottom-6 z-20 isolate flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 hover:opacity-70 transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
-        title={t("Lyrics")}
-      >
-        {hasTrack ? (
-          <span
-            aria-hidden="true"
-            className="absolute inset-0 -z-10 rounded-full bg-neutral-50 animate-ping motion-reduce:animate-none"
-            style={{ animationDuration: "2.4s" }}
-          />
-        ) : null}
-        <Music4 size={18} />
-      </button>
-
-      <div className="flex w-[min(36rem,calc(100%-3rem))] flex-col rounded-2xl bg-neutral-50 p-4 shadow-sm transition-shadow focus-within:shadow-2xl">
+    <div className="relative flex h-full w-full items-end justify-center bg-neutral-100 px-3 pb-4 md:px-6 md:pb-6">
+      <div className="flex w-[min(36rem,100%)] flex-col rounded-2xl bg-neutral-50 p-4 shadow-sm transition-shadow focus-within:shadow-2xl">
         <textarea
           ref={textareaRef}
           rows={1}
@@ -74,12 +57,32 @@ export function NewPage() {
           disabled={GRADSHOW_MODE}
         />
 
-        <div className="mt-3 flex items-end justify-between gap-3">
+        <div className="mt-3 flex items-end gap-3">
           <LanguageSelect
             language={language}
             setLanguage={(nextLanguage) => setLanguage(nextLanguage?.lang ?? null)}
             disabled={GRADSHOW_MODE}
           />
+          <button
+            type="button"
+            onClick={() => navigate("/lyric")}
+            disabled={GRADSHOW_MODE}
+            className={`relative isolate ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
+              hasTrack
+                ? "bg-accent/15 text-accent"
+                : "bg-transparent hover:bg-neutral-100"
+            }`}
+            title={t("Get lyrics")}
+          >
+            {hasTrack ? (
+              <span
+                aria-hidden="true"
+                className="absolute -inset-2 z-0 rounded-full bg-accent/10 animate-ping motion-reduce:animate-none"
+                style={{ animationDuration: "2.4s" }}
+              />
+            ) : null}
+            <Music4 size={18} className="relative z-10" />
+          </button>
           <button
             type="button"
             onClick={handleAnalyze}

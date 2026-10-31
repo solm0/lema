@@ -89,6 +89,16 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "Delete account?": "계정을 삭제할까요?",
     "Delete failed": "삭제하지 못했습니다",
     "Delete this annotation?": "이 주석을 삭제할까요?",
+    Debug: "디버그",
+    "Reset vocabulary records": "어휘 기록 초기화",
+    "Reset vocabulary records?": "어휘 기록을 초기화할까요?",
+    "Resetting...": "초기화 중...",
+    "Reset local library": "로컬 라이브러리 초기화",
+    "Reset local library?": "로컬 라이브러리를 초기화할까요?",
+    "This deletes every page, analysis result, notebook, annotation, and page metadata stored for this account on this device. Your account, vocabulary records, app settings, downloaded language packs, and local libraries on other devices will remain.":
+      "이 계정으로 현재 기기에 저장된 모든 페이지, 분석 결과, 노트북, 주석 및 페이지 메타데이터를 삭제합니다. 계정, 어휘 기록, 앱 설정, 다운로드한 언어팩 및 다른 기기의 로컬 라이브러리는 유지됩니다.",
+    "This deletes all vocabulary records stored for this account: known and interested words, exposure counts, memos, saved personal examples, and milestones. It also clears this device's offline vocabulary cache. Pages, notebooks, annotations, app settings, and downloaded language packs will remain.":
+      "이 계정에 저장된 모든 어휘 기록을 삭제합니다. 아는 단어, 관심 단어, 노출 횟수, 메모, 저장한 개인 예문 및 달성 기록이 포함됩니다. 이 기기의 오프라인 어휘 캐시도 함께 지웁니다. 페이지, 노트북, 주석, 앱 설정 및 다운로드한 언어팩은 유지됩니다.",
     "[deleted]": "[삭제됨]",
     "Deleting...": "삭제 중...",
     "Deleting a notebook will also delete the pages inside it.":
@@ -131,6 +141,7 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "Find lyrics for the song playing now?":
       "지금 재생 중인 곡의 가사를 찾을까요?",
     "Get lyrics": "가사 가져오기",
+    Home: "홈",
     "Go to page": "페이지로 이동",
     "Go to base": "기준 단어로 이동",
     "Go back": "뒤로가기",
@@ -227,6 +238,7 @@ const translations: Record<AppLocale, Record<string, string>> = {
     notebook: "폴더",
     Notebook: "폴더",
     "Notebook name": "폴더 이름",
+    Navigation: "탐색",
     "Open notification settings": "알림 설정 열기",
     "Open sidebar": "사이드바 열기",
     "Open pages": "페이지 열기",

@@ -57,6 +57,7 @@ type LemaLibraryPlugin = {
   createNotebook: (options: { name: string }) => Promise<LocalNotebook>;
   renameItem: (options: { type: "page" | "notebook"; id: string; name: string }) => Promise<void>;
   deleteItem: (options: { type: "page" | "notebook"; id: string }) => Promise<void>;
+  clearLibrary: () => Promise<void>;
   movePages: (options: { page_ids: string[]; notebook_id: string | null }) => Promise<void>;
   updateMetadata: (options: { id: string; metadata: string[] }) => Promise<{ metadata: string[] }>;
   listAnnotations: () => Promise<{ items: TimelineItem[]; next_cursor: null }>;
@@ -228,6 +229,17 @@ export async function deleteLocalItem(type: "page" | "notebook", id: string) {
     return;
   }
   await NativeLibrary.deleteItem({ type, id });
+}
+
+export async function clearLocalLibrary() {
+  if (GRADSHOW_MODE) throw new Error("The exhibition library cannot be reset.");
+  assertNativePlatform();
+  await prepareLocalLibrary();
+  if (isElectronApp()) {
+    await electronRequest("/reset", { method: "DELETE" });
+    return;
+  }
+  await NativeLibrary.clearLibrary();
 }
 
 export async function moveLocalPages(pageIds: string[], notebookId: string | null) {

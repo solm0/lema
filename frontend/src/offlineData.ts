@@ -251,6 +251,17 @@ export async function getOfflineInterestedKeys() {
   return mergeInterestedKeys(vocabulary.interestedSnapshot, vocabulary.interestOutbox);
 }
 
+export async function clearOfflineVocabularyData() {
+  const userId = currentUserId();
+  if (!userId) return;
+  await mutateState((state) => {
+    delete state.users[userId];
+  });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(VOCABULARY_SYNC_EVENT));
+  }
+}
+
 export async function queueOfflineInterestToggle(key: string, next: boolean) {
   const userId = currentUserId();
   if (!userId) throw new Error("not authenticated");

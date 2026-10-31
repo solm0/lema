@@ -391,7 +391,7 @@ export default function LyricPage() {
     <div className={`flex flex-col items-start h-full w-full gap-2 pr-4 pb-18 md:pb-4 md:pr-6 pl-3 md:pl-6 ${mobileApp ? 'bg-neutral-200' : 'bg-neutral-100'}`}>
 
       <div className="flex flex-col gap-2 pt-12 pb-2">
-        <h2>{t("Get lyrics")}</h2>
+        <h2 className="mobile-page-heading">{t("Get lyrics")}</h2>
       </div>
 
       <div className="flex flex-1 min-h-0 w-full max-w-3xl flex-col gap-4 items-start">

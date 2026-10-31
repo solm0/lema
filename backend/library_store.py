@@ -318,6 +318,14 @@ class LibraryStore:
     def delete_notebook(self, notebook_id: str) -> bool:
         return self._delete("notebooks", notebook_id)
 
+    def clear(self) -> None:
+        """Remove all user content while preserving library metadata."""
+        with self.connect() as connection:
+            connection.execute("DELETE FROM annotations")
+            connection.execute("DELETE FROM pages")
+            connection.execute("DELETE FROM notebooks")
+            connection.commit()
+
     def _delete(self, table: str, item_id: str) -> bool:
         if table not in {"pages", "notebooks"}:
             raise ValueError("invalid table")

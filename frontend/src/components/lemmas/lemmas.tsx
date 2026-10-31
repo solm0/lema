@@ -13,6 +13,7 @@ import {
   deleteLemmaState,
   getLemmaDatabase,
   getLemmaMilestones,
+  getLemmaRecap,
   lemmaLookupOne,
   setInterest,
   updateLemmaState,
@@ -21,7 +22,9 @@ import type {
   LemmaData,
   UserLemmaDatabaseItem,
   UserLemmaMilestone,
+  RecapState,
 } from "../pageTypes";
+import { Recap } from "./Recap";
 import { FilterSelect } from "../pages/PageFilters";
 import ResponsiveSideLayout from "../util/ResponsiveSideLayout";
 import { ResponsiveModal } from "../util/ResponsiveModal";
@@ -31,6 +34,7 @@ import { hasLemmaPackInstalled } from "../util/LanguageSelect";
 import { useLayout } from "../RootLayout";
 import { useI18n } from "../../i18n";
 import { IconButton } from "../util/Button";
+import { LANGUAGE_NAMES } from "../lemma_expansions/KnownWordsMilestoneToast";
 
 const POS_ORDER = [
   "NOUN",
@@ -111,48 +115,38 @@ function Timeline({
   milestones: Record<string, UserLemmaMilestone[]>;
 }) {
   const { t } = useI18n();
-  const languages = Object.keys(milestones).sort();
-  if (!languages.length)
+  const entries = Object.entries(milestones)
+    .flatMap(([language, items]) =>
+      items.map((item) => ({ ...item, language }))
+    )
+    .sort((a, b) => b.achieved_at.localeCompare(a.achieved_at));
+  if (!entries.length)
     return (
       <p className="text-sm text-neutral-400">{t("No milestones yet.")}</p>
     );
   return (
-    <div className="grid gap-8 md:grid-cols-2">
-      {languages.map((language) => (
-        <div key={language}>
-          <p className="mb-3 text-xs font-medium uppercase text-neutral-400">
-            {language}
+    <ol className="relative">
+      {entries.map((item, index) => (
+        <li
+          key={`${item.language}-${item.count}-${item.achieved_at}`}
+          className="relative pl-5 pb-4 last:pb-0"
+        >
+          {index < entries.length - 1 && (
+            <span className="absolute left-[5px] top-0 translate-y-[10px] bottom-0 border-l-2 border-accent" />
+          )}
+          <span className="absolute left-[2.5px] top-1.5 h-2 w-2 rounded-full border-2 border-accent bg-neutral-50" />
+          <p className="text-sm">
+            {t("You marked {count} {language} words as known!", {
+              count: item.count.toLocaleString(),
+              language: t(LANGUAGE_NAMES[item.language] ?? item.language),
+            })}
           </p>
-          <ol className="relative ml-1 border-l border-neutral-300">
-            {milestones[language].map((item, index) => (
-              <li
-                key={`${item.count}-${item.achieved_at}`}
-                className="relative ml-5 pb-4 last:pb-0"
-              >
-                <span
-                  className={`absolute -left-[25px] top-1 h-2.5 w-2.5 rounded-full ${
-                    index === 0
-                      ? "bg-[var(--app-green-500)]"
-                      : index === milestones[language].length - 1
-                      ? "bg-neutral-100"
-                      : "bg-neutral-300"
-                  }`}
-                />
-                <p className="text-sm">
-                  {t("You marked {count} {language} words as known!", {
-                    count: item.count.toLocaleString(),
-                    language,
-                  })}
-                </p>
-                <time className="text-xs text-neutral-400">
-                  {formatDate(item.achieved_at)}
-                </time>
-              </li>
-            ))}
-          </ol>
-        </div>
+          <time className="text-xs text-neutral-400">
+            {formatDate(item.achieved_at)}
+          </time>
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 
@@ -165,6 +159,7 @@ export default function Lemmas() {
   const [milestones, setMilestones] = useState<
     Record<string, UserLemmaMilestone[]>
   >({});
+  const [recap, setRecap] = useState<RecapState | null>(null);
   const [filters, setFilters] = useState<DatabaseFilters>({
     q: "",
     pos: null,
@@ -182,10 +177,9 @@ export default function Lemmas() {
   const [missingPackLang, setMissingPackLang] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<UserLemmaDatabaseItem | null>(null);
-  const [memoTarget, setMemoTarget] = useState<UserLemmaDatabaseItem | null>(
-    null
-  );
-  const [memoDraft, setMemoDraft] = useState("");
+  const [editingMemoKey, setEditingMemoKey] = useState<string | null>(null);
+  const [editingMemoValue, setEditingMemoValue] = useState("");
+  const [startMemoEditing, setStartMemoEditing] = useState(false);
   const [decayInfoOpen, setDecayInfoOpen] = useState(false);
   const deskRef = useRef<DeskHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -236,6 +230,12 @@ export default function Lemmas() {
       .then(setMilestones)
       .catch(() => setMilestones({}));
   }, []);
+  const loadRecap = useCallback(() => {
+    void getLemmaRecap().then(setRecap).catch(() => setRecap(null));
+  }, []);
+  useEffect(() => {
+    loadRecap();
+  }, [loadRecap]);
   useEffect(() => {
     setPanelOpen(lemmaData !== null);
   }, [lemmaData, setPanelOpen]);
@@ -262,7 +262,8 @@ export default function Lemmas() {
     setFilters((current) => ({ ...current, q: searchDraft.trim() }));
     setSearchOpen(false);
   };
-  const openLemma = async (item: UserLemmaDatabaseItem) => {
+  const openLemma = async (item: UserLemmaDatabaseItem, editMemo = false) => {
+    setStartMemoEditing(editMemo);
     setCurrentLang(item.language);
     if (!(await hasLemmaPackInstalled(item.language))) {
       setMissingPackLang(item.language);
@@ -275,7 +276,6 @@ export default function Lemmas() {
   const saveMemo = async (item: UserLemmaDatabaseItem, memo: string) => {
     await updateLemmaState(item.key, { memo });
     updateItem(item.key, { memo });
-    setMemoTarget(null);
   };
   const toggleKnown = async (item: UserLemmaDatabaseItem) => {
     const next = !item.is_known;
@@ -402,22 +402,33 @@ export default function Lemmas() {
     <span className="sr-only">{t("Delete")}</span>,
   ];
   return (
-    <div className="relative flex h-full w-full bg-neutral-50 pl-3 md:pl-6">
-      <div className="flex-1 overflow-y-auto pb-16 pt-12 pr-3 md:pr-6">
-        <h2 className="mb-14">{t("Lemmas")}</h2>
-        <div className="mx-auto flex max-w-6xl flex-col gap-16">
-          <section>
+    <div className="relative flex h-full min-w-0 w-full overflow-x-hidden bg-neutral-50 pl-3 md:pl-6">
+      <div className="min-w-0 flex-1 overflow-y-auto pb-16 pt-12 pr-3 md:pr-6">
+        <h2 className="mobile-page-heading mb-21">{t("Lemmas")}</h2>
+        <div className="mx-auto flex max-w-6xl flex-col gap-21">
+          <section className="flex w-full min-w-0 flex-col items-start">
             <h3 className="mb-3">Recap</h3>
+            {recap?.state === "warming_up" ? (
+              <p className="text-sm text-neutral-400">
+                다음 주부터 Lemma Revival을 시작할 수 있어요. 이번 주 쇼윈도 단어를 먼저 만나 보세요.
+              </p>
+            ) : recap?.state === "completed" ? (
+              <p className="text-sm text-neutral-400">이번 주 리캡 완료</p>
+            ) : recap?.state === "daily_complete" ? (
+              <p className="text-sm text-neutral-400">오늘의 리캡 완료</p>
+            ) : recap?.available ? (
+              <Recap onFinished={loadRecap} />
+            ) : null}
           </section>
-          <section>
+          <section className="flex w-full min-w-0 flex-col items-start gap-6">
             <h3 className="mb-2">{t("Achievements")}</h3>
             <p className="mb-7 text-sm text-neutral-400">
               {t("We'll prioritize examples containing words you know.")}
             </p>
             <Timeline milestones={milestones} />
           </section>
-          <section>
-            <div className="mb-5">
+          <section className="flex w-full min-w-0 flex-col items-start">
+            <div>
               <h3 className="mb-2">{t("Database")}</h3>
             </div>
             {(filterChips.length > 0 ||
@@ -494,15 +505,15 @@ export default function Lemmas() {
                 )}
               </div>
             )}
-            <div className="relative">
-              <div className="overflow-x-auto">
+            <div className="relative w-full max-w-full min-w-0">
+              <div className="max-w-full overflow-x-auto overscroll-x-contain">
                 <table className="w-max min-w-full table-fixed text-sm">
                   <colgroup>
                     {widths.map((width, index) => (
                       <col key={index} style={{ width }} />
                     ))}
                   </colgroup>
-                  <thead className="font-[var(--font-pretendard)] text-left text-xs font-normal text-neutral-400">
+                  <thead className="sticky top-10 z-20 bg-neutral-50 font-pretendard text-left select-none text-xs font-normal text-neutral-400">
                     <tr>
                       {headers.map((header, index) => (
                         <th
@@ -514,14 +525,13 @@ export default function Lemmas() {
                           <div className="flex min-w-0 items-center gap-1 font-normal">
                             {header}
                           </div>
-                          {index < headers.length - 1 && (
-                            <>
-                              <span className="pointer-events-none absolute right-0 top-1/2 h-6 -translate-y-1/2 border-r border-neutral-300" />
-                              <span
-                                onPointerDown={(event) => resize(index, event)}
-                                className="absolute right-[-2px] top-0 z-10 h-full w-1 cursor-col-resize hover:bg-neutral-300"
-                              />
-                            </>
+                          {!mobile && index < headers.length - 1 && (
+                            <span
+                              onPointerDown={(event) => resize(index, event)}
+                              className="group/resize absolute right-[-4px] top-0 z-10 h-full w-2 cursor-col-resize"
+                            >
+                              <span className="absolute left-1/2 top-1/2 h-6 w-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-neutral-300 transition-[width] duration-150 ease-out group-hover/resize:w-1 group-active/resize:w-1" />
+                            </span>
                           )}
                         </th>
                       ))}
@@ -562,10 +572,7 @@ export default function Lemmas() {
                         <td className="truncate px-3 py-2">
                           {mobile ? (
                             <button
-                              onClick={() => {
-                                setMemoTarget(item);
-                                setMemoDraft(item.memo);
-                              }}
+                              onClick={() => void openLemma(item, true)}
                               className="w-full truncate text-left"
                             >
                               {item.memo || (
@@ -575,19 +582,52 @@ export default function Lemmas() {
                               )}
                             </button>
                           ) : (
-                            <input
-                              aria-label={t("Memo for {lemma}", {
-                                lemma: item.lemma,
-                              })}
-                              defaultValue={item.memo}
-                              maxLength={20}
-                              onBlur={(event) =>
-                                event.target.value !== item.memo &&
-                                void saveMemo(item, event.target.value)
-                              }
-                              className="w-full bg-transparent outline-none placeholder:text-neutral-300"
-                              placeholder={t("Memo")}
-                            />
+                            <div>
+                              <textarea
+                                aria-label={t("Memo for {lemma}", {
+                                  lemma: item.lemma,
+                                })}
+                                rows={1}
+                                value={
+                                  editingMemoKey === item.key
+                                    ? editingMemoValue
+                                    : item.memo
+                                }
+                                maxLength={20}
+                                onFocus={() => {
+                                  setEditingMemoKey(item.key);
+                                  setEditingMemoValue(item.memo);
+                                }}
+                                onChange={(event) =>
+                                  setEditingMemoValue(event.target.value)
+                                }
+                                onBlur={() => {
+                                  const nextMemo = editingMemoValue;
+                                  setEditingMemoKey(null);
+                                  if (nextMemo !== item.memo)
+                                    void saveMemo(item, nextMemo);
+                                }}
+                                className="block w-full resize-none bg-transparent text-sm leading-5 outline-none placeholder:text-neutral-300"
+                                placeholder={t("Memo")}
+                              />
+                              <div
+                                className={`overflow-hidden transition-[max-height,opacity] duration-200 ease-out ${
+                                  editingMemoKey === item.key
+                                    ? "max-h-5 opacity-100"
+                                    : "max-h-0 opacity-0"
+                                }`}
+                              >
+                                <p
+                                  className={`h-5 pt-1 text-xs ${
+                                    editingMemoValue.length >= 20
+                                      ? "text-[var(--app-red-500)]"
+                                      : "text-neutral-400"
+                                  }`}
+                                >
+                                  {editingMemoValue.length}/20
+                                </p>
+                              </div>
+                            </div>
                           )}
                         </td>
                         <td className="px-3 py-2">
@@ -667,7 +707,7 @@ export default function Lemmas() {
                 <button
                   onClick={() => void load(items.length, true)}
                   disabled={loading}
-                  className="text-sm text-neutral-500 hover:text-neutral-800"
+                  className="text-sm text-neutral-500 opacity-80 hover:opacity-100 transition-opacity"
                 >
                   {loading ? t("Loading...") : t("More")}
                 </button>
@@ -706,6 +746,7 @@ export default function Lemmas() {
             onKnownWordsMilestone={() =>
               void getLemmaMilestones().then(setMilestones)
             }
+            startMemoEditing={startMemoEditing}
           />
         </ResponsiveSideLayout>
       )}
@@ -716,33 +757,6 @@ export default function Lemmas() {
         <p className="text-sm">
           {t("You can lower the decay score through Recap.")}
         </p>
-      </ResponsiveModal>
-      <ResponsiveModal
-        open={memoTarget !== null}
-        onClose={() => setMemoTarget(null)}
-      >
-        <h3 className="mb-4">{t("Edit memo")}</h3>
-        <textarea
-          value={memoDraft}
-          maxLength={20}
-          onChange={(event) => setMemoDraft(event.target.value)}
-          className="w-full resize-none border-b border-neutral-300 bg-transparent py-2 outline-none"
-          rows={2}
-        />
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={() => setMemoTarget(null)}
-            className="px-3 py-1.5 text-sm"
-          >
-            {t("Cancel")}
-          </button>
-          <button
-            onClick={() => memoTarget && void saveMemo(memoTarget, memoDraft)}
-            className="rounded bg-neutral-800 px-3 py-1.5 text-sm text-neutral-50"
-          >
-            {t("Save")}
-          </button>
-        </div>
       </ResponsiveModal>
       <ResponsiveModal
         open={deleteTarget !== null}

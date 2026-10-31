@@ -62,6 +62,10 @@ class UserLemma(Base):
     memo = Column(String(20), nullable=False, default="")
     # Each meaningful interaction offsets 30 days of accumulated decay.
     decay_reduction_days = Column(Integer, nullable=False, default=0)
+    # A successful Revival resets decay from this moment, rather than merely
+    # subtracting a fixed number of days from a very old lemma.
+    last_recap_succeeded_at = Column(DateTime, nullable=True)
+    last_recap_failed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     __table_args__ = (
@@ -105,4 +109,48 @@ class UserLemmaExample(Base):
 
     __table_args__ = (
         UniqueConstraint("user_id", "lemma_key", "content_hash"),
+    )
+
+
+class UserRecapWeek(Base):
+    """The immutable weekly showcase and its following week's test queue."""
+
+    __tablename__ = "user_recap_weeks"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    # Monday in the user's device timezone, kept as a calendar value rather
+    # than a timestamp so a weekly group never moves with a clock conversion.
+    week_start = Column(String(10), nullable=False)
+    completed_at = Column(DateTime, nullable=True)
+    expired_at = Column(DateTime, nullable=True)
+    last_session_date = Column(String(10), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utc_now_naive)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "week_start"),
+        Index("ix_user_recap_weeks_user_week", "user_id", "week_start"),
+    )
+
+
+class UserRecapItem(Base):
+    __tablename__ = "user_recap_items"
+
+    id = Column(Integer, primary_key=True)
+    recap_week_id = Column(Integer, ForeignKey("user_recap_weeks.id"), nullable=False, index=True)
+    lemma_key = Column(String, nullable=False, index=True)
+    # showcase rows are displayed this week; test rows are copied from the
+    # previous week's showcase and may be answered this week.
+    kind = Column(String(12), nullable=False)
+    position = Column(Integer, nullable=False)
+    status = Column(String(12), nullable=False, default="pending")
+    session_date = Column(String(10), nullable=True)
+    attempt_count = Column(Integer, nullable=False, default=0)
+    question_json = Column(String, nullable=True)
+    answered_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=utc_now_naive)
+
+    __table_args__ = (
+        UniqueConstraint("recap_week_id", "kind", "lemma_key"),
+        Index("ix_user_recap_items_week_kind_position", "recap_week_id", "kind", "position"),
     )

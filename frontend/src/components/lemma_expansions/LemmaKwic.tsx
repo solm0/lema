@@ -14,9 +14,8 @@ import { AlignCenterVertical } from "lucide-react";
 import { lemmaLookupProgressively } from "../../api";
 import { getLookupKey, getLookupKeyForMorph } from "../tokenLookup";
 import { useI18n } from "../../i18n";
+import { useSettings } from "../useSettings";
 import LemmaActivityToast from "./LemmaActivityToast";
-
-const SHOW_KWIC_DEBUG = false;
 
 function highlightIntersect(
   surface: string,
@@ -93,6 +92,7 @@ interface KwicRowProps {
   lemmaInfo: Record<string, LemmaData>;
   interestKeys?: Set<string>;
   onMisalignedChange: (misaligned: boolean) => void;
+  showDebug: boolean;
 }
 
 interface KwicRowHandle {
@@ -103,7 +103,7 @@ interface KwicRowHandle {
 type Token = KwicData["tokens"][number];
 
 const KwicRow = forwardRef<KwicRowHandle, KwicRowProps>(function KwicRow(
-  { d, lemma, language, onSelect, canSelectKey, hovered, setHovered, lemmaInfo, interestKeys, onMisalignedChange },
+  { d, lemma, language, onSelect, canSelectKey, hovered, setHovered, lemmaInfo, interestKeys, onMisalignedChange, showDebug },
   ref
 ) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -232,9 +232,8 @@ const KwicRow = forwardRef<KwicRowHandle, KwicRowProps>(function KwicRow(
       ref={scrollRef}
       onScroll={handleScroll}
       className="relative w-full shrink-0 overflow-x-auto overflow-y-visible no-scrollbar h-auto"
-      style={{ overscrollBehaviorX: 'contain' }}
     >
-      {SHOW_KWIC_DEBUG && (
+      {showDebug && (
         <div
           className="pointer-events-none sticky left-1 top-0 z-30 w-max rounded-sm bg-neutral-50/85 px-1 font-mono text-[8px] leading-3 text-neutral-400"
           title="line · length · score · coverage · known · exposed · interested · frequency prior"
@@ -293,6 +292,7 @@ export default function LemmaKwic({
   userExamples?: UserLemmaExample[];
 }) {
   const { t } = useI18n();
+  const { settings } = useSettings();
   const [hovered, setHovered] = useState<{
     pos: string | null;
     x: number;
@@ -541,6 +541,7 @@ export default function LemmaKwic({
               setHovered={setHovered}
               lemmaInfo={availableKeys}
               interestKeys={interestKeys}
+              showDebug={settings.show_kwic_debug}
               onMisalignedChange={(misaligned) => { if (misaligned) setShowCenterButton(true); }}
             />
           </div>
@@ -560,6 +561,7 @@ export default function LemmaKwic({
             setHovered={setHovered}
             lemmaInfo={availableKeys}
             interestKeys={interestKeys}
+            showDebug={settings.show_kwic_debug}
             onMisalignedChange={(misaligned) => {
               if (misaligned) setShowCenterButton(true);
             }}

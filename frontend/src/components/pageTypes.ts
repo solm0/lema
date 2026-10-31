@@ -100,6 +100,29 @@ export type UserLemmaMilestone = {
   achieved_at: string;
 };
 
+export type RecapItem = {
+  id: number;
+  lemma_key: string;
+  position: number;
+  status: "pending" | "passed" | "failed" | "expired";
+  attempt_count: number;
+};
+
+export type RecapState = {
+  week_start: string;
+  available: boolean;
+  state: "warming_up" | "ready" | "daily_complete" | "completed";
+  remaining_count: number;
+  test_items: RecapItem[];
+  showcase_items: RecapItem[];
+};
+
+export type RecapQuestion = {
+  primary_example: { text: string; tokens?: Token[]; match_indices?: number[] };
+  extra_examples?: Array<{ text: string; tokens?: Token[]; match_indices?: number[] }>;
+  options: Array<{ key: string; label: string }>;
+};
+
 export type AnnotationType = "link" | "memo" | "emoji";
 
 export type AnnotationBase = {

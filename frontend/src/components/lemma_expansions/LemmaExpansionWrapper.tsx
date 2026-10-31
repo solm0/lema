@@ -27,16 +27,17 @@ export default function LemmaExpansionWrapper({
   userExamples,
   onSaveMemo,
   onMemoEditingChange,
+  startMemoEditing,
 }: {
   activeNode: D3Node | null;
-  lemmaDatas: LemmaData[] ;
+  lemmaDatas: LemmaData[];
   activeKey: string | null;
   addLemmaData: (layout: LemmaData, autoActivate?: boolean) => void;
   onLemmaFetchStart?: (lemmaKey: string) => void;
   onLemmaFetchSuccess?: (lemmaKey: string) => void;
   onLemmaFetchError?: (lemmaKey: string) => void;
   onSelect: (tokenKey: string) => void;
-  onToggleInterest: (key: string, next:boolean) => Promise<void>;
+  onToggleInterest: (key: string, next: boolean) => Promise<void>;
   language: string;
   lemmaInfo?: Record<string, LemmaData>;
   interestKeys?: Set<string>;
@@ -46,6 +47,7 @@ export default function LemmaExpansionWrapper({
   userExamples: UserLemmaExample[];
   onSaveMemo: (memo: string) => Promise<void>;
   onMemoEditingChange: (editing: boolean) => void;
+  startMemoEditing?: boolean;
 }) {
   const { t } = useI18n();
   const inflightRef = useRef(new Set<string>());
@@ -54,11 +56,11 @@ export default function LemmaExpansionWrapper({
 
   useEffect(() => {
     const lemmaKey = activeNode?.data.lemma;
-    const [lemma, pos] = lemmaKey?.split('_') ?? [];
+    const [lemma, pos] = lemmaKey?.split("_") ?? [];
 
-    if (!lemmaKey || !pos ) return;
+    if (!lemmaKey || !pos) return;
 
-    if (lemmaDatas.find(l => l.key === lemmaKey)) return;
+    if (lemmaDatas.find((l) => l.key === lemmaKey)) return;
     if (inflightRef.current.has(lemmaKey)) return;
 
     inflightRef.current.add(lemmaKey);
@@ -95,11 +97,18 @@ export default function LemmaExpansionWrapper({
       } finally {
         inflightRef.current.delete(lemmaKey);
       }
-
     })();
-  }, [activeNode, lemmaDatas, addLemmaData, onLemmaFetchStart, onLemmaFetchSuccess, onLemmaFetchError, language]);
+  }, [
+    activeNode,
+    lemmaDatas,
+    addLemmaData,
+    onLemmaFetchStart,
+    onLemmaFetchSuccess,
+    onLemmaFetchError,
+    language,
+  ]);
 
-  const lemmaData = lemmaDatas.find(l => l.key === activeKey)
+  const lemmaData = lemmaDatas.find((l) => l.key === activeKey);
   const status = activeKey ? statusRef.current.get(activeKey) : undefined;
 
   if (status === "loading" && !lemmaData) {
@@ -135,6 +144,7 @@ export default function LemmaExpansionWrapper({
         userExamples={userExamples}
         onSaveMemo={onSaveMemo}
         onMemoEditingChange={onMemoEditingChange}
+        startMemoEditing={startMemoEditing}
       />
     );
   }

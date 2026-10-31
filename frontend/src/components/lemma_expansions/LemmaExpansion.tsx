@@ -21,6 +21,7 @@ export default function LemmaExpansion({
   userExamples,
   onSaveMemo,
   onMemoEditingChange,
+  startMemoEditing = false,
 }: {
   data: LemmaData;
   onSelect: (tokenKey: string) => void;
@@ -34,6 +35,7 @@ export default function LemmaExpansion({
   userExamples: UserLemmaExample[];
   onSaveMemo: (memo: string) => Promise<void>;
   onMemoEditingChange: (editing: boolean) => void;
+  startMemoEditing?: boolean;
 }) {
   const { t } = useI18n();
   const [visible, setVisible] = useState(false);
@@ -44,10 +46,13 @@ export default function LemmaExpansion({
   const [memoHovered, setMemoHovered] = useState(false);
   const [editingMemo, setEditingMemo] = useState(false);
   const [isMobile, setIsMobile] = useState(
-    () => isCapacitorApp() || (typeof window !== "undefined" && window.innerWidth < 768),
+    () =>
+      isCapacitorApp() ||
+      (typeof window !== "undefined" && window.innerWidth < 768)
   );
   const memoInputRef = useRef<HTMLTextAreaElement>(null);
   const savingMemoRef = useRef(false);
+  const didAutoStartMemoRef = useRef(false);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setVisible(true));
@@ -56,7 +61,10 @@ export default function LemmaExpansion({
 
   useEffect(() => {
     if (!showKnownConfirmation) return;
-    const timer = window.setTimeout(() => setShowKnownConfirmation(false), 3000);
+    const timer = window.setTimeout(
+      () => setShowKnownConfirmation(false),
+      3000
+    );
     return () => window.clearTimeout(timer);
   }, [showKnownConfirmation]);
 
@@ -74,7 +82,15 @@ export default function LemmaExpansion({
   }, [data.key, memo]);
 
   useEffect(() => {
-    const update = () => setIsMobile(isCapacitorApp() || window.innerWidth < 768);
+    if (!startMemoEditing || didAutoStartMemoRef.current) return;
+    didAutoStartMemoRef.current = true;
+    setMemoRevealed(true);
+    setEditingMemo(true);
+  }, [startMemoEditing]);
+
+  useEffect(() => {
+    const update = () =>
+      setIsMobile(isCapacitorApp() || window.innerWidth < 768);
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
@@ -147,7 +163,12 @@ export default function LemmaExpansion({
   };
 
   const onMemoKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.nativeEvent.isComposing
+    )
+      return;
     event.preventDefault();
     void saveMemo();
   };
@@ -188,7 +209,13 @@ export default function LemmaExpansion({
         >
           <ArrowUp size={17} />
         </button>
-        <p className={`absolute bottom-4 left-4 text-xs ${memoValue.length >= MAX_MEMO_LENGTH ? "text-[var(--app-red-500)]" : "text-neutral-400"}`}>
+        <p
+          className={`absolute bottom-4 left-4 text-xs ${
+            memoValue.length >= MAX_MEMO_LENGTH
+              ? "text-[var(--app-red-500)]"
+              : "text-neutral-400"
+          }`}
+        >
           {memoValue.length}/{MAX_MEMO_LENGTH}
         </p>
       </div>
@@ -196,9 +223,11 @@ export default function LemmaExpansion({
   }
 
   return (
-    <div className={`relative flex h-full w-full flex-col overflow-hidden transition-opacity duration-300 ${
+    <div
+      className={`relative flex h-full w-full flex-col overflow-hidden transition-opacity duration-300 ${
         visible ? "opacity-100" : "opacity-0"
-      }`}>
+      }`}
+    >
       <section className="min-h-0 w-full flex-1">
         <LemmaKwic
           data={data.kwic}
@@ -213,7 +242,6 @@ export default function LemmaExpansion({
 
       <footer className="relative flex flex-col h-26 md:h-28 shrink-0 gap-4 px-4 pb-4 pt-0">
         <div className="flex items-start justify-between w-full">
-
           <div className="flex flex-col min-w-0">
             {language === "ja" && data.furigana && (
               <span className="max-w-32 pl-0.5 truncate text-xs font-medium leading-tight text-neutral-400">
@@ -230,12 +258,18 @@ export default function LemmaExpansion({
               >
                 {lemma}
               </button>
-              <div className="translate-y-0.5 text-xs uppercase font-mono font-semibold text-neutral-400">{pos}</div>
+              <div className="translate-y-0.5 text-xs uppercase font-mono font-semibold text-neutral-400">
+                {pos}
+              </div>
               <button
                 type="button"
-                aria-label={isInterested ? "관심 단어에서 제거" : "관심 단어로 추가"}
+                aria-label={
+                  isInterested ? "관심 단어에서 제거" : "관심 단어로 추가"
+                }
                 className={`p-1 transition-colors ${
-                  isInterested ? "text-yellow-400" : "text-neutral-400 hover:text-neutral-500"
+                  isInterested
+                    ? "text-yellow-400"
+                    : "text-neutral-400 hover:text-neutral-500"
                 }`}
                 onClick={() => void onToggleInterest(globalKey, !isInterested)}
               >
@@ -252,11 +286,13 @@ export default function LemmaExpansion({
             type="button"
             aria-label={isKnown ? t("Known word") : t("I know this word")}
             className={`p-1 transition-colors ${
-              isKnown ? "text-[var(--app-green-500)]" : "text-neutral-400 hover:text-neutral-500"
+              isKnown
+                ? "text-[var(--app-green-500)]"
+                : "text-neutral-400 hover:text-neutral-500"
             }`}
             onClick={handleKnownClick}
           >
-          <GraduationCap size={19} fill="transparent" stroke="currentColor" />
+            <GraduationCap size={19} fill="transparent" stroke="currentColor" />
           </button>
         </div>
 
@@ -293,17 +329,24 @@ export default function LemmaExpansion({
               {memoValue || "Memo..."}
             </button>
           )}
-          <p className={`pt-2 h-4 text-xs ${editingMemo && memoValue.length >= MAX_MEMO_LENGTH ? "text-[var(--app-red-500)]" : "text-neutral-400"} ${editingMemo ? "opacity-100" : "opacity-0"}`}>
+          <p
+            className={`pt-2 h-4 text-xs ${
+              editingMemo && memoValue.length >= MAX_MEMO_LENGTH
+                ? "text-[var(--app-red-500)]"
+                : "text-neutral-400"
+            } ${editingMemo ? "opacity-100" : "opacity-0"}`}
+          >
             {memoValue.length}/{MAX_MEMO_LENGTH}
           </p>
         </div>
-
       </footer>
       <LemmaActivityToast
         open={showKnownConfirmation}
         icon={<Check className="h-4 w-4 text-green-600" />}
         title={t("You know “{lemma}”.", { lemma })}
-        description={t("sentences containing “{lemma}” will be shown first.", { lemma })}
+        description={t("sentences containing “{lemma}” will be shown first.", {
+          lemma,
+        })}
         className="bottom-28"
         variant="success"
       />
