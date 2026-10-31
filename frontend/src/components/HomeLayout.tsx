@@ -148,7 +148,7 @@ export function Side() {
         <button
           type="button"
           onClick={() => setMobileNavOpen(true)}
-          className="fixed left-3 top-1.5 z-[70] flex h-10 w-10 items-center justify-center rounded-full bg-neutral-50 shadow-sm transition-opacity hover:opacity-70"
+          className="fixed left-3 top-10 z-[70] flex h-10 w-10 items-center justify-center rounded-full bg-neutral-50 shadow-sm transition-opacity hover:opacity-70"
           aria-label={t("Open sidebar")}
           title={t("Open sidebar")}
         >
@@ -166,7 +166,7 @@ export function Side() {
             onClick={() => setMobileNavOpen(false)}
           />
           <nav
-            className={`relative flex h-full w-68 flex-col bg-neutral-100 px-3 pb-6 pt-16 shadow-xl transition-transform duration-200 ${mobileNavOpen ? "translate-x-0" : "-translate-x-full"}`}
+            className={`relative flex h-full w-72 flex-col bg-neutral-100 px-3 pb-6 pt-10 shadow-xl transition-transform duration-200 ${mobileNavOpen ? "translate-x-0" : "-translate-x-full"}`}
             aria-label={t("Navigation")}
             onTouchStart={(event) => {
               const touch = event.touches[0];
@@ -181,7 +181,7 @@ export function Side() {
             <button
               type="button"
               onClick={() => setMobileNavOpen(false)}
-              className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-neutral-50"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-50 mb-7 shadow-sm"
               aria-label={t("Close sidebar")}
             >
               <X size={20} />
@@ -192,10 +192,10 @@ export function Side() {
                   key={menu.path}
                   type="button"
                   onClick={() => handleMenuClick(menu.path)}
-                  className={`flex h-12 items-center gap-3 rounded-xl px-3 text-left transition-colors ${location.pathname === menu.path ? "bg-neutral-50" : "hover:bg-neutral-50/70"}`}
+                  className={`flex h-12 items-center gap-3 rounded-xl font-body font-medium px-3 text-left transition-colors ${location.pathname === menu.path ? "bg-neutral-50" : "hover:bg-neutral-50/70"}`}
                 >
                   {menu.label}
-                  <span>{menu.title}</span>
+                  <span className="pb-px">{menu.title}</span>
                 </button>
               ))}
             </div>
@@ -203,10 +203,10 @@ export function Side() {
               <button
                 type="button"
                 onClick={() => handleMenuClick("/setting")}
-                className={`flex h-12 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors ${location.pathname === "/setting" ? "bg-neutral-50" : "hover:bg-neutral-50/70"}`}
+                className={`flex h-12 w-full items-center gap-3 rounded-xl font-body font-medium px-3 text-left transition-colors ${location.pathname === "/setting" ? "bg-neutral-50" : "hover:bg-neutral-50/70"}`}
               >
                 <Settings size={20} />
-                <span>{t("Settings")}</span>
+                <span className="pb-px">{t("Settings")}</span>
               </button>
             </div>
           </nav>

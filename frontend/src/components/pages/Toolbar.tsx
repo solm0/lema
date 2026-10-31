@@ -125,17 +125,17 @@ export function Toolbar({
   return (
     <>
       <div
-        className={`flex ${mobileApp ? 'gap-2': 'gap-0.5'}`}
+        className={`flex gap-2 md:gap-0.5`}
       >
         <IconButtonEvent
-          icon={<Search size={mobileApp ? 16 : 14} />}
+          icon={<Search className="w-4 h-4 md:w-3.5 md:h-3.5" />}
           onClick={onSearch}
           title={t("Search")}
         />
 
         <div className="relative">
           <IconButtonEvent
-            icon={<Plus size={mobileApp ? 16 : 15} />}
+            icon={<Plus className="w-4.5 h-4.5 md:w-4 md:h-4" />}
             onClick={(e) => {
               e.stopPropagation();
               setOpenFilePopup((v) => !v);

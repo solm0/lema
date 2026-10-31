@@ -81,7 +81,7 @@ function AppVersionSection() {
 
   return (
     <section className="w-full flex flex-col gap-6 items-start">
-      <h3 className="sticky top-0 bg-neutral-50 font-pretendard! w-full pb-1">{t("App version")}</h3>
+      <h3 className="sticky top-0 bg-neutral-50 w-full pb-1">{t("App version")}</h3>
       <div className="flex items-center gap-2 text-sm">
         <ThemeLogo
           variant="transparent"
@@ -154,7 +154,7 @@ function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
 
   return (
     <section className="w-full flex flex-col gap-6 items-start">
-      <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full pb-1">
+      <h3 className="sticky top-0 bg-neutral-50 z-10 w-full pb-1">
         {t("Local library")}
       </h3>
       <div className="max-w-xl text-sm text-neutral-600 flex flex-col gap-4">
@@ -650,7 +650,7 @@ export default function Setting() {
         <AppVersionSection />
 
         <section className="w-full flex flex-col gap-6 items-start">
-          <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Preferences")}</h3>
+          <h3 className="sticky top-0 bg-neutral-50 z-10 w-full pb-1">{t("Preferences")}</h3>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col items-start text-sm gap-3">
               <div className="flex items-center gap-2">
@@ -720,59 +720,61 @@ export default function Setting() {
 
         {mobileApp && !GRADSHOW_MODE && (
           <section className="w-full flex flex-col gap-7 items-start">
-            <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10">{t("Notifications")}</h3>
-            <div className="flex items-center gap-2 text-sm">
-              <span>{t("now playing alerts")}</span>
-              <button
-                type="button"
-                onClick={handleNowPlayingNotificationsToggle}
-                aria-pressed={settings.now_playing_notifications}
-                title={t("now playing alerts")}
-                className={`
-                  relative inline-flex h-5 w-9 items-center rounded-full
-                  p-0.5 transition-colors
-                  ${
-                    settings.now_playing_notifications
-                      ? "bg-neutral-700"
-                      : "bg-neutral-300"
-                  }
-                `}
-              >
-                <div
+            <h3 className="sticky top-0 bg-neutral-50 z-10">{t("Notifications")}</h3>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-sm">
+                <span>{t("now playing alerts")}</span>
+                <button
+                  type="button"
+                  onClick={handleNowPlayingNotificationsToggle}
+                  aria-pressed={settings.now_playing_notifications}
+                  title={t("now playing alerts")}
                   className={`
-                    h-4 w-4 rounded-full bg-neutral-50 shadow-sm
-                    transition-transform duration-200
+                    relative inline-flex h-5 w-9 items-center rounded-full
+                    p-0.5 transition-colors
                     ${
                       settings.now_playing_notifications
-                        ? "translate-x-4"
-                        : "translate-x-0"
+                        ? "bg-neutral-700"
+                        : "bg-neutral-300"
                     }
                   `}
-                />
-              </button>
-            </div>
-            {settings.now_playing_notifications && notificationPermission && !notificationPermission.granted && (
-              <button
-                type="button"
-                className="text-left text-xs text-neutral-500 underline underline-offset-2 cursor-pointer"
-                onClick={() => setOpenNotificationModal(true)}
+                >
+                  <div
+                    className={`
+                      h-4 w-4 rounded-full bg-neutral-50 shadow-sm
+                      transition-transform duration-200
+                      ${
+                        settings.now_playing_notifications
+                          ? "translate-x-4"
+                          : "translate-x-0"
+                      }
+                    `}
+                  />
+                </button>
+              </div>
+              {settings.now_playing_notifications && notificationPermission && !notificationPermission.granted && (
+                <button
+                  type="button"
+                  className="text-left text-sm text-neutral-500 cursor-pointer"
+                  onClick={() => setOpenNotificationModal(true)}
+                >
+                  {t("Notifications are blocked on this device. Open settings.")}
+                </button>
+              )}
+              <a
+                href={ANDROID_PRIVACY_POLICY_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-neutral-500"
               >
-                {t("Notifications are blocked on this device. Open settings.")}
-              </button>
-            )}
-            <a
-              href={ANDROID_PRIVACY_POLICY_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-neutral-500 underline underline-offset-2"
-            >
-              {t("Android app privacy policy")}
-            </a>
+                {t("Android app privacy policy")}
+              </a>
+            </div>
           </section>
         )}
 
         <section className="w-full flex flex-col gap-6">
-          <h3 ref={languagePacksRef} className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Language packs")}</h3>
+          <h3 ref={languagePacksRef} className="sticky top-0 bg-neutral-50 z-10 w-full pb-1">{t("Language packs")}</h3>
           <p className="text-sm">
             {t("To reduce storage, keep a single language version.")}
           </p>
@@ -787,7 +789,7 @@ export default function Setting() {
         <LocalLibrarySection disabled={GRADSHOW_MODE} />
 
          <section className="w-full flex flex-col gap-6 items-start">
-          <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full">{t("Debug")}</h3>
+          <h3 className="sticky top-0 bg-neutral-50 z-10 w-full">{t("Debug")}</h3>
           <div className="flex flex-col items-start text-sm gap-3">
             <div className="flex items-center gap-2 text-sm">
               <span>{t("Don't show this again")}</span>
@@ -816,7 +818,7 @@ export default function Setting() {
         </section>
 
         <section className="w-full flex flex-col gap-6 items-start">
-          <h3 className="sticky top-0 bg-neutral-50 font-pretendard! z-10 w-full pb-1">{t("Profile")}</h3>
+          <h3 className="sticky top-0 bg-neutral-50 z-10 w-full pb-1">{t("Profile")}</h3>
           <fieldset
             disabled={GRADSHOW_MODE}
             className={GRADSHOW_MODE ? "min-w-0 border-0 p-0 opacity-45 pointer-events-none" : "min-w-0 border-0 p-0"}

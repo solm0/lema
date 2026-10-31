@@ -654,7 +654,7 @@ export default function PageCore({
       <div
         ref={containerRef}
         className={`relative flex min-h-full w-full flex-col isolate ${containerAlignClass} ${
-          pageId ? "px-4 md:px-6 pt-24" : (contentPaddingClass ?? "p-3")
+          pageId ? "px-4 md:px-6 pt-35 md:pt-24" : (contentPaddingClass ?? "p-3")
         } ${settings.lemma_info ? `${syncPlaybackActive ? 'gap-y-28':'gap-y-5'}` : `${syncPlaybackActive ? 'gap-y-5':''}`}`}
         style={{
           userSelect: "none",

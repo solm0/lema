@@ -355,16 +355,16 @@ export default function PageCard({
     >
       <div className="flex w-full items-center gap-1.5 pr-1">
         {notebook &&
-          <div className="flex shrink-0 items-center gap-1 text-neutral-500">
+          <div className="flex shrink-0 items-center gap-1 text-neutral-600 md:text-neutral-500">
             {expanded ? (
-              <ChevronDown size={13} className="opacity-65" />
+              <ChevronDown  className="w-3.5 h-3.5" />
             ) : (
-              <ChevronRight size={13} className="opacity-65" />
+              <ChevronRight className="w-3.5 h-3.5" />
             )}
           </div>
         }
 
-        <div className="min-w-0 flex-1 text-[0.8rem]">
+        <div className="min-w-0 flex-1 text-sm md:text-[0.8rem]">
           {editing ? (
             <input
               data-no-drag="true"
@@ -385,7 +385,7 @@ export default function PageCard({
             />
           ) : (
             <div className="flex min-w-0 items-center gap-2">
-              <p className={`truncate font-[450] select-none ${selected || isActivePage || (!isMobileLike && hovered) ? 'text-neutral-800' : 'text-neutral-500'}`}>
+              <p className={`truncate font-medium md:font-[450] select-none ${selected || isActivePage || (!isMobileLike && hovered) ? 'text-neutral-800' : 'text-neutral-600 md:text-neutral-500'}`}>
                 {item.type === "page" ? item.page.name : item.notebook.name}
               </p>
               {page ? (

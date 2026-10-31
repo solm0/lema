@@ -20,7 +20,6 @@ type TodayExample = {
   language: string;
   block: TextBlock;
   lemmaInfo: Record<string, LemmaData>;
-  targetKey: string;
 };
 
 function keyParts(key: string) {
@@ -84,7 +83,6 @@ export function NewPage() {
             language: exampleLanguage,
             block,
             lemmaInfo,
-            targetKey: lookup.key,
           });
           return;
         }
@@ -94,7 +92,6 @@ export function NewPage() {
           language: exampleLanguage,
           block,
           lemmaInfo,
-          targetKey: lookup.key,
         });
         return;
         } catch {
@@ -141,10 +138,10 @@ export function NewPage() {
 
   return (
     <div className="flex h-full w-full min-w-0 bg-neutral-100">
-      <div className="relative flex min-w-0 flex-1 items-end justify-center px-3 pb-4 md:px-6 md:pb-6">
+      <div className="relative flex min-w-0 flex-1 items-end justify-center p-6 pb-8 md:px-6 md:pb-6">
         {todayExample ? (
-        <section className="absolute inset-x-6 top-20 text-left flex flex-col gap-4 md:top-24">
-          <p className="text-xs text-neutral-400 pl-1">오늘의 예문</p>
+        <section className="absolute inset-x-6 top-35 md:top-24 text-left flex flex-col gap-4">
+          <p className="text-xs text-neutral-400 pl-1">{t("Today's example")}</p>
           <div className="h-auto overflow-visible">
             <PageContent
               blocks={[todayExample.block]}
@@ -157,11 +154,6 @@ export function NewPage() {
               horizontalAlign="left"
               contentPaddingClass="p-0"
               allowOverflow
-              getTokenClassName={({ key }) =>
-                key === todayExample.targetKey
-                  ? "relative z-10 before:pointer-events-none before:absolute before:inset-0 before:-mx-2 before:-my-1 before:-z-10 before:rounded-full before:bg-accent/50 before:content-['']"
-                  : undefined
-              }
             />
           </div>
         </section>

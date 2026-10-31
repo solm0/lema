@@ -108,8 +108,7 @@ html[data-theme="lema-light"] {
 
 @media (max-width: 767px) {
   .mobile-page-heading {
-    font-size: var(--text-lg);
-    line-height: var(--text-lg--line-height);
+    font-size: var(--text-xl);
     text-align: center;
   }
 }

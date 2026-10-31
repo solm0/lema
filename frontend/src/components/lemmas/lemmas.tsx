@@ -564,7 +564,7 @@ export default function Lemmas() {
                       <col key={index} style={{ width }} />
                     ))}
                   </colgroup>
-                  <thead className="sticky top-10 z-20 bg-neutral-50 font-pretendard text-left select-none text-xs font-normal text-neutral-400">
+                  <thead className="sticky top-10 z-20 bg-neutral-50 font-pretendard text-left select-none text-xs font-normal text-neutral-600 md:text-neutral-400">
                     <tr>
                       {headers.map((header, index) => (
                         <th

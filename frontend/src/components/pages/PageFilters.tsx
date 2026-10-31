@@ -37,13 +37,13 @@ export function FilterSelect({
     >
       <label
         className={`relative flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-full transition-colors hover:bg-neutral-400/20 ${
-          selectedValue ? "h-6 flex-1 pl-1.5 pr-1.5" : "h-6 w-6"
+          selectedValue ? "h-8 md:h-6 flex-1 pl-2 pr-2 md:pl-1.5 md:pr-1.5" : "h-8 w-8 md:h-6 md:w-6"
         }`}
         title={title}
       >
         <span className="shrink-0">{icon}</span>
         {selectedLabel ? (
-          <span className="min-w-0 truncate text-xs">{selectedLabel}</span>
+          <span className="min-w-0 truncate text-sm md:text-xs">{selectedLabel}</span>
         ) : null}
         <select
           value={selectedValue ?? ""}
@@ -132,16 +132,16 @@ export function PageFilters({
   ];
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden text-xs pl-0.5">
+    <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden text-sm md:text-xs pl-0 md:pl-0.5">
       <FilterSelect
-        icon={<Languages size={14} />}
+        icon={<Languages className="w-4 h-4 md:w-3.5 md:h-3.5" />}
         options={languageOptions}
         selectedValue={selectedLanguage}
         title={t("Filter by language")}
         onChange={onLanguageChange}
       />
       <FilterSelect
-        icon={<FileInput size={14} />}
+        icon={<FileInput className="w-4 h-4 md:w-3.5 md:h-3.5" />}
         options={sourceOptions}
         selectedValue={selectedSource}
         title={t("Filter by input method")}
