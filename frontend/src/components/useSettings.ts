@@ -20,6 +20,7 @@ export type AppSettings = {
   now_playing_notifications: boolean;
   hide_lemma_swipe_hint: boolean;
   show_kwic_debug: boolean;
+  recap_languages: string[];
 };
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -29,6 +30,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   now_playing_notifications: true,
   hide_lemma_swipe_hint: false,
   show_kwic_debug: false,
+  recap_languages: [],
 };
 
 let cachedSettings: AppSettings | null = null;

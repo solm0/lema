@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowRight,
   GraduationCap,
   Info,
   ListFilter,
@@ -34,6 +35,7 @@ import { hasLemmaPackInstalled } from "../util/LanguageSelect";
 import { useLayout } from "../RootLayout";
 import { useI18n } from "../../i18n";
 import { IconButton } from "../util/Button";
+import { useSettings } from "../useSettings";
 import { LANGUAGE_NAMES } from "../lemma_expansions/KnownWordsMilestoneToast";
 
 const POS_ORDER = [
@@ -152,6 +154,7 @@ function Timeline({
 
 export default function Lemmas() {
   const { t } = useI18n();
+  const { settings } = useSettings();
   const { setTitlebarAction, setPanelOpen } = useLayout();
   const [items, setItems] = useState<UserLemmaDatabaseItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -231,8 +234,8 @@ export default function Lemmas() {
       .catch(() => setMilestones({}));
   }, []);
   const loadRecap = useCallback(() => {
-    void getLemmaRecap().then(setRecap).catch(() => setRecap(null));
-  }, []);
+    void getLemmaRecap(settings.recap_languages).then(setRecap).catch(() => setRecap(null));
+  }, [settings.recap_languages]);
   useEffect(() => {
     loadRecap();
   }, [loadRecap]);
@@ -409,15 +412,26 @@ export default function Lemmas() {
           <section className="flex w-full min-w-0 flex-col items-start">
             <h3 className="mb-3">Recap</h3>
             {recap?.state === "warming_up" ? (
-              <p className="text-sm text-neutral-400">
-                다음 주부터 Lemma Revival을 시작할 수 있어요. 이번 주 쇼윈도 단어를 먼저 만나 보세요.
-              </p>
+              <div className="w-full bg-accent h-100 rounded-3xl p-7 flex flex-col justify-between">
+                <div className="flex flex-col gap-3">
+                  <p className="max-w-[60ch] text-2xl text-neutral-50 font-medium">
+                    다음 주부터 Recap을 시작할 수 있어요.
+                  </p>
+                  <p className="max-w-[60ch] text-neutral-50 font-medium opacity-80">
+                    이번 주 쇼윈도 단어를 먼저 만나 보세요.
+                  </p>
+                </div>
+                <button className="bg-neutral-50 px-5 py-2 self-end text-xl font-semibold rounded-full flex items-center gap-1">
+                  보기
+                  <ArrowRight size={20} />
+                </button>
+              </div>
             ) : recap?.state === "completed" ? (
               <p className="text-sm text-neutral-400">이번 주 리캡 완료</p>
             ) : recap?.state === "daily_complete" ? (
               <p className="text-sm text-neutral-400">오늘의 리캡 완료</p>
             ) : recap?.available ? (
-              <Recap onFinished={loadRecap} />
+              <Recap onFinished={loadRecap} languages={settings.recap_languages} />
             ) : null}
           </section>
           <section className="flex w-full min-w-0 flex-col items-start gap-6">

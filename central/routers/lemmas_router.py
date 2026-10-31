@@ -150,7 +150,9 @@ def _expire_old_recap_weeks(db: Session, user_id: int, current_week: str, now: d
         week.expired_at = now
 
 
-def _select_showcase_lemmas(db: Session, user_id: int, week_start: date) -> list[str]:
+def _select_showcase_lemmas(
+    db: Session, user_id: int, week_start: date, languages: set[str] | None = None,
+) -> list[str]:
     """Apply the agreed priority order, with no hidden repetition correction."""
     recent_failure_cutoff = datetime.combine(week_start - timedelta(days=7), datetime.min.time())
     rows = db.query(UserLemma).filter(
@@ -158,6 +160,8 @@ def _select_showcase_lemmas(db: Session, user_id: int, week_start: date) -> list
         (UserLemma.is_known.is_(True)) | (UserLemma.is_interested.is_(True)),
         (UserLemma.last_recap_failed_at.is_(None)) | (UserLemma.last_recap_failed_at < recent_failure_cutoff),
     ).all()
+    if languages:
+        rows = [row for row in rows if _key_parts(row.lemma_key)[2] in languages]
 
     def by_decay(states: list[UserLemma]) -> list[UserLemma]:
         return sorted(states, key=lambda state: (_decay(state), state.id), reverse=True)
@@ -184,7 +188,9 @@ def _select_showcase_lemmas(db: Session, user_id: int, week_start: date) -> list
     return selected
 
 
-def _ensure_recap_week(db: Session, user_id: int, timezone: str) -> tuple[UserRecapWeek, date]:
+def _ensure_recap_week(
+    db: Session, user_id: int, timezone: str, languages: set[str] | None = None,
+) -> tuple[UserRecapWeek, date]:
     today = _recap_day(timezone)
     current_week = _week_key(today)
     now = datetime.utcnow()
@@ -216,7 +222,9 @@ def _ensure_recap_week(db: Session, user_id: int, timezone: str) -> tuple[UserRe
                 position=position,
             ))
 
-    for position, lemma_key in enumerate(_select_showcase_lemmas(db, user_id, _week_start(today)), start=1):
+    for position, lemma_key in enumerate(
+        _select_showcase_lemmas(db, user_id, _week_start(today), languages), start=1
+    ):
         db.add(UserRecapItem(
             recap_week_id=week.id,
             lemma_key=lemma_key,
@@ -429,11 +437,13 @@ def get_lemma_milestones(
 @router.get("/lemma/recap")
 def get_recap(
     timezone: str = Query(default="UTC", min_length=1, max_length=64),
+    languages: str | None = Query(default=None, max_length=256),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Return this week's fixed test group and its next-week showcase."""
-    week, today = _ensure_recap_week(db, current_user.id, timezone)
+    selected_languages = {value for value in (languages or "").split(",") if value}
+    week, today = _ensure_recap_week(db, current_user.id, timezone, selected_languages or None)
     tests = db.query(UserRecapItem).filter_by(
         recap_week_id=week.id,
         kind="test",
@@ -460,14 +470,48 @@ def get_recap(
     }
 
 
+@router.post("/lemma/recap/showcase/reroll")
+def reroll_recap_showcase(
+    timezone: str = Query(default="UTC", min_length=1, max_length=64),
+    languages: str | None = Query(default=None, max_length=256),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Debug-only client action: replace this week's next-test showcase."""
+    selected_languages = {value for value in (languages or "").split(",") if value}
+    week, today = _ensure_recap_week(db, current_user.id, timezone, selected_languages or None)
+    db.query(UserRecapItem).filter_by(
+        recap_week_id=week.id,
+        kind="showcase",
+    ).delete(synchronize_session=False)
+    for position, lemma_key in enumerate(
+        _select_showcase_lemmas(db, current_user.id, _week_start(today), selected_languages or None),
+        start=1,
+    ):
+        db.add(UserRecapItem(
+            recap_week_id=week.id,
+            lemma_key=lemma_key,
+            kind="showcase",
+            position=position,
+        ))
+    db.commit()
+    rows = db.query(UserRecapItem).filter_by(
+        recap_week_id=week.id,
+        kind="showcase",
+    ).order_by(UserRecapItem.position.asc()).all()
+    return {"items": [_serialize_recap_item(item) for item in rows]}
+
+
 @router.post("/lemma/recap/session")
 def start_recap_session(
     timezone: str = Query(default="UTC", min_length=1, max_length=64),
+    languages: str | None = Query(default=None, max_length=256),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Open (or resume) today's one two-word Revival session."""
-    week, today = _ensure_recap_week(db, current_user.id, timezone)
+    selected_languages = {value for value in (languages or "").split(",") if value}
+    week, today = _ensure_recap_week(db, current_user.id, timezone, selected_languages or None)
     if week.completed_at or week.expired_at:
         raise HTTPException(status_code=409, detail="recap week is not active")
     today_key = today.isoformat()

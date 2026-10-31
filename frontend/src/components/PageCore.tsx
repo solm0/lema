@@ -508,6 +508,8 @@ export default function PageCore({
   interestKeys,
   wrapperStyle,
   horizontalAlign = "center",
+  contentPaddingClass,
+  allowOverflow = false,
 }: {
   pageId?: string;
   pageName?: string;
@@ -544,6 +546,9 @@ export default function PageCore({
   overlay?: ReactNode;
   wrapperStyle?: CSSProperties;
   horizontalAlign?: "left" | "right" | "center";
+  /** Override the compact non-page padding for embedded surfaces. */
+  contentPaddingClass?: string;
+  allowOverflow?: boolean;
 }) {
   let globalIndex = 0;
 
@@ -640,14 +645,16 @@ export default function PageCore({
   return (
     <div
       ref={scrollContainerRef}
-      className="relative flex h-full min-h-0 flex-1 justify-center overflow-y-auto overflow-x-hidden no-scrollbar"
+      className={`relative flex h-full min-h-0 flex-1 justify-center no-scrollbar ${
+        allowOverflow ? "overflow-visible" : "overflow-y-auto overflow-x-hidden"
+      }`}
       style={wrapperStyle}
     >
       
       <div
         ref={containerRef}
         className={`relative flex min-h-full w-full flex-col isolate ${containerAlignClass} ${
-          pageId ? "px-4 md:px-6 pt-24" : 'p-3'
+          pageId ? "px-4 md:px-6 pt-24" : (contentPaddingClass ?? "p-3")
         } ${settings.lemma_info ? `${syncPlaybackActive ? 'gap-y-28':'gap-y-5'}` : `${syncPlaybackActive ? 'gap-y-5':''}`}`}
         style={{
           userSelect: "none",

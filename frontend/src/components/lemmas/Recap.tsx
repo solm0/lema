@@ -59,7 +59,7 @@ async function makeQuestion(item: RecapItem): Promise<RecapQuestion & { answer_k
   };
 }
 
-export function Recap({ onFinished }: { onFinished: () => void }) {
+export function Recap({ onFinished, languages = [] }: { onFinished: () => void; languages?: string[] }) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<RecapItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -91,7 +91,7 @@ export function Recap({ onFinished }: { onFinished: () => void }) {
     setLoading(true);
     setError("");
     try {
-      const session = await startLemmaRecapSession();
+      const session = await startLemmaRecapSession(languages);
       setItems(session.items);
       setIndex(0);
       setOpen(true);

@@ -43,6 +43,7 @@ type DeskProps = {
   lemmaInfo?: Record<string, LemmaData>;
   interestKeys?: Set<string>;
   userExampleCapture?: UserLemmaExampleCapture;
+  saveUserExample?: boolean;
   onKnownWordsMilestone?: (milestone: KnownWordsMilestone) => void;
   startMemoEditing?: boolean;
 };
@@ -61,6 +62,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk(
     lemmaInfo,
     interestKeys,
     userExampleCapture,
+    saveUserExample = true,
     onKnownWordsMilestone,
     startMemoEditing,
   },
@@ -141,6 +143,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk(
   useEffect(() => {
     if (
       !userExampleCapture ||
+      !saveUserExample ||
       savedUserExampleRef.current ||
       activeKey !== initialLemma.key
     )
@@ -192,6 +195,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk(
     initialLemma.key,
     language,
     userExampleCapture,
+    saveUserExample,
   ]);
 
   useEffect(() => {

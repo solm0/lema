@@ -41,6 +41,9 @@ export default function PageContent({
   scrollRef,
   setAnnotations,
   horizontalAlign = "center",
+  contentPaddingClass,
+  getTokenClassName,
+  allowOverflow = false,
 }: {
   blocks: TextBlock[];
   lemmaInfo: Record<string, LemmaData>;
@@ -62,6 +65,9 @@ export default function PageContent({
   scrollRef?: (fn: (startIndex: number) => void) => void;
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   horizontalAlign?: "left" | "right" | "center";
+  contentPaddingClass?: string;
+  getTokenClassName?: (args: { token: Token; key: string | null }) => string | undefined;
+  allowOverflow?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -543,6 +549,8 @@ export default function PageContent({
       onPointerCancel={handlePointerCancel}
       wrapperStyle={{ touchAction: isSelecting ? "none" : "pan-y" }}
       horizontalAlign={horizontalAlign}
+      contentPaddingClass={contentPaddingClass}
+      allowOverflow={allowOverflow}
       interestKeys={interestKeys}
       getTokenProps={({ token, index, blockIndex, tokenIndex }) => {
         const key = getLookupKey(token, language);
@@ -594,6 +602,7 @@ export default function PageContent({
                 : ''}
             ${isSelected && 'bg-neutral-200 after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-neutral-200 after:content-[\"\"]'}
             ${!info && "text-neutral-400"}
+            ${getTokenClassName?.({ token, key }) ?? ""}
             `,
           "data-gap-fill-active":
             isSelected || isInPanel || isInHover ? "true" : undefined,

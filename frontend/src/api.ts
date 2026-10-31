@@ -863,25 +863,43 @@ function recapTimezone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 
-export async function getLemmaRecap(): Promise<RecapState> {
+function recapParams(languages: string[]) {
+  const params = new URLSearchParams({ timezone: recapTimezone() });
+  if (languages.length) params.set("languages", languages.join(","));
+  return params;
+}
+
+export async function getLemmaRecap(languages: string[] = []): Promise<RecapState> {
   const headers = authHeaders();
   if (!headers) throw new Error("not authenticated");
-  const params = new URLSearchParams({ timezone: recapTimezone() });
+  const params = recapParams(languages);
   const response = await centralFetch(`${CENTRAL_API}/lemma/recap?${params}`, { headers });
   if (!response.ok) throw new Error("recap request failed");
   return response.json() as Promise<RecapState>;
 }
 
-export async function startLemmaRecapSession(): Promise<{ week_start: string; items: RecapItem[] }> {
+export async function startLemmaRecapSession(languages: string[] = []): Promise<{ week_start: string; items: RecapItem[] }> {
   const headers = authHeaders();
   if (!headers) throw new Error("not authenticated");
-  const params = new URLSearchParams({ timezone: recapTimezone() });
+  const params = recapParams(languages);
   const response = await centralFetch(`${CENTRAL_API}/lemma/recap/session?${params}`, {
     method: "POST",
     headers,
   });
   if (!response.ok) throw new Error("recap session request failed");
   return response.json() as Promise<{ week_start: string; items: RecapItem[] }>;
+}
+
+export async function rerollLemmaRecapShowcase(languages: string[] = []): Promise<RecapItem[]> {
+  const headers = authHeaders();
+  if (!headers) throw new Error("not authenticated");
+  const response = await centralFetch(`${CENTRAL_API}/lemma/recap/showcase/reroll?${recapParams(languages)}`, {
+    method: "POST",
+    headers,
+  });
+  if (!response.ok) throw new Error("recap reroll failed");
+  const data = (await response.json()) as { items?: RecapItem[] };
+  return Array.isArray(data.items) ? data.items : [];
 }
 
 export async function saveLemmaRecapQuestion(

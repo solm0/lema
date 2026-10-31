@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import {
   deleteAccount,
   getLatestVersionInfo,
+  getInstalled,
+  getLemmaRecap,
   isNewerVersion,
   resetLemmaProfile,
+  rerollLemmaRecapShowcase,
   type LatestVersionInfo,
   updateName,
   verifyToken,
@@ -33,6 +36,7 @@ import { ANDROID_PRIVACY_POLICY_URL } from "../../config";
 import { clearLocalLibrary, exportLocalLibrary, importLocalLibrary } from "../../localLibrary";
 import ThemeLogo from "../ThemeLogo";
 import { GRADSHOW_MODE, GRADSHOW_USER } from "../../gradshow/mode";
+import type { RecapState } from "../pageTypes";
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -492,6 +496,9 @@ export default function Setting() {
   const [notificationPermission, setNotificationPermission] =
     useState<AppNotificationPermissionStatus | null>(null);
   const [openNotificationModal, setOpenNotificationModal] = useState(false);
+  const [recapLanguages, setRecapLanguages] = useState<string[]>([]);
+  const [debugRecap, setDebugRecap] = useState<RecapState | null>(null);
+  const [rerollingRecap, setRerollingRecap] = useState(false);
   const languagePacksRef = useRef<HTMLHeadingElement | null>(null);
   const {
     settings,
@@ -522,6 +529,32 @@ export default function Setting() {
       window.removeEventListener("focus", loadPermission);
     };
   }, [mobileApp]);
+
+  useEffect(() => {
+    if (GRADSHOW_MODE) return;
+    void getInstalled()
+      .then((packs: Array<{ lang: string; lemma_installed?: boolean; installed?: boolean }>) => {
+        const languages = [...new Set(
+          packs
+            .filter((pack) => pack.lemma_installed || pack.installed)
+            .map((pack) => pack.lang),
+        )].sort();
+        setRecapLanguages(languages);
+        setSettings((previous) => previous.recap_languages.length
+          ? previous
+          : { ...previous, recap_languages: languages });
+      })
+      .catch(() => setRecapLanguages([]));
+  }, []);
+
+  const loadDebugRecap = useCallback(() => {
+    if (GRADSHOW_MODE) return;
+    void getLemmaRecap(settings.recap_languages).then(setDebugRecap).catch(() => setDebugRecap(null));
+  }, [settings.recap_languages]);
+
+  useEffect(() => {
+    loadDebugRecap();
+  }, [loadDebugRecap]);
 
   useEffect(() => {
     if (location.state?.scrollTo !== "language-packs") return;
@@ -578,6 +611,25 @@ export default function Setting() {
     setSettings((prev) => ({ ...prev, theme: nextTheme as ThemeId }));
   }
 
+  function toggleRecapLanguage(language: string) {
+    setSettings((previous) => ({
+      ...previous,
+      recap_languages: previous.recap_languages.includes(language)
+        ? previous.recap_languages.filter((value) => value !== language)
+        : [...previous.recap_languages, language],
+    }));
+  }
+
+  async function rerollRecap() {
+    setRerollingRecap(true);
+    try {
+      await rerollLemmaRecapShowcase(settings.recap_languages);
+      loadDebugRecap();
+    } finally {
+      setRerollingRecap(false);
+    }
+  }
+
   return (
     <>
       <div className="w-full h-full overflow-y-scroll overflow-x-hidden flex flex-col gap-21 pr-3 z-30 pl-3 md:pl-6 bg-neutral-50 pb-7">
@@ -632,6 +684,23 @@ export default function Setting() {
                     />
                   ) : null}
                 </div>
+              </div>
+
+              <div className="flex flex-col items-start gap-2">
+                <span>Recap languages</span>
+                <div className="flex flex-wrap gap-2">
+                  {recapLanguages.map((language) => (
+                    <label key={language} className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={settings.recap_languages.includes(language)}
+                        onChange={() => toggleRecapLanguage(language)}
+                      />
+                      <span>{language}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-neutral-400">Choose the languages included when the next showcase is selected.</p>
               </div>
             </div>
           </div>
@@ -723,6 +792,12 @@ export default function Setting() {
                 value={settings.show_kwic_debug}
                 toggleSetting={toggleSetting}
               />
+            </div>
+            <div className="flex flex-col gap-2 text-xs text-neutral-500">
+              <span>Current recap words</span>
+              <span>Test: {debugRecap?.test_items.map((item) => item.lemma_key).join(", ") || "—"}</span>
+              <span>Showcase: {debugRecap?.showcase_items.map((item) => item.lemma_key).join(", ") || "—"}</span>
+              <Button text={rerollingRecap ? "Rerolling..." : "Reroll showcase"} onClick={() => void rerollRecap()} disabled={rerollingRecap || GRADSHOW_MODE} />
             </div>
           </div>
         </section>

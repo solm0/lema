@@ -1285,7 +1285,7 @@ export default function PageLayout() {
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
-      {isMobileLike && currentPageId === null ? (
+      {isMobileLike && currentPageId === null && location.pathname !== "/" ? (
         <h2 className="mobile-page-heading shrink-0 px-12 pt-3 pb-2">
           {t("Pages")}
         </h2>
