@@ -8,15 +8,21 @@ import {
 } from "react";
 import Breadcrumb, { type D3Node } from "./Breadcrumb.tsx";
 import type { TreeNode } from "../../types.ts";
-import type { LemmaData, UserLemmaState } from "../pageTypes.ts";
+import type { LemmaData, UserLemmaExample, UserLemmaExampleCapture, UserLemmaState } from "../pageTypes.ts";
 import LemmaExpansionWrapper from "./LemmaExpansionWrapper.tsx";
-import { getLemmaProfile, updateLemmaState } from "../../api.ts";
+import {
+  getLemmaProfile,
+  getUserLemmaExamples,
+  saveUserLemmaExample,
+  updateLemmaState,
+} from "../../api.ts";
 import { isCapacitorApp } from "../../platform.ts";
 import KnownWordsMilestoneToast, { type KnownWordsMilestone } from "./KnownWordsMilestoneToast.tsx";
 import { isKnownWordsMilestone } from "./knownWordMilestones.ts";
 import { useOptionalLayout } from "../RootLayout.tsx";
 
 const EXPOSURE_DELAY_MS = 750;
+const USER_EXAMPLE_DELAY_MS = 5_000;
 const MAX_EXPOSURE_COUNT = 10;
 
 export type DeskHandle = {
@@ -29,6 +35,7 @@ type DeskProps = {
   language: string;
   lemmaInfo?: Record<string, LemmaData>;
   interestKeys?: Set<string>;
+  userExampleCapture?: UserLemmaExampleCapture;
   onKnownWordsMilestone?: (milestone: KnownWordsMilestone) => void;
 };
 
@@ -44,6 +51,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
   language,
   lemmaInfo,
   interestKeys,
+  userExampleCapture,
   onKnownWordsMilestone,
 }, ref) {
   const layout = useOptionalLayout();
@@ -56,12 +64,14 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
   const [hasExplored, setHasExplored] = useState(false);
   const [knownWordsMilestone, setKnownWordsMilestone] = useState<KnownWordsMilestone | null>(null);
   const [isMemoEditing, setIsMemoEditing] = useState(false);
+  const [userExamples, setUserExamples] = useState<UserLemmaExample[]>([]);
   const breadcrumbOpen = layout?.breadcrumbOpen ?? true;
   const profileRef = useRef(profile);
   const profileLoadRef = useRef<Promise<Record<string, UserLemmaState>> | null>(null);
   const knownCountsRef = useRef<Record<string, number>>({});
   const exposedThisSessionRef = useRef(new Set<string>());
   const prevActiveLemmaRef = useRef<string | null>(null);
+  const savedUserExampleRef = useRef(false);
 
   useEffect(() => {
     profileRef.current = profile;
@@ -90,6 +100,70 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
   const activeGlobalKey = activeKey
     ? activeData?.global_key ?? toGlobalKey(activeKey, language)
     : null;
+  const initialGlobalKey = initialLemma.global_key ?? toGlobalKey(initialLemma.key, language);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getUserLemmaExamples(activeGlobalKey ?? initialGlobalKey)
+      .then((examples) => {
+        if (!cancelled) setUserExamples(examples);
+      })
+      .catch(() => {
+        if (!cancelled) setUserExamples([]);
+      });
+    return () => { cancelled = true; };
+  }, [activeGlobalKey, initialGlobalKey]);
+
+  useEffect(() => {
+    if (
+      !userExampleCapture
+      || savedUserExampleRef.current
+      || activeKey !== initialLemma.key
+    ) return;
+
+    let remaining = USER_EXAMPLE_DELAY_MS;
+    let startedAt = 0;
+    let timer: number | null = null;
+    let cancelled = false;
+
+    const clearTimer = () => {
+      if (timer !== null) window.clearTimeout(timer);
+      timer = null;
+    };
+    const save = () => {
+      if (cancelled || savedUserExampleRef.current) return;
+      savedUserExampleRef.current = true;
+      void saveUserLemmaExample({
+        lemma_key: initialGlobalKey,
+        language,
+        ...userExampleCapture,
+      }).then(() => getUserLemmaExamples(initialGlobalKey)).then((examples) => {
+        if (!cancelled) setUserExamples(examples);
+      }).catch(() => undefined);
+    };
+    const resume = () => {
+      if (document.visibilityState !== "visible" || timer !== null) return;
+      startedAt = performance.now();
+      timer = window.setTimeout(save, remaining);
+    };
+    const pause = () => {
+      if (timer === null) return;
+      remaining = Math.max(0, remaining - (performance.now() - startedAt));
+      clearTimer();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") resume();
+      else pause();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    resume();
+    return () => {
+      cancelled = true;
+      clearTimer();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [activeKey, initialGlobalKey, initialLemma.key, language, userExampleCapture]);
 
   useEffect(() => {
     if (!activeGlobalKey || exposedThisSessionRef.current.has(activeGlobalKey)) return;
@@ -109,6 +183,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
           ?? interestKeys?.has(activeGlobalKey)
           ?? false,
         memo: current?.memo ?? "",
+        created_at: current?.created_at ?? new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       profileRef.current = { ...profileRef.current, [activeGlobalKey]: next };
@@ -135,6 +210,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
         ?? interestKeys?.has(activeGlobalKey)
         ?? false,
       memo: current?.memo ?? "",
+      created_at: current?.created_at ?? new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
     profileRef.current = { ...profileRef.current, [activeGlobalKey]: next };
@@ -176,6 +252,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
         ?? interestKeys?.has(activeGlobalKey)
         ?? false,
       memo,
+      created_at: current?.created_at ?? new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
     profileRef.current = { ...profileRef.current, [activeGlobalKey]: next };
@@ -269,6 +346,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
           isKnown={activeGlobalKey ? profile[activeGlobalKey]?.is_known ?? false : false}
           onToggleKnown={setActiveKnown}
           memo={activeGlobalKey ? profile[activeGlobalKey]?.memo ?? "" : ""}
+          userExamples={userExamples}
           onSaveMemo={setActiveMemo}
           onMemoEditingChange={setIsMemoEditing}
         />

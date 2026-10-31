@@ -315,6 +315,7 @@ export default function ResponsiveSideLayout({
   const cardOpacity = 1 - progress * 0.62;
   const rightSwipeTintOpacity = dragX > 0 ? progress * 0.82 : 0;
   const swipeHintStyle = getMobileSwipeHintMotionStyle(viewportWidth);
+  const cardTop = Math.round(window.innerHeight * 0.44);
 
   return createPortal(
     <div className="fixed inset-0 z-[1000] overflow-hidden" style={swipeHintStyle}>
@@ -335,12 +336,13 @@ export default function ResponsiveSideLayout({
       )}
 
       <div
-        className={`absolute left-1/2 top-[44%] w-[calc(100%-2rem)] max-w-lg touch-pan-y select-none transition-[transform,opacity] ${
+        className={`absolute left-1/2 top-auto w-[calc(100%-2rem)] max-w-lg touch-pan-y select-none transition-[transform,opacity] ${
           showSwipeHint ? "cursor-default" : ""
         } ${
           gestureRef.current?.horizontal ? "duration-0" : "duration-[220ms] ease-out"
         }`}
         style={{
+          top: cardTop,
           opacity: cardOpacity,
           transform: `translate(-50%, -50%) translate(${dragX}px, ${translateY}px) rotate(${rotation}deg) scale(${scale})`,
         }}

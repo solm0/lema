@@ -11,11 +11,11 @@ import {
   setInterest,
   updatePageMetadata,
 } from "../../api";
-import type { Annotation, LemmaData, TextAnalysisResult } from "../pageTypes";
+import type { Annotation, LemmaData, TextAnalysisResult, UserLemmaExampleCapture } from "../pageTypes";
 import ResponsiveSideLayout from "../util/ResponsiveSideLayout";
 import Desk, { type DeskHandle } from "../lemma_expansions/Desk";
 import KnownWordsMilestoneToast, { type KnownWordsMilestone } from "../lemma_expansions/KnownWordsMilestoneToast";
-import LemmaActivityToast from "../lemma_expansions/LemmaActivityToast";
+import LemmaActivityToast, { LemmaActivityToastProvider } from "../lemma_expansions/LemmaActivityToast";
 import { useLayout } from "../RootLayout";
 import { type Pack } from "../setting/PackTable";
 import BlockingLoadingModal from "../util/BlockingLoadingModal";
@@ -35,7 +35,7 @@ const LEMMA_PREFETCH_BLOCK_MARGIN = 8;
 const MAX_LOOKUP_BATCH_ITEMS = 100;
 
 export type SidePanelState =
-  | { type: "lemma"; data: LemmaData; language?: string }
+  | { type: "lemma"; data: LemmaData; language?: string; userExampleCapture?: UserLemmaExampleCapture }
   | { type: "annotation:new"; data: Annotation }
   | { type: "annotation:view"; data: Annotation }
   | null;
@@ -362,6 +362,7 @@ export default function PageView() {
   };
 
   return (
+    <LemmaActivityToastProvider>
     <div className="relative w-full h-full flex justify-center bg-neutral-50">
       <BlockingLoadingModal
         open={loadingMessage !== null}
@@ -443,6 +444,7 @@ export default function PageView() {
                 language={panel.language ?? language}
                 lemmaInfo={lemmaInfo}
                 interestKeys={interestKeys}
+                userExampleCapture={panel.userExampleCapture}
                 onKnownWordsMilestone={setKnownWordsMilestone}
               />
             )}
@@ -455,5 +457,6 @@ export default function PageView() {
         onClose={() => setKnownWordsMilestone(null)}
       />
     </div>
+    </LemmaActivityToastProvider>
   );
 }

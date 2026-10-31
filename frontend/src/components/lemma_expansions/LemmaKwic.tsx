@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { TokenInLemmaExpansion } from "./TokenInLemmaExpansion";
-import type { KwicData, LemmaData } from "../pageTypes";
+import type { KwicData, LemmaData, UserLemmaExample } from "../pageTypes";
 import { IconButton } from "../util/Button";
 import { AlignCenterVertical } from "lucide-react";
 import { lemmaLookupProgressively } from "../../api";
@@ -282,6 +282,7 @@ export default function LemmaKwic({
   language,
   lemmaInfo,
   interestKeys,
+  userExamples = [],
 }: {
   data: KwicData[];
   onSelect: (tokenKey: string) => void;
@@ -289,6 +290,7 @@ export default function LemmaKwic({
   language: string;
   lemmaInfo?: Record<string, LemmaData>;
   interestKeys?: Set<string>;
+  userExamples?: UserLemmaExample[];
 }) {
   const { t } = useI18n();
   const [hovered, setHovered] = useState<{
@@ -464,10 +466,26 @@ export default function LemmaKwic({
         />
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-12 bg-gradient-to-b from-neutral-50 via-neutral-50/80 to-transparent" />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-12 bg-gradient-to-t from-neutral-50 via-neutral-50/80 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-12 bg-linear-to-b from-neutral-50 via-neutral-50/80 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 translate-y-1 bottom-0 z-20 h-12 bg-linear-to-t from-neutral-50 via-neutral-50/80 to-transparent" />
 
       <div className="h-full w-full shrink-0 flex-col overflow-y-auto py-12 no-scrollbar">
+        {userExamples.map((example) => (
+          <div key={`user:${example.id}`} className="mb-1 bg-[var(--app-accent-200,#dbeafe)]/45">
+            <KwicRow
+              d={{ line_id: -example.id, match_indices: example.match_indices, tokens: example.tokens }}
+              lemma={lemma}
+              language={language}
+              onSelect={onSelect}
+              canSelectKey={canSelectKey}
+              hovered={hovered}
+              setHovered={setHovered}
+              lemmaInfo={availableKeys}
+              interestKeys={interestKeys}
+              onMisalignedChange={(misaligned) => { if (misaligned) setShowCenterButton(true); }}
+            />
+          </div>
+        ))}
         {data.map((d, i) => (
           <KwicRow
             key={`${lemma}:${d.line_id}:${i}`}

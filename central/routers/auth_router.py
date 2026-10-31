@@ -23,6 +23,7 @@ from models import (
   PasswordResetToken,
   User,
   UserLemma,
+  UserLemmaExample,
 )
 from services.auth_rate_limits import (
   email_send_limiter,
@@ -833,6 +834,7 @@ def delete_user_account(current_user: User, db: Session):
     user_id = current_user.id
 
     db.query(UserLemma).filter(UserLemma.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserLemmaExample).filter(UserLemmaExample.user_id == user_id).delete(synchronize_session=False)
     db.query(PasswordResetToken).filter(
         PasswordResetToken.user_id == user_id,
     ).delete(synchronize_session=False)

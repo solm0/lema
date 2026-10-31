@@ -59,7 +59,29 @@ class UserLemma(Base):
     is_known = Column(Boolean, nullable=False, default=False)
     is_interested = Column(Boolean, nullable=False, default=False)
     memo = Column(String(20), nullable=False, default="")
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     __table_args__ = (
         UniqueConstraint("user_id", "lemma_key"),
+    )
+
+
+class UserLemmaExample(Base):
+    """A user-owned sentence snapshot, shared by that user's devices."""
+
+    __tablename__ = "user_lemma_examples"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    lemma_key = Column(String, nullable=False, index=True)
+    language = Column(String(16), nullable=False)
+    text = Column(String, nullable=False)
+    tokens_json = Column(String, nullable=False)
+    match_indices_json = Column(String, nullable=False)
+    content_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=utc_now_naive)
+    last_seen_at = Column(DateTime, nullable=False, default=utc_now_naive)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "lemma_key", "content_hash"),
     )

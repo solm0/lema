@@ -3,6 +3,8 @@ import type {
   LemmaData,
   PageSource,
   TextAnalysisResult,
+  Token,
+  UserLemmaExample,
   UserLemmaState,
 } from "./components/pageTypes"
 import type { User } from "./types";
@@ -754,6 +756,37 @@ export async function updateLemmaState(
   if (synced) await invalidateLocalLemmaProfileCache();
   const profile = await getOfflineLemmaProfile();
   return profile[key];
+}
+
+export async function getUserLemmaExamples(key: string): Promise<UserLemmaExample[]> {
+  if (GRADSHOW_MODE) return [];
+  const headers = authHeaders();
+  if (!headers) return [];
+  const response = await centralFetch(`${CENTRAL_API}/lemma/examples?key=${encodeURIComponent(key)}`, {
+    method: "GET",
+    headers,
+  });
+  if (!response.ok) throw new Error("lemma examples request failed");
+  const data = await response.json() as { items?: UserLemmaExample[] };
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+export async function saveUserLemmaExample(input: {
+  lemma_key: string;
+  language: string;
+  text: string;
+  tokens: Token[];
+  match_indices: number[];
+}): Promise<void> {
+  if (GRADSHOW_MODE) return;
+  const headers = authHeaders();
+  if (!headers) return;
+  const response = await centralFetch(`${CENTRAL_API}/lemma/examples`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error("saving lemma example failed");
 }
 
 export async function getInterests(): Promise<string[]> {

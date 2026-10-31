@@ -1,11 +1,14 @@
 from datetime import datetime
+import hashlib
+import json
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from db import get_db
-from models import User, UserLemma
+from models import User, UserLemma, UserLemmaExample
+from services.lemma_example_limits import lemma_example_write_limiter
 from .auth_router import get_current_user
 
 
@@ -28,6 +31,61 @@ class LemmaStateRequest(BaseModel):
     memo: str | None = Field(default=None, max_length=20)
 
 
+class ExampleMorphRequest(BaseModel):
+    surface: str = Field(min_length=1, max_length=200)
+    lemma: str | None = Field(default=None, max_length=200)
+    pos: str | None = Field(default=None, max_length=64)
+
+
+class ExampleTokenRequest(BaseModel):
+    surface: str = Field(min_length=1, max_length=500)
+    lemma: str | None = Field(default=None, max_length=500)
+    pos: str | None = Field(default=None, max_length=64)
+    morphs: list[ExampleMorphRequest] | None = Field(default=None, max_length=32)
+
+
+class LemmaExampleRequest(BaseModel):
+    lemma_key: str = Field(min_length=3, max_length=600)
+    language: str = Field(min_length=2, max_length=16)
+    text: str = Field(min_length=1, max_length=8_000)
+    tokens: list[ExampleTokenRequest] = Field(min_length=1, max_length=300)
+    match_indices: list[int] = Field(min_length=1, max_length=32)
+
+
+MAX_EXAMPLES_PER_USER = 10_000
+
+
+def _example_payload(req: LemmaExampleRequest) -> tuple[str, str, str]:
+    if any(index < 0 or index >= len(req.tokens) for index in req.match_indices):
+        raise HTTPException(status_code=422, detail="match index is outside the token list")
+    tokens = [token.model_dump(exclude_none=True) for token in req.tokens]
+    match_indices = sorted(set(req.match_indices))
+    canonical = json.dumps(
+        {"lemma_key": req.lemma_key, "tokens": tokens},
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return (
+        json.dumps(tokens, ensure_ascii=False, separators=(",", ":")),
+        json.dumps(match_indices, separators=(",", ":")),
+        hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+    )
+
+
+def _serialize_example(example: UserLemmaExample) -> dict:
+    return {
+        "id": example.id,
+        "lemma_key": example.lemma_key,
+        "language": example.language,
+        "text": example.text,
+        "tokens": json.loads(example.tokens_json),
+        "match_indices": json.loads(example.match_indices_json),
+        "created_at": example.created_at.isoformat(),
+        "last_seen_at": example.last_seen_at.isoformat(),
+    }
+
+
 def _get_or_create_state(db: Session, user_id: int, key: str) -> UserLemma:
     state = db.query(UserLemma).filter_by(user_id=user_id, lemma_key=key).first()
     if state is None:
@@ -38,6 +96,7 @@ def _get_or_create_state(db: Session, user_id: int, key: str) -> UserLemma:
             is_known=False,
             is_interested=False,
             memo="",
+            created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )
         db.add(state)
@@ -51,6 +110,8 @@ def _serialize_state(state: UserLemma) -> dict:
         "is_known": bool(state.is_known),
         "is_interested": bool(state.is_interested),
         "memo": state.memo or "",
+        "created_at": (state.created_at or state.updated_at).isoformat()
+        if state.created_at or state.updated_at else None,
         "updated_at": state.updated_at.isoformat() if state.updated_at else None,
     }
 
@@ -83,6 +144,73 @@ def get_lemma_profile(
 ):
     rows = db.query(UserLemma).filter(UserLemma.user_id == current_user.id).all()
     return {"items": [_serialize_state(row) for row in rows]}
+
+
+@router.get("/lemma/examples")
+def get_lemma_examples(
+    key: str = Query(min_length=3, max_length=600),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    rows = (
+        db.query(UserLemmaExample)
+        .filter(
+            UserLemmaExample.user_id == current_user.id,
+            UserLemmaExample.lemma_key == key,
+        )
+        .order_by(UserLemmaExample.last_seen_at.desc(), UserLemmaExample.id.desc())
+        .limit(100)
+        .all()
+    )
+    return {"items": [_serialize_example(row) for row in rows]}
+
+
+@router.post("/lemma/examples")
+def save_lemma_example(
+    req: LemmaExampleRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    tokens_json, match_indices_json, content_hash = _example_payload(req)
+    existing = db.query(UserLemmaExample).filter_by(
+        user_id=current_user.id,
+        lemma_key=req.lemma_key,
+        content_hash=content_hash,
+    ).first()
+    now = datetime.utcnow()
+    if existing is not None:
+        existing.last_seen_at = now
+        db.commit()
+        db.refresh(existing)
+        return {"created": False, "item": _serialize_example(existing)}
+
+    retry_after = lemma_example_write_limiter.reserve(current_user.id)
+    if retry_after:
+        raise HTTPException(
+            status_code=429,
+            detail={"code": "lemma_example_rate_limited", "retry_after_seconds": retry_after},
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    count = db.query(UserLemmaExample).filter_by(user_id=current_user.id).count()
+    if count >= MAX_EXAMPLES_PER_USER:
+        raise HTTPException(status_code=409, detail={"code": "lemma_example_limit_reached"})
+
+    example = UserLemmaExample(
+        user_id=current_user.id,
+        lemma_key=req.lemma_key,
+        language=req.language,
+        text=req.text,
+        tokens_json=tokens_json,
+        match_indices_json=match_indices_json,
+        content_hash=content_hash,
+        created_at=now,
+        last_seen_at=now,
+    )
+    db.add(example)
+    db.commit()
+    db.refresh(example)
+    return {"created": True, "item": _serialize_example(example)}
 
 
 @router.post("/lemma/interest")

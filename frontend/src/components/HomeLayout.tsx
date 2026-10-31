@@ -1,7 +1,7 @@
 import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { verifyToken } from "../api";
 import { useState, useEffect } from "react";
-import { File, MessageSquareMore, Settings2, Star } from "lucide-react";
+import { File, MessageSquareMore, Settings, SwatchBook } from "lucide-react";
 import type { User } from "../types";
 import { clearStoredSession, getOfflineSessionUser } from "../authSession";
 import { syncOfflineOutbox } from "../offlineData";
@@ -45,8 +45,8 @@ export function Side() {
 
   const normalMenus = [
     { label: <File size={isMobile ? 20 : 16} />, path: "/", title: t("Pages") },
-    { label: <MessageSquareMore size={isMobile ? 20 : 16} />, path: "/annotations", title: t("Annotations") },
-    { label: <Star size={isMobile ? 20 : 16} />, path: "/lemmas", title: t("My Lemmas") },
+    { label: <SwatchBook size={isMobile ? 20 : 16} />, path: "/lemmas", title: t("Lemmas") },
+    { label: <MessageSquareMore size={isMobile ? 19 : 15} />, path: "/annotations", title: t("Annotations") },
   ];
 
   const handleMenuClick = (path: string) => {
@@ -80,7 +80,7 @@ export function Side() {
 
   const settingsButtons = isMobile ? (
     <IconButton
-      icon={<Settings2 size={20} />}
+      icon={<Settings size={20} />}
       title={t("Settings")}
       onClick={() => navigate("/setting")}
       active={location.pathname === "/setting" || openSettings === true}
@@ -92,7 +92,7 @@ export function Side() {
       onMouseEnter={() => location.pathname.startsWith('/page') && setOpenSettings(true)}
     >
       <IconButton
-        icon={<Settings2 size={16} />}
+        icon={<Settings size={16} />}
         title={t("Settings")}
         active={
           location.pathname === "/setting" || openSettings

@@ -160,7 +160,7 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "Move": "이동",
     "Move {count} pages": "{count}개 페이지 이동",
     "Move page \"{name}\"": "페이지 \"{name}\" 이동",
-    "My Lemmas": "내 lemma",
+    "Lemmas": "Lemma",
     "name": "이름",
     "new emoji": "새 이모지",
     "new link": "새 링크",

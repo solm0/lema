@@ -156,7 +156,7 @@ export default function Lemmas(){
       <div className="flex-1 relative flex flex-col overflow-hidden gap-14">
 
         <div className="top-0 z-30 flex flex-col gap-7 pt-12">
-          <h2>{t("My Lemmas")}</h2>
+          <h2>{t("Lemmas")}</h2>
           <LanguageFilter
             languages={languages}
             selectedLanguage={selectedLanguage}

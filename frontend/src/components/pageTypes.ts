@@ -60,12 +60,30 @@ export type LemmaData = {
   global_key: string;
 };
 
+export type UserLemmaExample = {
+  id: number;
+  lemma_key: string;
+  language: string;
+  text: string;
+  tokens: Token[];
+  match_indices: number[];
+  created_at: string;
+  last_seen_at: string;
+};
+
+export type UserLemmaExampleCapture = {
+  text: string;
+  tokens: Token[];
+  match_indices: number[];
+};
+
 export type UserLemmaState = {
   key: string;
   exposure_count: number;
   is_known: boolean;
   is_interested: boolean;
   memo: string;
+  created_at?: string | null;
   updated_at?: string | null;
 };
 

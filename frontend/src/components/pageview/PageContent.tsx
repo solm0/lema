@@ -3,7 +3,7 @@ import PageCore from "../PageCore";
 import { getNearestTokenIndex, getTextForRange, getTokenRect } from "../pageUtils";
 import { IconButton } from "../util/Button";
 import { Link, MessageSquareMore, Smile } from "lucide-react";
-import type { Annotation, EmojiAnnotation, LemmaData, TextBlock } from "../pageTypes";
+import type { Annotation, EmojiAnnotation, LemmaData, TextBlock, UserLemmaExampleCapture } from "../pageTypes";
 import { Gutter } from "./Gutter";
 import type { SidePanelState } from "./PageView";
 import EmojiPickerPopover from "./EmojiPickerPopover";
@@ -158,7 +158,20 @@ export default function PageContent({
     scrollRef(scrollToAnnotation);
   }, []);
 
-  function openLemmaPanelByKey(key: string | null) {
+  function captureUserExample(blockIndex: number, tokenIndex: number): UserLemmaExampleCapture | undefined {
+    const block = blocks[blockIndex];
+    if (!block?.tokens?.length) return undefined;
+    return {
+      text: block.text,
+      tokens: block.tokens,
+      match_indices: [tokenIndex],
+    };
+  }
+
+  function openLemmaPanelByKey(
+    key: string | null,
+    userExampleCapture?: UserLemmaExampleCapture,
+  ) {
     if (!key || !setPanelData) return;
 
     const info = lemmaInfo[key];
@@ -167,10 +180,10 @@ export default function PageContent({
     setSelection(null);
     setFinalSelection(null);
     setMenu(null);
-    setPanelData({ type: "lemma", data: info });
+    setPanelData({ type: "lemma", data: info, userExampleCapture });
   }
 
-  function renderTokenSurface(token: Token) {
+  function renderTokenSurface(token: Token, blockIndex: number, tokenIndex: number) {
     if ((language !== "ko" && language !== "ja") || !token.morphs || token.morphs.length === 0) {
       return token.surface;
     }
@@ -187,7 +200,7 @@ export default function PageContent({
               onClick={(event) => {
                 if (!clickable || blockClickRef.current) return;
                 event.stopPropagation();
-                openLemmaPanelByKey(key);
+                openLemmaPanelByKey(key, captureUserExample(blockIndex, tokenIndex));
               }}
               className={[
                 clickable ? "cursor-pointer" : "",
@@ -531,7 +544,7 @@ export default function PageContent({
       wrapperStyle={{ touchAction: isSelecting ? "none" : "pan-y" }}
       horizontalAlign={horizontalAlign}
       interestKeys={interestKeys}
-      getTokenProps={({ token, index }) => {
+      getTokenProps={({ token, index, blockIndex, tokenIndex }) => {
         const key = getLookupKey(token, language);
         const info = key ? lemmaInfo[key] : undefined;
         const isInHover =
@@ -560,7 +573,11 @@ export default function PageContent({
             setMenu(null);
 
             if (!info || !setPanelData) return;
-            setPanelData({ type: "lemma", data: info })
+            setPanelData({
+              type: "lemma",
+              data: info,
+              userExampleCapture: captureUserExample(blockIndex, tokenIndex),
+            })
           },
           style: {
             cursor: info ? "pointer" : "default",
@@ -583,7 +600,8 @@ export default function PageContent({
           "data-font-language": language,
         };
       }}
-      renderTokenContent={({ token }) => renderTokenSurface(token)}
+      renderTokenContent={({ token, blockIndex, tokenIndex }) =>
+        renderTokenSurface(token, blockIndex, tokenIndex)}
       contentOverlay={
         <Gutter
           annotations={annotations}

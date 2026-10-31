@@ -530,10 +530,14 @@ export default function PageCore({
   getTokenProps?: (args: {
     token: Token;
     index: number;
+    blockIndex: number;
+    tokenIndex: number;
   }) => TokenRenderProps;
   renderTokenContent?: (args: {
     token: Token;
     index: number;
+    blockIndex: number;
+    tokenIndex: number;
   }) => ReactNode;
   rightAside?: ReactNode;
   contentOverlay?: ReactNode;
@@ -835,7 +839,7 @@ export default function PageCore({
                     setDraftMetadata("");
                     setEditingMetadataIndex(-1);
                   }}
-                  className={`flex items-center gap-2 rounded px-1 py-1 text-neutral-400 transition-colors ${
+                  className={`flex items-center gap-2 rounded px-1 py-1 text-neutral-400 transition-colors truncate ${
                     !isCoarsePointer ? "hover:bg-neutral-200/50" : ""
                   }`}
                 >
@@ -921,6 +925,8 @@ export default function PageCore({
                     getTokenProps?.({
                       token,
                       index: tokenIndex,
+                      blockIndex,
+                      tokenIndex: tokenPosition,
                     }) ?? {};
 
                   const {
@@ -1007,6 +1013,8 @@ export default function PageCore({
                               ? renderTokenContent({
                                 token,
                                 index: tokenIndex,
+                                blockIndex,
+                                tokenIndex: tokenPosition,
                               })
                               : token.surface}
                           </span>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowUp, Check, GraduationCap, Star } from "lucide-react";
 import LemmaKwic from "./LemmaKwic";
-import type { LemmaData } from "../pageTypes";
+import type { LemmaData, UserLemmaExample } from "../pageTypes";
 import { useI18n } from "../../i18n";
 import LemmaActivityToast from "./LemmaActivityToast";
 import { isCapacitorApp } from "../../platform";
@@ -18,6 +18,7 @@ export default function LemmaExpansion({
   isKnown,
   onToggleKnown,
   memo,
+  userExamples,
   onSaveMemo,
   onMemoEditingChange,
 }: {
@@ -30,6 +31,7 @@ export default function LemmaExpansion({
   isKnown: boolean;
   onToggleKnown: (next: boolean) => Promise<void>;
   memo: string;
+  userExamples: UserLemmaExample[];
   onSaveMemo: (memo: string) => Promise<void>;
   onMemoEditingChange: (editing: boolean) => void;
 }) {
@@ -39,6 +41,7 @@ export default function LemmaExpansion({
   const [showCopyConfirmation, setShowCopyConfirmation] = useState(false);
   const [memoValue, setMemoValue] = useState(memo);
   const [memoRevealed, setMemoRevealed] = useState(false);
+  const [memoHovered, setMemoHovered] = useState(false);
   const [editingMemo, setEditingMemo] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => isCapacitorApp() || (typeof window !== "undefined" && window.innerWidth < 768),
@@ -66,6 +69,7 @@ export default function LemmaExpansion({
   useEffect(() => {
     setMemoValue(memo);
     setMemoRevealed(false);
+    setMemoHovered(false);
     setEditingMemo(false);
   }, [data.key, memo]);
 
@@ -130,7 +134,7 @@ export default function LemmaExpansion({
   }, [memoValue, onSaveMemo]);
 
   const startMemo = () => {
-    if (isMobile || !memoValue || memoRevealed) {
+    if (!memoValue || memoRevealed) {
       setMemoRevealed(true);
       setEditingMemo(true);
       return;
@@ -148,12 +152,14 @@ export default function LemmaExpansion({
     void saveMemo();
   };
 
+  const memoVisible = memoRevealed || memoHovered;
+
   if (isMobile && editingMemo) {
     return (
       <div className="relative h-full w-full">
         <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-3">
           <span
-            className="font-body max-w-36 truncate text-2xl font-semibold leading-none text-neutral-700"
+            className="font-body max-w-36 truncate text-2xl font-semibold leading-none overflow-visible text-neutral-700"
             data-font-language={language}
           >
             {lemma}
@@ -201,6 +207,7 @@ export default function LemmaExpansion({
           language={language}
           lemmaInfo={lemmaInfo}
           interestKeys={interestKeys}
+          userExamples={userExamples}
         />
       </section>
 
@@ -270,12 +277,14 @@ export default function LemmaExpansion({
           ) : (
             <button
               type="button"
-              onMouseEnter={() => memoValue && setMemoRevealed(true)}
-              onFocus={() => memoValue && setMemoRevealed(true)}
+              onMouseEnter={() => memoValue && setMemoHovered(true)}
+              onMouseLeave={() => setMemoHovered(false)}
+              onFocus={() => memoValue && setMemoHovered(true)}
+              onBlur={() => setMemoHovered(false)}
               onClick={startMemo}
               className={`block max-w-full truncate rounded-sm text-left text-sm leading-5 transition-colors ${
                 memoValue
-                  ? memoRevealed
+                  ? memoVisible
                     ? "text-neutral-600"
                     : "bg-neutral-200 text-transparent"
                   : "text-neutral-400 hover:text-accent"

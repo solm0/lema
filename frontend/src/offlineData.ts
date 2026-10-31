@@ -224,7 +224,10 @@ export async function cacheLemmaProfile(items: UserLemmaState[]) {
       Object.entries(vocabulary.profileSnapshot).filter(([key]) => pendingKeys.has(key)),
     );
     vocabulary.profileSnapshot = {
-      ...Object.fromEntries(items.map((item) => [item.key, { ...item }])),
+      ...Object.fromEntries(items.map((item) => [item.key, {
+        ...item,
+        created_at: item.created_at ?? item.updated_at ?? null,
+      }])),
       ...pendingItems,
     };
     vocabulary.interestedSnapshot = items
@@ -267,6 +270,7 @@ export async function queueOfflineInterestToggle(key: string, next: boolean) {
       is_known: existing?.is_known ?? false,
       is_interested: next,
       memo: existing?.memo ?? "",
+      created_at: existing?.created_at ?? new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
   });
@@ -291,6 +295,7 @@ export async function queueOfflineLemmaStateUpdate(
       is_known: update.is_known ?? existing?.is_known ?? false,
       is_interested: existing?.is_interested ?? false,
       memo: update.memo ?? existing?.memo ?? "",
+      created_at: existing?.created_at ?? now,
       updated_at: now,
     };
     vocabulary.stateOutbox = [
@@ -352,6 +357,7 @@ async function syncVocabularyOutboxOnce() {
             is_known: existing?.is_known ?? false,
             is_interested: toggle.next,
             memo: existing?.memo ?? "",
+            created_at: existing?.created_at ?? toggle.created_at,
             updated_at: toggle.created_at,
           };
         }

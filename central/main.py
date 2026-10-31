@@ -111,6 +111,16 @@ def ensure_user_lemma_schema():
             conn.execute(text("ALTER TABLE user_lemmas ADD COLUMN updated_at DATETIME"))
             conn.execute(text("UPDATE user_lemmas SET updated_at = CURRENT_TIMESTAMP"))
 
+        if "created_at" not in columns:
+            conn.execute(text("ALTER TABLE user_lemmas ADD COLUMN created_at DATETIME"))
+        conn.execute(
+            text(
+                "UPDATE user_lemmas "
+                "SET created_at = COALESCE(created_at, updated_at, CURRENT_TIMESTAMP) "
+                "WHERE created_at IS NULL"
+            )
+        )
+
 ensure_user_lemma_schema()
 
 if LANDING_DIR.exists():

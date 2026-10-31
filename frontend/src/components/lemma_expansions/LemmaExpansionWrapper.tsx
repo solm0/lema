@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import LemmaExpansion from "./LemmaExpansion";
 import type { D3Node } from "./Breadcrumb";
-import type { LemmaData } from "../pageTypes";
+import type { LemmaData, UserLemmaExample } from "../pageTypes";
 import { lemmaLookupOne } from "../../api";
 import { CircleAlert } from "lucide-react";
 import { useI18n } from "../../i18n";
@@ -24,6 +24,7 @@ export default function LemmaExpansionWrapper({
   isKnown,
   onToggleKnown,
   memo,
+  userExamples,
   onSaveMemo,
   onMemoEditingChange,
 }: {
@@ -42,6 +43,7 @@ export default function LemmaExpansionWrapper({
   isKnown: boolean;
   onToggleKnown: (next: boolean) => Promise<void>;
   memo: string;
+  userExamples: UserLemmaExample[];
   onSaveMemo: (memo: string) => Promise<void>;
   onMemoEditingChange: (editing: boolean) => void;
 }) {
@@ -130,6 +132,7 @@ export default function LemmaExpansionWrapper({
         isKnown={isKnown}
         onToggleKnown={onToggleKnown}
         memo={memo}
+        userExamples={userExamples}
         onSaveMemo={onSaveMemo}
         onMemoEditingChange={onMemoEditingChange}
       />
