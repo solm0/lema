@@ -533,6 +533,34 @@ def reroll_recap_showcase(
     return {"items": [_serialize_recap_item(item) for item in rows]}
 
 
+@router.post("/lemma/recap/session/reset")
+def reset_today_recap_session(
+    timezone: str = Query(default="UTC", min_length=1, max_length=64),
+    languages: str | None = Query(default=None, max_length=256),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Debug action: make today's already assigned Revival session playable again."""
+    selected_languages = {value for value in (languages or "").split(",") if value}
+    week, today = _ensure_recap_week(db, current_user.id, timezone, selected_languages or None)
+    today_key = today.isoformat()
+    rows = db.query(UserRecapItem).filter_by(
+        recap_week_id=week.id,
+        kind="test",
+        session_date=today_key,
+    ).all()
+    for row in rows:
+        row.status = "pending"
+        row.attempt_count = 0
+        row.answered_at = None
+        row.question_json = None
+    if rows:
+        week.completed_at = None
+        week.last_session_date = today_key
+    db.commit()
+    return {"items": [_serialize_recap_item(item) for item in rows]}
+
+
 @router.post("/lemma/recap/session")
 def start_recap_session(
     timezone: str = Query(default="UTC", min_length=1, max_length=64),

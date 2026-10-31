@@ -87,6 +87,16 @@ html[data-theme="lema-light"] {
   font-family: var(--font-body-ja);
 }
 
+@keyframes recap-shake {
+  0%, 100% { transform: translateX(0) scale(.8); }
+  25% { transform: translateX(-5px) scale(.8); }
+  75% { transform: translateX(5px) scale(.8); }
+}
+
+.recap-shake {
+  animation: recap-shake .35s ease-in-out;
+}
+
 @media (max-width: 767px) {
   .mobile-page-heading {
     font-size: var(--text-lg);

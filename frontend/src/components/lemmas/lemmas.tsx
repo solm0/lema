@@ -441,6 +441,11 @@ export default function Lemmas() {
                 title={t("Today's Revival is complete.")}
                 description={t("Come back tomorrow for the next session.")}
               />
+            ) : recap?.state === "warming_up" ? (
+              <RevivalBanner
+                title={t("Revival is not available yet.")}
+                description={t("Check back after more lemmas have been collected.")}
+              />
             ) : recap?.available ? (
               <Recap onFinished={loadRecap} languages={settings.recap_languages}
                 renderTrigger={({ start, loading }) => (
@@ -457,7 +462,12 @@ export default function Lemmas() {
                   />
                 )}
               />
-            ) : null}
+            ) : (
+              <RevivalBanner
+                title={t("Revival is not available yet.")}
+                description={t("Check back after more lemmas have been collected.")}
+              />
+            )}
           </section>
           <section className="flex w-full min-w-0 flex-col items-start gap-6">
             <h3 className="mb-2">{t("Achievements")}</h3>

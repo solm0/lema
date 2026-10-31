@@ -6,6 +6,7 @@ import {
   getLemmaRecap,
   isNewerVersion,
   resetLemmaProfile,
+  resetTodayLemmaRecapSession,
   rerollLemmaRecapShowcase,
   type LatestVersionInfo,
   updateName,
@@ -499,6 +500,7 @@ export default function Setting() {
   const [recapLanguages, setRecapLanguages] = useState<string[]>([]);
   const [debugRecap, setDebugRecap] = useState<RecapState | null>(null);
   const [rerollingRecap, setRerollingRecap] = useState(false);
+  const [resettingRecap, setResettingRecap] = useState(false);
   const languagePacksRef = useRef<HTMLHeadingElement | null>(null);
   const {
     settings,
@@ -627,6 +629,16 @@ export default function Setting() {
       loadDebugRecap();
     } finally {
       setRerollingRecap(false);
+    }
+  }
+
+  async function resetTodayRecap() {
+    setResettingRecap(true);
+    try {
+      await resetTodayLemmaRecapSession(settings.recap_languages);
+      loadDebugRecap();
+    } finally {
+      setResettingRecap(false);
     }
   }
 
@@ -798,6 +810,7 @@ export default function Setting() {
               <span>Test: {debugRecap?.test_items.map((item) => item.lemma_key).join(", ") || "—"}</span>
               <span>Showcase: {debugRecap?.showcase_items.map((item) => item.lemma_key).join(", ") || "—"}</span>
               <Button text={rerollingRecap ? "Rerolling..." : "Reroll showcase"} onClick={() => void rerollRecap()} disabled={rerollingRecap || GRADSHOW_MODE} />
+              <Button text={resettingRecap ? t("Resetting...") : t("Reset today's Revival")} onClick={() => void resetTodayRecap()} disabled={resettingRecap || GRADSHOW_MODE} />
             </div>
           </div>
         </section>

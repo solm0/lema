@@ -890,6 +890,18 @@ export async function startLemmaRecapSession(languages: string[] = []): Promise<
   return response.json() as Promise<{ week_start: string; items: RecapItem[] }>;
 }
 
+export async function resetTodayLemmaRecapSession(languages: string[] = []): Promise<RecapItem[]> {
+  const headers = authHeaders();
+  if (!headers) throw new Error("not authenticated");
+  const response = await centralFetch(`${CENTRAL_API}/lemma/recap/session/reset?${recapParams(languages)}`, {
+    method: "POST",
+    headers,
+  });
+  if (!response.ok) throw new Error("recap session reset failed");
+  const data = (await response.json()) as { items?: RecapItem[] };
+  return Array.isArray(data.items) ? data.items : [];
+}
+
 export async function rerollLemmaRecapShowcase(languages: string[] = []): Promise<RecapItem[]> {
   const headers = authHeaders();
   if (!headers) throw new Error("not authenticated");
