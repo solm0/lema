@@ -5,6 +5,7 @@ import {
   Info,
   ListFilter,
   Maximize2,
+  PartyPopper,
   Search,
   Star,
   Trash2,
@@ -136,8 +137,9 @@ function Timeline({
           {index < entries.length - 1 && (
             <span className="absolute left-[5px] top-0 translate-y-[10px] bottom-0 border-l-2 border-accent" />
           )}
-          <span className="absolute left-[2.5px] top-1.5 h-2 w-2 rounded-full border-2 border-accent bg-neutral-50" />
-          <p className="text-sm">
+          <span className="absolute left-[2.5px] top-1.75 h-2 w-2 rounded-full bg-accent" />
+          <p className="text-sm flex items-center gap-2">
+            <PartyPopper className="h-4 w-4 shrink-0 text-accent" />
             {t("You marked {count} {language} words as known!", {
               count: item.count.toLocaleString(),
               language: t(LANGUAGE_NAMES[item.language] ?? item.language),
@@ -593,7 +595,7 @@ export default function Lemmas() {
                         className="group border-t border-neutral-200 hover:bg-neutral-100/70"
                       >
                         <td
-                          className="cursor-pointer px-3 py-1"
+                          className="cursor-pointer px-3"
                           onClick={() => void openLemma(item)}
                         >
                           <div className="flex min-w-0 items-center gap-1">

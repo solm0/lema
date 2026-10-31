@@ -86,10 +86,9 @@ export default function AnnotationCard({ item, onUpdate, onDelete, readonlySnaps
   };
 
   return (
-    <article className="group relative h-auto w-full flex flex-col md:w-96 border-r border-b shadow-sm rounded-xl border-neutral-200 hover:bg-neutral-100 transition-colors px-3 py-2">
-
-        <time className="text-[10px] text-neutral-400">{formatRelative(item.created_at, locale)}</time>
-        <div className="flex min-h-10 flex-col gap-4">
+    <article className="group relative h-auto w-full flex flex-col gap-4 md:w-96 rounded-xl bg-neutral-200 p-4 text-xl font-body">
+        <time className="text-xs text-neutral-400">{formatRelative(item.created_at, locale)}</time>
+        <div className="flex min-h-10 flex-col gap-4 font-semibold">
           {editing && item.type && item.type !== "emoji" ? (
             <div ref={editorRef}>
               <AnnotationInput
@@ -102,15 +101,14 @@ export default function AnnotationCard({ item, onUpdate, onDelete, readonlySnaps
               />
             </div>
           ) : item.type === "link" ? (
-            <a href={value} target="_blank" rel="noreferrer" className="truncate text-sm underline underline-offset-3 hover:text-neutral-400">{value}</a>
+            <a href={value} target="_blank" rel="noreferrer" className="truncate underline underline-offset-3 hover:text-neutral-400">{value}</a>
           ) : item.type === "emoji" ? (
-            <button type="button" onClick={openEmojiPicker} className="w-fit text-left text-4xl leading-none">
+            <button type="button" onClick={openEmojiPicker} className="w-fit text-left text-5xl leading-none">
               {value}
             </button>
           ) : (
-            <p className="whitespace-pre-wrap break-words text-sm leading-6">{value}</p>
+            <p className="whitespace-pre-wrap">{value}</p>
           )}
-
         </div>
 
         {!readonlySnapshotActions && !editing ? (
@@ -140,7 +138,7 @@ export default function AnnotationCard({ item, onUpdate, onDelete, readonlySnaps
           </div>
         ) : null}
 
-      <Link to={`/page/${item.page_id}`} state={{ annotationId: item.id }} className="flex min-w-0 items-start group gap-2 text-xs transition-colors rounded-b-lg mt-2">
+      <Link to={`/page/${item.page_id}`} state={{ annotationId: item.id }} className="flex min-w-0 items-start group gap-2 text-sm transition-colors rounded-b-lg mt-2">
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-neutral-500">{item.page_name}</span>
           <span className="block truncate mt-1 text-neutral-400">{item.source}</span>

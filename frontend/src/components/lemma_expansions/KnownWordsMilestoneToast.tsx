@@ -66,7 +66,7 @@ export default function KnownWordsMilestoneToast({
         className="milestone-toast-root border-neutral-200 bg-neutral-50/95 text-neutral-800 backdrop-blur-md"
       >
         <ToastTitle className="flex items-center gap-2 text-sm">
-          <PartyPopper className="h-5 w-5 shrink-0 text-fuchsia-500" />
+          <PartyPopper className="h-5 w-5 shrink-0 text-accent" />
           <span>
             {t("You marked {count} {language} words as known!", {
               count: new Intl.NumberFormat(locale).format(milestone.count),

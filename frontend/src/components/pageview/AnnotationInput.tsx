@@ -50,7 +50,7 @@ export default function AnnotationInput({
             onChange={(event) => onChange(event.target.value)}
             onKeyDown={submitOnEnter}
             placeholder={t("Add your thoughts...")}
-            className="min-h-[1lh] max-h-[10lh] mb-1 leading-6 min-w-0 flex-1 resize-none bg-transparent text-sm  outline-none placeholder:text-neutral-400"
+            className="min-h-[1lh] max-h-[10lh]  leading-6 min-w-0 flex-1 resize-none bg-transparent outline-none placeholder:text-neutral-400"
             spellCheck={false}
             autoFocus
           />

@@ -88,13 +88,22 @@ html[data-theme="lema-light"] {
 }
 
 @keyframes recap-shake {
-  0%, 100% { transform: translateX(0) scale(.8); }
-  25% { transform: translateX(-5px) scale(.8); }
-  75% { transform: translateX(5px) scale(.8); }
+  0%, 100% { transform: translateX(0); }
+  16% { transform: translateX(-5px); }
+  32% { transform: translateX(5px); }
+  48% { transform: translateX(-4px); }
+  64% { transform: translateX(4px); }
+  80% { transform: translateX(-2px); }
+}
+
+.recap-wrong {
+  opacity: .3;
+  transition: opacity .5s ease;
 }
 
 .recap-shake {
-  animation: recap-shake .35s ease-in-out;
+  animation: recap-shake .42s cubic-bezier(.36, .07, .19, .97);
+  will-change: transform;
 }
 
 @media (max-width: 767px) {

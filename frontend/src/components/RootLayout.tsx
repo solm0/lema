@@ -15,7 +15,7 @@ import {
 } from "react-router-dom";
 import { IconButton } from "./util/Button";
 import {
-  ChevronRight,
+  GitCommitHorizontal,
   Minus,
   PanelLeft,
   Square,
@@ -375,15 +375,15 @@ export default function RootLayout() {
         </div>
         {panelOpen && lemmaPanelLeft !== null && (
           <div
-            className="hidden md:block fixed top-2 z-[1000] no-drag text-neutral-500"
+            className="hidden md:block fixed top-2 z-1000 no-drag text-neutral-500"
             style={{ left: lemmaPanelLeft + 8 }}
           >
             <IconButton
               icon={
-                <ChevronRight
+                <GitCommitHorizontal
                   size={15}
-                  className={`transition-transform duration-300 ${
-                    breadcrumbOpen ? "rotate-90" : "rotate-0"
+                  className={`transition-colors ${
+                    breadcrumbOpen ? "text-neutral-500" : "text-neutral-300"
                   }`}
                 />
               }

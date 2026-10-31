@@ -23,8 +23,11 @@ function ExampleLine({ example, exampleIndex, reveal, insertedWord }: { example:
   const tone = reveal?.stage === "typed" ? reveal.tone : undefined;
   return <p className="max-w-[50em] font-body text-xl font-semibold leading-8">
     {before}
-    <span className={`inline-flex h-9 min-w-24 items-center justify-center rounded-full bg-neutral-300 px-3 text-xl font-body font-semibold text-neutral-700 transition-all duration-500 ${!reveal ? "text-transparent" : ""} ${circle ? "min-w-0 w-9 px-0 text-transparent" : ""} ${tone === "green" ? "bg-green-500" : tone === "red" ? "bg-red-500" : ""}`}>
-      {typed || "······"}
+    <span
+      style={tone === "green" ? { backgroundColor: "var(--app-green-500)" } : tone === "red" ? { backgroundColor: "var(--app-red-500)" } : undefined}
+      className={`inline-flex h-9 min-w-24 items-center justify-center rounded-full bg-neutral-300 px-3 text-xl font-body font-semibold text-neutral-700 transition-all duration-500 ${!reveal ? "text-transparent" : ""} ${circle ? "min-w-0 w-9 px-0 text-transparent" : ""}`}
+    >
+      {typed || "\u00a0"}
     </span>
     {after}
   </p>;
@@ -101,8 +104,8 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
 
   const revealResult = (result: "passed" | "failed") => {
     setFeedback(result);
-    window.setTimeout(() => setFadeQuestion(true), 500);
-    window.setTimeout(() => setPhase("result"), 800);
+    setFadeQuestion(true);
+    window.setTimeout(() => setPhase("result"), 300);
   };
   const revealAnswer = async (result: "passed" | "failed", choiceKey: string, retryAvailable: boolean) => {
     if (!question) return;
@@ -123,9 +126,12 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
     setReveal({ stage: "typed", exampleIndex: examples.length - 1, characters: 0, tone: result === "passed" ? "green" : "red" });
     if (result === "failed") {
       setDisabled((current) => [...current, choiceKey]);
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
       setWrongChoice(choiceKey);
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
       setWrongChoice(null);
+    } else {
+      await new Promise((resolve) => window.setTimeout(resolve, 1000));
     }
     if (retryAvailable) {
       setReveal(null);
@@ -159,33 +165,36 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
 
   const contentMotion = moving === "out" ? "-translate-x-8 opacity-0" : moving === "in" ? "translate-x-8 opacity-0" : "translate-x-0 opacity-100";
   return <div className="w-full rounded-3xl bg-neutral-200 p-7">
-    <div className={`flex flex-col gap-14 transition-all duration-200 ${contentMotion}`}>
+    <div className="flex flex-col gap-14">
       <div className="flex h-2 w-full gap-2">
         {items.map((item, itemIndex) => <span key={item.id} className={`h-full flex-1 rounded-full transition-colors duration-300 ${itemIndex === index ? "bg-accent" : "bg-neutral-300"}`} />)}
       </div>
-      {loading && <p className="text-neutral-50/80">{t("Preparing question...")}</p>}
+      <div className={`flex flex-col gap-14 transition-all duration-200 ${contentMotion}`}>
+      {loading && <p className="text-neutral-700 text-xl font-semibold">{t("Preparing question...")}</p>}
       {error && <p className="text-red-100">{error}</p>}
-      {question && !loading && phase === "question" && <div className={`flex flex-col gap-7 transition-opacity duration-300 ${fadeQuestion ? "opacity-0" : "opacity-100"}`}>
-        <div className="flex flex-col gap-4">
-          <ExampleLine example={question.primary_example} exampleIndex={0} reveal={reveal} insertedWord={insertedWord} />
-          {extraShown > 0 && question.extra_examples?.slice(0, extraShown).map((example, extraIndex) => <ExampleLine key={extraIndex} example={example} exampleIndex={extraIndex + 1} reveal={reveal} insertedWord={insertedWord} />)}
+      {question && !loading && phase === "question" && (
+        <div className={`flex flex-col gap-14 transition-opacity duration-300 ${fadeQuestion ? "opacity-0" : "opacity-100"}`}>
+          <div className="flex flex-col gap-4">
+            <ExampleLine example={question.primary_example} exampleIndex={0} reveal={reveal} insertedWord={insertedWord} />
+            {extraShown > 0 && question.extra_examples?.slice(0, extraShown).map((example, extraIndex) => <ExampleLine key={extraIndex} example={example} exampleIndex={extraIndex + 1} reveal={reveal} insertedWord={insertedWord} />)}
+            {question.extra_examples?.[extraShown] && <button type="button" onClick={() => setExtraShown((current) => current + 1)} className="self-start text-sm text-neutral-500 opacity-80 hover:opacity-100 font-medium transition-opacity">{t("See another example")}</button>}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {question.options.map((option) => {
+              const wrong = disabled.includes(option.key);
+              return <button key={option.key} type="button" disabled={wrong || feedback !== null || checking} onClick={() => void answer(option.key)} className={`h-9 w-auto rounded-full border-3 border-neutral-700 px-4 pb-1 text-xl font-body font-semibold transition-colors duration-300 hover:bg-neutral-700 hover:text-neutral-100 disabled:pointer-events-none ${wrong ? "recap-wrong" : ""} ${wrongChoice === option.key ? "recap-shake" : ""}`}>{option.label}</button>;
+            })}
+          </div>
         </div>
-        {question.extra_examples?.[extraShown] && <button type="button" onClick={() => setExtraShown((current) => current + 1)} className="self-start text-sm text-neutral-500 opacity-80 hover:opacity-100 font-medium transition-opacity">{t("See another example")}</button>}
-        <div className="flex flex-wrap gap-2">
-          {question.options.map((option) => {
-            const correct = feedback === "passed" && option.key === items[index].lemma_key;
-            const wrong = disabled.includes(option.key);
-            return <button key={option.key} type="button" disabled={wrong || feedback !== null || checking} onClick={() => void answer(option.key)} className={`h-9 w-auto rounded-full border-3 border-neutral-700 px-4 pb-1 text-xl font-body font-semibold transition-all duration-300 hover:bg-neutral-700 hover:text-neutral-100 disabled:pointer-events-none ${correct ? "border-green-500 bg-green-500 text-white" : ""} ${wrong ? "opacity-30" : ""} ${wrongChoice === option.key ? "recap-shake" : ""}`}>{option.label}</button>;
-          })}
-        </div>
-      </div>}
+      )}
       {phase === "result" && <div className="flex flex-col gap-7">
         <div className="flex flex-col gap-2 text-neutral-50">
-          <p className="text-2xl font-medium">{feedback === "passed" ? t("Revived!") : t("Not this time.")}</p>
-          <p className="text-neutral-50/80">{feedback === "passed" ? t("That lemma is fresh again.") : t("The answer was {lemma}.", { lemma: labelFor(items[index].lemma_key) })}</p>
+          <p className="text-2xl font-semibold text-neutral-700">{feedback === "passed" ? t("Revived!") : t("Not this time.")}</p>
+          <p className="text-neutral-700/80">{feedback === "passed" ? t("That lemma is fresh again.") : t("The answer was {lemma}.", { lemma: labelFor(items[index].lemma_key) })}</p>
         </div>
         <button type="button" onClick={() => void next()} className="self-end rounded-full bg-neutral-50 px-5 py-2 text-xl font-semibold">{index + 1 === items.length ? t("Finish today's Revival") : t("Next lemma")}</button>
       </div>}
+      </div>
     </div>
   </div>;
 }

@@ -227,7 +227,7 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "Preparing question...": "문제를 준비하고 있어요...",
     "See another example": "다른 예문 보기",
     "Revived!": "되살렸어요!",
-    "Not this time.": "이번에는 아쉬워요.",
+    "Not this time.": "아쉽네요.",
     "That lemma is fresh again.": "이 lemma가 다시 새로워졌어요.",
     "The answer was {lemma}.": "정답은 {lemma}예요.",
     "Finish today's Revival": "오늘의 리바이벌 완료",
