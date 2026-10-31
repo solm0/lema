@@ -581,11 +581,13 @@ def start_recap_session(
     if not all_tests:
         raise HTTPException(status_code=409, detail="recap is warming up")
 
-    session_items = [
-        item for item in all_tests
-        if item.session_date == today_key and item.status == "pending"
-    ]
-    if not session_items:
+    assigned_session_items = [item for item in all_tests if item.session_date == today_key]
+    pending_session_items = [item for item in assigned_session_items if item.status == "pending"]
+    if pending_session_items:
+        # Keep completed siblings in the payload too. The client uses them to
+        # preserve the original two-slot progress bar when a session resumes.
+        session_items = assigned_session_items
+    else:
         if week.last_session_date == today_key:
             raise HTTPException(status_code=409, detail="today's recap is complete")
         session_items = [item for item in all_tests if item.status == "pending"][:RECAP_SESSION_SIZE]

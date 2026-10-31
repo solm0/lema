@@ -805,7 +805,7 @@ export default function Setting() {
                 toggleSetting={toggleSetting}
               />
             </div>
-            <div className="flex flex-col gap-2 text-xs text-neutral-500">
+            <div className="flex flex-col gap-2 text-xs text-neutral-500 items-start">
               <span>Current recap words</span>
               <span>Test: {debugRecap?.test_items.map((item) => item.lemma_key).join(", ") || "—"}</span>
               <span>Showcase: {debugRecap?.showcase_items.map((item) => item.lemma_key).join(", ") || "—"}</span>

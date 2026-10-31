@@ -79,8 +79,10 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
     setLoading(true); setError("");
     try {
       const session = await startLemmaRecapSession(languages);
-      setItems(session.items); setIndex(0); setActive(true);
-      await loadQuestion(session.items[0]);
+      const firstPendingIndex = session.items.findIndex((item) => item.status === "pending");
+      if (firstPendingIndex < 0) throw new Error("recap_session_complete");
+      setItems(session.items); setIndex(firstPendingIndex); setActive(true);
+      await loadQuestion(session.items[firstPendingIndex]);
     } catch { setError(t("Today's Revival is unavailable right now.")); }
     finally { setLoading(false); }
   };
@@ -118,9 +120,9 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
 
   const revealed = feedback === "passed" || phase === "result";
   const contentMotion = moving === "out" ? "-translate-x-8 opacity-0" : moving === "in" ? "translate-x-8 opacity-0" : "translate-x-0 opacity-100";
-  return <div className="w-full rounded-3xl bg-accent p-7">
-    <div className={`flex flex-col gap-7 transition-all duration-200 ${contentMotion}`}>
-      <div className="flex h-3 w-full gap-2">
+  return <div className="w-full rounded-3xl bg-neutral-200 p-7">
+    <div className={`flex flex-col gap-14 transition-all duration-200 ${contentMotion}`}>
+      <div className="flex h-2 w-full gap-2">
         {items.map((item, itemIndex) => <span key={item.id} className={`h-full flex-1 rounded-full transition-colors duration-300 ${itemIndex === index ? "bg-neutral-50" : "bg-neutral-200"}`} />)}
       </div>
       {loading && <p className="text-neutral-50/80">{t("Preparing question...")}</p>}
