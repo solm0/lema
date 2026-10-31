@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   answerLemmaRecapQuestion,
   getLemmaProfile,
@@ -9,6 +9,7 @@ import {
 } from "../../api";
 import type { KwicData, RecapItem, RecapQuestion, Token } from "../pageTypes";
 import { ResponsiveModal } from "../util/ResponsiveModal";
+import { useI18n } from "../../i18n";
 
 type Example = { text: string; tokens?: Token[]; match_indices?: number[] };
 
@@ -59,7 +60,16 @@ async function makeQuestion(item: RecapItem): Promise<RecapQuestion & { answer_k
   };
 }
 
-export function Recap({ onFinished, languages = [] }: { onFinished: () => void; languages?: string[] }) {
+export function Recap({
+  onFinished,
+  languages = [],
+  renderTrigger,
+}: {
+  onFinished: () => void;
+  languages?: string[];
+  renderTrigger?: (props: { start: () => void; loading: boolean }) => ReactNode;
+}) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<RecapItem[]>([]);
   const [index, setIndex] = useState(0);
@@ -124,14 +134,16 @@ export function Recap({ onFinished, languages = [] }: { onFinished: () => void; 
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => void start()}
-        disabled={loading}
-        className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-50"
-      >
-        Lemma Revival 시작하기
-      </button>
+      {renderTrigger ? renderTrigger({ start: () => void start(), loading }) : (
+        <button
+          type="button"
+          onClick={() => void start()}
+          disabled={loading}
+          className="rounded-full bg-neutral-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+        >
+          {t("Start Revival")}
+        </button>
+      )}
       {error && !open && <p className="mt-2 text-sm text-neutral-400">{error}</p>}
       <ResponsiveModal open={open} onClose={() => setOpen(false)}>
         <div className="flex max-w-lg flex-col gap-5 p-2">

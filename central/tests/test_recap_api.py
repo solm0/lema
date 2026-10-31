@@ -86,8 +86,9 @@ class RecapApiTests(unittest.TestCase):
         with patch("routers.lemmas_router._recap_day", return_value=first_week):
             warmup = self.client.get("/api/lemma/recap", headers=self.headers)
         self.assertEqual(warmup.status_code, 200)
-        self.assertFalse(warmup.json()["available"])
+        self.assertTrue(warmup.json()["available"])
         self.assertEqual(len(warmup.json()["showcase_items"]), 8)
+        self.assertEqual(len(warmup.json()["test_items"]), 8)
 
         with patch("routers.lemmas_router._recap_day", return_value=date(2026, 11, 2)):
             recap = self.client.get("/api/lemma/recap", headers=self.headers)

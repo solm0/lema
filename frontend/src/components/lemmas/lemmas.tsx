@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   GraduationCap,
@@ -149,6 +149,26 @@ function Timeline({
         </li>
       ))}
     </ol>
+  );
+}
+
+function RevivalBanner({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="flex h-100 w-full flex-col justify-between rounded-3xl bg-accent p-7">
+      <div className="flex flex-col gap-3">
+        <p className="max-w-[60ch] text-2xl font-medium text-neutral-50">{title}</p>
+        <p className="max-w-[60ch] font-medium text-neutral-50 opacity-80">{description}</p>
+      </div>
+      {action}
+    </div>
   );
 }
 
@@ -410,28 +430,33 @@ export default function Lemmas() {
         <h2 className="mobile-page-heading mb-21">{t("Lemmas")}</h2>
         <div className="mx-auto flex max-w-6xl flex-col gap-21">
           <section className="flex w-full min-w-0 flex-col items-start">
-            <h3 className="mb-3">Recap</h3>
-            {recap?.state === "warming_up" ? (
-              <div className="w-full bg-accent h-100 rounded-3xl p-7 flex flex-col justify-between">
-                <div className="flex flex-col gap-3">
-                  <p className="max-w-[60ch] text-2xl text-neutral-50 font-medium">
-                    다음 주부터 Recap을 시작할 수 있어요.
-                  </p>
-                  <p className="max-w-[60ch] text-neutral-50 font-medium opacity-80">
-                    이번 주 쇼윈도 단어를 먼저 만나 보세요.
-                  </p>
-                </div>
-                <button className="bg-neutral-50 px-5 py-2 self-end text-xl font-semibold rounded-full flex items-center gap-1">
-                  보기
-                  <ArrowRight size={20} />
-                </button>
-              </div>
-            ) : recap?.state === "completed" ? (
-              <p className="text-sm text-neutral-400">이번 주 리캡 완료</p>
+            <h3 className="mb-3">{t("Revival")}</h3>
+            {recap?.state === "completed" ? (
+              <RevivalBanner
+                title={t("This week's Revival is complete.")}
+                description={t("See you next week.")}
+              />
             ) : recap?.state === "daily_complete" ? (
-              <p className="text-sm text-neutral-400">오늘의 리캡 완료</p>
+              <RevivalBanner
+                title={t("Today's Revival is complete.")}
+                description={t("Come back tomorrow for the next session.")}
+              />
             ) : recap?.available ? (
-              <Recap onFinished={loadRecap} languages={settings.recap_languages} />
+              <Recap onFinished={loadRecap} languages={settings.recap_languages}
+                renderTrigger={({ start, loading }) => (
+                  <RevivalBanner
+                    title={t("We found lemmas ready to be revived.")}
+                    description={t("Use this session to revive them.")}
+                    action={(
+                      <button type="button" onClick={start} disabled={loading}
+                        className="self-end flex items-center gap-1 rounded-full bg-neutral-50 px-5 py-2 text-xl font-semibold disabled:opacity-50">
+                        {t("Start Revival")}
+                        <ArrowRight size={20} />
+                      </button>
+                    )}
+                  />
+                )}
+              />
             ) : null}
           </section>
           <section className="flex w-full min-w-0 flex-col items-start gap-6">

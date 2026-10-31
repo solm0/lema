@@ -197,6 +197,25 @@ def _ensure_recap_week(
     _expire_old_recap_weeks(db, user_id, current_week, now)
     week = db.query(UserRecapWeek).filter_by(user_id=user_id, week_start=current_week).first()
     if week is not None:
+        # Weeks created before first-week fallback was introduced can have a
+        # showcase but no test group. Backfill that fixed group once so the
+        # client does not remain in a permanent warming-up state.
+        has_tests = db.query(UserRecapItem.id).filter_by(
+            recap_week_id=week.id,
+            kind="test",
+        ).first()
+        if has_tests is None:
+            showcase = db.query(UserRecapItem).filter_by(
+                recap_week_id=week.id,
+                kind="showcase",
+            ).order_by(UserRecapItem.position.asc()).limit(RECAP_GROUP_SIZE).all()
+            for position, item in enumerate(showcase, start=1):
+                db.add(UserRecapItem(
+                    recap_week_id=week.id,
+                    lemma_key=item.lemma_key,
+                    kind="test",
+                    position=position,
+                ))
         db.commit()
         return week, today
 
@@ -209,12 +228,14 @@ def _ensure_recap_week(
     db.add(week)
     db.flush()
 
+    test_lemma_keys: list[str] = []
     if previous is not None:
         previous_showcase = db.query(UserRecapItem).filter_by(
             recap_week_id=previous.id,
             kind="showcase",
         ).order_by(UserRecapItem.position.asc()).limit(RECAP_GROUP_SIZE).all()
         for position, item in enumerate(previous_showcase, start=1):
+            test_lemma_keys.append(item.lemma_key)
             db.add(UserRecapItem(
                 recap_week_id=week.id,
                 lemma_key=item.lemma_key,
@@ -222,15 +243,25 @@ def _ensure_recap_week(
                 position=position,
             ))
 
-    for position, lemma_key in enumerate(
-        _select_showcase_lemmas(db, user_id, _week_start(today), languages), start=1
-    ):
+    showcase_lemma_keys = _select_showcase_lemmas(db, user_id, _week_start(today), languages)
+    for position, lemma_key in enumerate(showcase_lemma_keys, start=1):
         db.add(UserRecapItem(
             recap_week_id=week.id,
             lemma_key=lemma_key,
             kind="showcase",
             position=position,
         ))
+    # A first-time user (or a user who skipped the prior week) should not be
+    # blocked behind an empty test queue: use this week's showcase as the
+    # fallback test group.
+    if not test_lemma_keys:
+        for position, lemma_key in enumerate(showcase_lemma_keys, start=1):
+            db.add(UserRecapItem(
+                recap_week_id=week.id,
+                lemma_key=lemma_key,
+                kind="test",
+                position=position,
+            ))
     db.commit()
     db.refresh(week)
     return week, today
