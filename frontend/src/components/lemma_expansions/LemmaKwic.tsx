@@ -307,6 +307,8 @@ export default function LemmaKwic({
   const containerRef = useRef<HTMLDivElement>(null);
   const attemptedKeysRef = useRef(new Set<string>());
   const inflightKeysRef = useRef(new Set<string>());
+  const attemptedUserExampleKeysRef = useRef(new Set<string>());
+  const inflightUserExampleKeysRef = useRef(new Set<string>());
   const [availableKeys, setAvailableKeys] = useState<Record<string, LemmaData>>(
     () => lemmaInfo ?? {},
   );
@@ -328,6 +330,8 @@ export default function LemmaKwic({
   useEffect(() => {
     attemptedKeysRef.current.clear();
     inflightKeysRef.current.clear();
+    attemptedUserExampleKeysRef.current.clear();
+    inflightUserExampleKeysRef.current.clear();
     setLoadingLemma(false);
     setFetchProgress({ completed: 0, total: 0 });
   }, [data, language, lemma]);
@@ -394,6 +398,33 @@ export default function LemmaKwic({
     });
   }, [data, language, lemmaInfo]);
 
+  const userExampleLookupItems = useMemo(() => {
+    const seen = new Set<string>();
+    const items: Array<{ lemma: string; pos: string }> = [];
+
+    for (const example of userExamples) {
+      for (const token of example.tokens) {
+        const candidates = [
+          getLookupKey(token, language),
+          ...(token.morphs ?? []).map((morph) => getLookupKeyForMorph(morph, language)),
+        ];
+        for (const tokenKey of candidates) {
+          if (!tokenKey || seen.has(tokenKey)) continue;
+          seen.add(tokenKey);
+          const parts = tokenKey.split("_");
+          const pos = parts.pop();
+          const lemma = parts.join("_");
+          if (!lemma || !pos) continue;
+          if (availableKeysRef.current[tokenKey] != null) continue;
+          if (attemptedUserExampleKeysRef.current.has(tokenKey)) continue;
+          if (inflightUserExampleKeysRef.current.has(tokenKey)) continue;
+          items.push({ lemma, pos });
+        }
+      }
+    }
+    return items;
+  }, [language, lemmaInfo, userExamples]);
+
   useEffect(() => {
     if (lookupItems.length === 0) {
       setLoadingLemma(false);
@@ -445,6 +476,34 @@ export default function LemmaKwic({
     };
   }, [lookupItems, language]);
 
+  useEffect(() => {
+    if (userExampleLookupItems.length === 0) return;
+    let cancelled = false;
+    const pendingKeys = new Set(
+      userExampleLookupItems.map(({ lemma, pos }) => `${lemma}_${pos}`),
+    );
+    pendingKeys.forEach((key) => inflightUserExampleKeysRef.current.add(key));
+
+    void lemmaLookupProgressively(userExampleLookupItems, language, {
+      batchSize: 25,
+      concurrency: 2,
+      onBatch: (lookupData) => {
+        if (cancelled) return;
+        setAvailableKeys((prev) => {
+          const next = { ...prev, ...lookupData };
+          availableKeysRef.current = next;
+          return next;
+        });
+      },
+    }).then(() => {
+      if (!cancelled) pendingKeys.forEach((key) => attemptedUserExampleKeysRef.current.add(key));
+    }).catch(() => {}).finally(() => {
+      pendingKeys.forEach((key) => inflightUserExampleKeysRef.current.delete(key));
+    });
+
+    return () => { cancelled = true; };
+  }, [language, userExampleLookupItems]);
+
   return (
     <div
       ref={containerRef}
@@ -471,7 +530,7 @@ export default function LemmaKwic({
 
       <div className="h-full w-full shrink-0 flex-col overflow-y-auto py-12 no-scrollbar">
         {userExamples.map((example) => (
-          <div key={`user:${example.id}`} className="mb-1 bg-[var(--app-accent-200,#dbeafe)]/45">
+          <div key={`user:${example.id}`} className="bg-[var(--app-accent-200,#dbeafe)]/45">
             <KwicRow
               d={{ line_id: -example.id, match_indices: example.match_indices, tokens: example.tokens }}
               lemma={lemma}

@@ -308,9 +308,9 @@ h2 {
 }
 
 h3 {
+  font-family: var(--font-body-latin), var(--font-body-ko);
   font-size: var(--text-xl);
   font-weight: var(--font-weight-medium);
-  font-family: var(--font-pretendard);
 }
 
 /* KWIC words that share the hovered word's part of speech.  Mixing the

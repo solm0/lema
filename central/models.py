@@ -6,6 +6,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     UniqueConstraint,
 )
 from datetime import UTC, datetime
@@ -59,10 +60,30 @@ class UserLemma(Base):
     is_known = Column(Boolean, nullable=False, default=False)
     is_interested = Column(Boolean, nullable=False, default=False)
     memo = Column(String(20), nullable=False, default="")
+    # Each meaningful interaction offsets 30 days of accumulated decay.
+    decay_reduction_days = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     __table_args__ = (
         UniqueConstraint("user_id", "lemma_key"),
+        Index("ix_user_lemmas_user_updated", "user_id", "updated_at"),
+    )
+
+
+class UserLemmaMilestone(Base):
+    """A small, append-only history of known-word milestones."""
+
+    __tablename__ = "user_lemma_milestones"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    language = Column(String(16), nullable=False)
+    known_count = Column(Integer, nullable=False)
+    achieved_at = Column(DateTime, nullable=False, default=utc_now_naive)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "language", "known_count"),
+        Index("ix_user_lemma_milestones_recent", "user_id", "language", "achieved_at"),
     )
 
 

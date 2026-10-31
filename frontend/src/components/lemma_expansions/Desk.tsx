@@ -137,8 +137,6 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
         lemma_key: initialGlobalKey,
         language,
         ...userExampleCapture,
-      }).then(() => getUserLemmaExamples(initialGlobalKey)).then((examples) => {
-        if (!cancelled) setUserExamples(examples);
       }).catch(() => undefined);
     };
     const resume = () => {

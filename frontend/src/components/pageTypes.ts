@@ -85,6 +85,19 @@ export type UserLemmaState = {
   memo: string;
   created_at?: string | null;
   updated_at?: string | null;
+  decay?: number;
+};
+
+export type UserLemmaDatabaseItem = UserLemmaState & {
+  lemma: string;
+  pos: string;
+  language: string;
+  decay: number;
+};
+
+export type UserLemmaMilestone = {
+  count: number;
+  achieved_at: string;
 };
 
 export type AnnotationType = "link" | "memo" | "emoji";

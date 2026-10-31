@@ -107,6 +107,14 @@ def ensure_user_lemma_schema():
             text("UPDATE user_lemmas SET memo = substr(memo, 1, 20) WHERE length(memo) > 20")
         )
 
+        if "decay_reduction_days" not in columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE user_lemmas "
+                    "ADD COLUMN decay_reduction_days INTEGER NOT NULL DEFAULT 0"
+                )
+            )
+
         if "updated_at" not in columns:
             conn.execute(text("ALTER TABLE user_lemmas ADD COLUMN updated_at DATETIME"))
             conn.execute(text("UPDATE user_lemmas SET updated_at = CURRENT_TIMESTAMP"))
@@ -118,6 +126,12 @@ def ensure_user_lemma_schema():
                 "UPDATE user_lemmas "
                 "SET created_at = COALESCE(created_at, updated_at, CURRENT_TIMESTAMP) "
                 "WHERE created_at IS NULL"
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS ix_user_lemmas_user_updated "
+                "ON user_lemmas (user_id, updated_at DESC)"
             )
         )
 

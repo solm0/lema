@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from db import get_db
-from models import User, UserLemma, UserLemmaExample
+from models import User, UserLemma, UserLemmaExample, UserLemmaMilestone
 from services.lemma_example_limits import lemma_example_write_limiter
 from .auth_router import get_current_user
 
@@ -53,6 +53,27 @@ class LemmaExampleRequest(BaseModel):
 
 
 MAX_EXAMPLES_PER_USER = 10_000
+DATABASE_PAGE_SIZE = 10
+
+
+def _key_parts(key: str) -> tuple[str, str, str]:
+    """Keys are stored as lemma/POS/language; tolerate old malformed rows."""
+    parts = key.rsplit("/", 2)
+    if len(parts) != 3:
+        return key, "", ""
+    return parts[0], parts[1], parts[2]
+
+
+def _decay(state: UserLemma) -> int:
+    """A read-only 0–100 score: 100 after one year without a state change."""
+    origin = state.created_at or state.updated_at or datetime.utcnow()
+    age_days = max(0, (datetime.utcnow() - origin).total_seconds() / 86_400)
+    age_days = max(0, age_days - (state.decay_reduction_days or 0))
+    return min(100, round(age_days / 365 * 100))
+
+
+def _known_word_milestone(count: int) -> bool:
+    return count in {10, 25, 50, 100, 250, 500, 1000} or (count > 1000 and count % 500 == 0)
 
 
 def _example_payload(req: LemmaExampleRequest) -> tuple[str, str, str]:
@@ -113,6 +134,7 @@ def _serialize_state(state: UserLemma) -> dict:
         "created_at": (state.created_at or state.updated_at).isoformat()
         if state.created_at or state.updated_at else None,
         "updated_at": state.updated_at.isoformat() if state.updated_at else None,
+        "decay": _decay(state),
     }
 
 
@@ -125,13 +147,38 @@ def update_lemma_state(
     state = _get_or_create_state(db, current_user.id, req.key)
     if req.exposure_count is not None:
         state.exposure_count = max(state.exposure_count or 0, req.exposure_count)
+    became_known = req.is_known is True and not state.is_known
     if req.is_known is not None:
         state.is_known = req.is_known
     if req.is_interested is not None:
         state.is_interested = req.is_interested
     if req.memo is not None:
         state.memo = req.memo
+    # A state edit meaningfully refreshes a word without requiring a write on
+    # every database read. Thirty days is enough to be visible but not a reset.
+    state.decay_reduction_days = min(365, (state.decay_reduction_days or 0) + 30)
     state.updated_at = datetime.utcnow()
+    if became_known:
+        _, _, language = _key_parts(state.lemma_key)
+        if language:
+            known_count = db.query(UserLemma).filter(
+                UserLemma.user_id == current_user.id,
+                UserLemma.is_known.is_(True),
+                UserLemma.lemma_key.endswith(f"/{language}"),
+            ).count()
+            if _known_word_milestone(known_count):
+                existing = db.query(UserLemmaMilestone).filter_by(
+                    user_id=current_user.id,
+                    language=language,
+                    known_count=known_count,
+                ).first()
+                if existing is None:
+                    db.add(UserLemmaMilestone(
+                        user_id=current_user.id,
+                        language=language,
+                        known_count=known_count,
+                        achieved_at=state.updated_at,
+                    ))
     db.commit()
     db.refresh(state)
     return _serialize_state(state)
@@ -144,6 +191,77 @@ def get_lemma_profile(
 ):
     rows = db.query(UserLemma).filter(UserLemma.user_id == current_user.id).all()
     return {"items": [_serialize_state(row) for row in rows]}
+
+
+@router.get("/lemma/database")
+def get_lemma_database(
+    q: str | None = Query(default=None, max_length=100),
+    pos: str | None = Query(default=None, max_length=64),
+    language: str | None = Query(default=None, max_length=16),
+    is_known: bool | None = None,
+    is_interested: bool | None = None,
+    offset: int = Query(default=0, ge=0, le=100_000),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """A bounded database view; never materialize a user's whole profile."""
+    query = db.query(UserLemma).filter(UserLemma.user_id == current_user.id)
+    if q:
+        query = query.filter(UserLemma.lemma_key.startswith(q.strip()))
+    if pos:
+        query = query.filter(UserLemma.lemma_key.like(f"%/{pos}/%"))
+    if language:
+        query = query.filter(UserLemma.lemma_key.endswith(f"/{language}"))
+    if is_known is not None:
+        query = query.filter(UserLemma.is_known.is_(is_known))
+    if is_interested is not None:
+        query = query.filter(UserLemma.is_interested.is_(is_interested))
+
+    rows = query.order_by(UserLemma.updated_at.desc(), UserLemma.id.desc()).offset(offset).limit(DATABASE_PAGE_SIZE + 1).all()
+    items = []
+    for row in rows[:DATABASE_PAGE_SIZE]:
+        item = _serialize_state(row)
+        lemma, item_pos, item_language = _key_parts(row.lemma_key)
+        item.update({"lemma": lemma, "pos": item_pos, "language": item_language})
+        items.append(item)
+    return {"items": items, "has_more": len(rows) > DATABASE_PAGE_SIZE}
+
+
+@router.get("/lemma/milestones")
+def get_lemma_milestones(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    rows = (
+        db.query(UserLemmaMilestone)
+        .filter(UserLemmaMilestone.user_id == current_user.id)
+        .order_by(UserLemmaMilestone.language.asc(), UserLemmaMilestone.achieved_at.desc())
+        .all()
+    )
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        entries = grouped.setdefault(row.language, [])
+        if len(entries) < 3:
+            entries.append({"count": row.known_count, "achieved_at": row.achieved_at.isoformat()})
+    return {"items": grouped}
+
+
+@router.delete("/lemma/state")
+def delete_lemma_state(
+    key: str = Query(min_length=3, max_length=600),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    db.query(UserLemmaExample).filter(
+        UserLemmaExample.user_id == current_user.id,
+        UserLemmaExample.lemma_key == key,
+    ).delete(synchronize_session=False)
+    db.query(UserLemma).filter(
+        UserLemma.user_id == current_user.id,
+        UserLemma.lemma_key == key,
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"key": key, "deleted": True}
 
 
 @router.get("/lemma/examples")
@@ -223,6 +341,7 @@ def add_interest(
     state = _get_or_create_state(db, current_user.id, req.key)
     state.is_interested = True
     state.updated_at = datetime.utcnow()
+    state.decay_reduction_days = min(365, (state.decay_reduction_days or 0) + 30)
     db.commit()
     return {"key": req.key, "is_interested": True, "is_favorite": True}
 
@@ -241,6 +360,7 @@ def remove_interest(
     if state:
         state.is_interested = False
         state.updated_at = datetime.utcnow()
+        state.decay_reduction_days = min(365, (state.decay_reduction_days or 0) + 30)
         db.commit()
     return {"key": req.key, "is_interested": False, "is_favorite": False}
 

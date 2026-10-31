@@ -5,8 +5,10 @@ import type {
   TextAnalysisResult,
   Token,
   UserLemmaExample,
+  UserLemmaDatabaseItem,
+  UserLemmaMilestone,
   UserLemmaState,
-} from "./components/pageTypes"
+} from "./components/pageTypes";
 import type { User } from "./types";
 import {
   clearStoredSession,
@@ -16,9 +18,7 @@ import {
   isTokenExpired,
   storeVerifiedSession,
 } from "./authSession";
-import {
-  writePackCatalogSnapshot,
-} from "./packCatalogSnapshot";
+import { writePackCatalogSnapshot } from "./packCatalogSnapshot";
 import type { PackCatalogEntry } from "./packCatalogSnapshot";
 import {
   cacheInterestedLemmaKeys,
@@ -69,24 +69,24 @@ function resolveCentralApi() {
 
   if (platform === "electron") {
     return trimTrailingSlash(
-      import.meta.env.VITE_ELECTRON_CENTRAL_API
-        ?? import.meta.env.VITE_CENTRAL_API
-        ?? DEFAULT_CENTRAL_API,
+      import.meta.env.VITE_ELECTRON_CENTRAL_API ??
+        import.meta.env.VITE_CENTRAL_API ??
+        DEFAULT_CENTRAL_API
     );
   }
 
   if (platform === "mobile") {
     return trimTrailingSlash(
-      import.meta.env.VITE_MOBILE_CENTRAL_API
-        ?? import.meta.env.VITE_CENTRAL_API
-        ?? DEFAULT_CENTRAL_API,
+      import.meta.env.VITE_MOBILE_CENTRAL_API ??
+        import.meta.env.VITE_CENTRAL_API ??
+        DEFAULT_CENTRAL_API
     );
   }
 
   return trimTrailingSlash(
-    import.meta.env.VITE_WEB_CENTRAL_API
-      ?? import.meta.env.VITE_CENTRAL_API
-      ?? DEFAULT_CENTRAL_API,
+    import.meta.env.VITE_WEB_CENTRAL_API ??
+      import.meta.env.VITE_CENTRAL_API ??
+      DEFAULT_CENTRAL_API
   );
 }
 
@@ -95,9 +95,9 @@ function resolveLocalApi() {
 
   if (platform === "electron") {
     return trimTrailingSlash(
-      import.meta.env.VITE_ELECTRON_LOCAL_API
-        ?? import.meta.env.VITE_LOCAL_API
-        ?? DEFAULT_ELECTRON_LOCAL_API,
+      import.meta.env.VITE_ELECTRON_LOCAL_API ??
+        import.meta.env.VITE_LOCAL_API ??
+        DEFAULT_ELECTRON_LOCAL_API
     );
   }
 
@@ -163,7 +163,9 @@ export type LatestVersionInfo = {
 
 export async function getLatestVersionInfo() {
   const platform = resolveLatestVersionPlatform();
-  const res = await centralFetch(`${CENTRAL_API}/latest-version?platform=${platform}`);
+  const res = await centralFetch(
+    `${CENTRAL_API}/latest-version?platform=${platform}`
+  );
 
   if (!res.ok) {
     throw new Error(`latest version fetch failed (${res.status})`);
@@ -179,11 +181,14 @@ function parseRetryAfter(value: string | null) {
 }
 
 async function parseAuthResponse(res: Response): Promise<AuthApiResponse> {
-  const payload = await res.json().catch(() => ({})) as Omit<AuthApiResponse, "httpStatus">;
+  const payload = (await res.json().catch(() => ({}))) as Omit<
+    AuthApiResponse,
+    "httpStatus"
+  >;
   const parsedDetail = parseApiErrorDetail(payload.detail);
   const retryAfterSeconds =
-    parseRetryAfter(res.headers.get("Retry-After"))
-    ?? (typeof payload.detail === "object" && !Array.isArray(payload.detail)
+    parseRetryAfter(res.headers.get("Retry-After")) ??
+    (typeof payload.detail === "object" && !Array.isArray(payload.detail)
       ? payload.detail?.retry_after_seconds
       : undefined);
 
@@ -192,7 +197,11 @@ async function parseAuthResponse(res: Response): Promise<AuthApiResponse> {
       code: res.status === 429 ? "too_many_requests" : "request_failed",
       message: res.status === 429 ? "too many requests" : "request failed",
     };
-  } else if (parsedDetail?.code && typeof payload.detail === "object" && !Array.isArray(payload.detail)) {
+  } else if (
+    parsedDetail?.code &&
+    typeof payload.detail === "object" &&
+    !Array.isArray(payload.detail)
+  ) {
     payload.detail = {
       ...payload.detail,
       code: parsedDetail.code,
@@ -209,15 +218,13 @@ async function parseAuthResponse(res: Response): Promise<AuthApiResponse> {
 function reserveAuthRequest(): number {
   const now = Date.now();
   authRequestTimestamps = authRequestTimestamps.filter(
-    timestamp => timestamp > now - AUTH_BURST_WINDOW_MS,
+    (timestamp) => timestamp > now - AUTH_BURST_WINDOW_MS
   );
 
   if (authRequestTimestamps.length >= AUTH_BURST_LIMIT) {
     return Math.max(
       1,
-      Math.ceil(
-        (authRequestTimestamps[0] + AUTH_BURST_WINDOW_MS - now) / 1000,
-      ),
+      Math.ceil((authRequestTimestamps[0] + AUTH_BURST_WINDOW_MS - now) / 1000)
     );
   }
 
@@ -228,9 +235,12 @@ function reserveAuthRequest(): number {
 async function authPost(
   path: string,
   body: Record<string, string>,
-  { applyBurstLimit = true }: { applyBurstLimit?: boolean } = {},
+  { applyBurstLimit = true }: { applyBurstLimit?: boolean } = {}
 ) {
-  if (applyBurstLimit && (typeof navigator === "undefined" || navigator.onLine)) {
+  if (
+    applyBurstLimit &&
+    (typeof navigator === "undefined" || navigator.onLine)
+  ) {
     const retryAfterSeconds = reserveAuthRequest();
     if (retryAfterSeconds) {
       return {
@@ -257,19 +267,19 @@ export async function signup(email: string, password: string, name: string) {
   return authPost("/signup", { email, password, name });
 }
 
-export async function login(email:string,password:string){
+export async function login(email: string, password: string) {
   return authPost("/login", { email, password });
 }
 
-export async function requestReset(email:string){
+export async function requestReset(email: string) {
   return authPost("/request-password-reset", { email });
 }
 
-export async function resetPassword(token:string,new_password:string){
+export async function resetPassword(token: string, new_password: string) {
   return authPost(
     "/reset-password",
     { token, new_password },
-    { applyBurstLimit: false },
+    { applyBurstLimit: false }
   );
 }
 
@@ -301,12 +311,12 @@ export function parseApiErrorDetail(detail: ApiErrorDetail): {
 
 export function authHeaders() {
   const token = getStoredToken();
-  if (!token) return null
+  if (!token) return null;
 
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`
-  }
+    Authorization: `Bearer ${token}`,
+  };
 }
 
 export async function verifyToken({
@@ -346,7 +356,7 @@ export async function verifyToken({
       return hasStoredSession() ? getOfflineSessionUser() : null;
     }
 
-    const data = await res.json() as User;
+    const data = (await res.json()) as User;
     await storeVerifiedSession(token, data);
     return data;
   } catch (error) {
@@ -358,13 +368,13 @@ export async function verifyToken({
 }
 
 export async function updateName(name: string) {
-  const headers = authHeaders()
-  if (!headers) return false
+  const headers = authHeaders();
+  if (!headers) return false;
 
-  const res = await centralFetch(CENTRAL_API+"/me/name", {
+  const res = await centralFetch(CENTRAL_API + "/me/name", {
     method: "PUT",
     headers,
-    body: JSON.stringify({ name })
+    body: JSON.stringify({ name }),
   });
 
   return res.json();
@@ -384,7 +394,9 @@ export async function deleteAccount() {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const error = Array.isArray(data.detail) ? data.detail[0]?.msg : data.detail;
+    const error = Array.isArray(data.detail)
+      ? data.detail[0]?.msg
+      : data.detail;
     throw new Error(error || "delete account failed");
   }
 
@@ -393,7 +405,7 @@ export async function deleteAccount() {
 
 async function analyzeBlocksBatch(
   blocks: AnalyzeBlockInput[],
-  language: string,
+  language: string
 ) {
   if (isCapacitorApp()) {
     if (await canAnalyzeWithNativePack(language)) {
@@ -420,12 +432,12 @@ async function analyzeBlocksBatch(
       throw new Error("unauthorized");
     }
 
-    const payload = await res.json().catch(() => null) as {
+    const payload = (await res.json().catch(() => null)) as {
       detail?: ApiErrorDetail;
     } | null;
     const detail = parseApiErrorDetail(payload?.detail);
     throw new Error(
-      detail?.code || detail?.message || `analyze failed (${res.status})`,
+      detail?.code || detail?.message || `analyze failed (${res.status})`
     );
   }
 
@@ -439,7 +451,7 @@ async function analyzeBlocksBatch(
 
 export async function analyzeBlocks(
   blocks: AnalyzeBlockInput[],
-  language: string,
+  language: string
 ) {
   const shouldBatch =
     isCapacitorApp() && blocks.length > MOBILE_ANALYZE_BATCH_SIZE;
@@ -453,7 +465,11 @@ export async function analyzeBlocks(
     tokens?: TextAnalysisResult["blocks"][number]["tokens"];
   }> = [];
 
-  for (let start = 0; start < blocks.length; start += MOBILE_ANALYZE_BATCH_SIZE) {
+  for (
+    let start = 0;
+    start < blocks.length;
+    start += MOBILE_ANALYZE_BATCH_SIZE
+  ) {
     const batch = blocks.slice(start, start + MOBILE_ANALYZE_BATCH_SIZE);
     const result = await analyzeBlocksBatch(batch, language);
     analyzedBlocks.push(...result.blocks);
@@ -477,7 +493,7 @@ export async function savePage(
     source?: PageSource;
     metadata?: string[];
     onProgress?: (stage: SavePageProgress) => void;
-  },
+  }
 ) {
   options?.onProgress?.("saving");
   return createLocalPage({
@@ -498,7 +514,7 @@ export async function addPageMetadata(pageId: string, value: string) {
 export async function updatePageMetadata(
   pageId: string,
   metadataIndex: number,
-  value: string,
+  value: string
 ) {
   const page = await getLocalPage(pageId);
   const metadata = [...(page.metadata ?? [])];
@@ -506,15 +522,20 @@ export async function updatePageMetadata(
   return setLocalPageMetadata(pageId, metadata);
 }
 
-export async function deletePageMetadata(pageId: string, metadataIndex: number) {
+export async function deletePageMetadata(
+  pageId: string,
+  metadataIndex: number
+) {
   const page = await getLocalPage(pageId);
-  const metadata = (page.metadata ?? []).filter((_, index) => index !== metadataIndex);
+  const metadata = (page.metadata ?? []).filter(
+    (_, index) => index !== metadataIndex
+  );
   return setLocalPageMetadata(pageId, metadata);
 }
 
-export async function fetchPages () {
+export async function fetchPages() {
   return listLocalPages();
-};
+}
 
 export async function fetchNotebooks() {
   return listLocalNotebooks();
@@ -533,7 +554,7 @@ export async function lemmaLookup(
   const output: Record<string, LemmaData> = {};
 
   if (isCapacitorApp()) {
-    if (!await canLookupWithNativePack(language)) {
+    if (!(await canLookupWithNativePack(language))) {
       throw new Error("language_pack_required");
     }
 
@@ -559,7 +580,7 @@ export async function lemmaLookup(
       });
 
       if (!res.ok) throw new Error("landing lookup_batch failed");
-      Object.assign(output, await res.json() as Record<string, LemmaData>);
+      Object.assign(output, (await res.json()) as Record<string, LemmaData>);
     }
 
     return output;
@@ -579,7 +600,7 @@ export async function lemmaLookup(
     });
 
     if (!res.ok) throw new Error("lookup_batch failed");
-    Object.assign(output, await res.json() as Record<string, LemmaData>);
+    Object.assign(output, (await res.json()) as Record<string, LemmaData>);
   }
 
   return output;
@@ -596,12 +617,12 @@ export async function lemmaLookupProgressively(
     batchSize?: number;
     concurrency?: number;
     onBatch?: (data: Record<string, LemmaData>) => void;
-  } = {},
+  } = {}
 ): Promise<Record<string, LemmaData>> {
   const output: Record<string, LemmaData> = {};
   const batches = Array.from(
     { length: Math.ceil(items.length / batchSize) },
-    (_, index) => items.slice(index * batchSize, (index + 1) * batchSize),
+    (_, index) => items.slice(index * batchSize, (index + 1) * batchSize)
   );
   let nextBatchIndex = 0;
 
@@ -616,28 +637,23 @@ export async function lemmaLookupProgressively(
   };
 
   await Promise.all(
-    Array.from(
-      { length: Math.min(concurrency, batches.length) },
-      () => worker(),
-    ),
+    Array.from({ length: Math.min(concurrency, batches.length) }, () =>
+      worker()
+    )
   );
 
   return output;
 }
 
 export async function lemmaLookupOne(
-  item: { lemma:string; pos:string; },
+  item: { lemma: string; pos: string },
   language: string
 ) {
   if (isCapacitorApp()) {
-    if (!await canLookupWithNativePack(language)) {
+    if (!(await canLookupWithNativePack(language))) {
       throw new Error("language_pack_required");
     }
-    return lookupNativeLemma(
-      item,
-      language,
-      await getOfflineLemmaProfile(),
-    );
+    return lookupNativeLemma(item, language, await getOfflineLemmaProfile());
   }
 
   if (!isElectronApp()) {
@@ -660,18 +676,15 @@ export async function lemmaLookupOne(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({...item, language})
-  })
+    body: JSON.stringify({ ...item, language }),
+  });
 
-  if (!res.ok) throw new Error("lookup failed")
+  if (!res.ok) throw new Error("lookup failed");
 
-  return res.json()
+  return res.json();
 }
 
-export async function setInterest(
-  key: string,
-  next: boolean
-) {
+export async function setInterest(key: string, next: boolean) {
   if (GRADSHOW_MODE) {
     await queueOfflineInterestToggle(key, next);
     return { ok: true, offline: true };
@@ -695,7 +708,7 @@ export async function setInterest(
     res = await centralFetch(`${CENTRAL_API}/lemma/interest`, {
       method: next ? "POST" : "DELETE",
       headers,
-      body: JSON.stringify({ key })
+      body: JSON.stringify({ key }),
     });
   } catch {
     await queueOfflineInterestToggle(key, next);
@@ -720,7 +733,9 @@ async function invalidateLocalLemmaProfileCache() {
   }).catch(() => undefined);
 }
 
-export async function getLemmaProfile(): Promise<Record<string, UserLemmaState>> {
+export async function getLemmaProfile(): Promise<
+  Record<string, UserLemmaState>
+> {
   if (GRADSHOW_MODE) return getOfflineLemmaProfile();
   const headers = authHeaders();
   if (!headers) throw new Error("not authenticated");
@@ -731,7 +746,7 @@ export async function getLemmaProfile(): Promise<Record<string, UserLemmaState>>
       headers,
     });
     if (!response.ok) throw new Error("lemma profile request failed");
-    const data = await response.json() as { items?: UserLemmaState[] };
+    const data = (await response.json()) as { items?: UserLemmaState[] };
     const items = Array.isArray(data.items) ? data.items : [];
     await cacheLemmaProfile(items);
     return getOfflineLemmaProfile();
@@ -740,9 +755,109 @@ export async function getLemmaProfile(): Promise<Record<string, UserLemmaState>>
   }
 }
 
+export async function getLemmaDatabase(filters: {
+  q?: string;
+  pos?: string | null;
+  language?: string | null;
+  is_known?: boolean | null;
+  is_interested?: boolean | null;
+  offset?: number;
+}): Promise<{ items: UserLemmaDatabaseItem[]; has_more: boolean }> {
+  const headers = authHeaders();
+  if (!headers) throw new Error("not authenticated");
+  const params = new URLSearchParams();
+  if (filters.q) params.set("q", filters.q);
+  if (filters.pos) params.set("pos", filters.pos);
+  if (filters.language) params.set("language", filters.language);
+  if (filters.is_known !== null && filters.is_known !== undefined)
+    params.set("is_known", String(filters.is_known));
+  if (filters.is_interested !== null && filters.is_interested !== undefined)
+    params.set("is_interested", String(filters.is_interested));
+  params.set("offset", String(filters.offset ?? 0));
+  const response = await centralFetch(
+    `${CENTRAL_API}/lemma/database?${params}`,
+    { headers }
+  );
+  // Older central deployments do not yet have the paginated endpoint. Keep
+  // the Lemmas screen usable during a rolling frontend/backend deployment.
+  if (response.status === 404) {
+    const profile = await getLemmaProfile();
+    const items = Object.values(profile)
+      .map((item) => {
+        const parts = item.key.split("/");
+        return {
+          ...item,
+          lemma: parts[0] ?? item.key,
+          pos: parts[1] ?? "",
+          language: parts[2] ?? "",
+          decay: item.decay ?? 0,
+        };
+      })
+      .filter((item) => !filters.q || item.lemma.startsWith(filters.q))
+      .filter((item) => !filters.pos || item.pos === filters.pos)
+      .filter((item) => !filters.language || item.language === filters.language)
+      .filter(
+        (item) =>
+          filters.is_known === null ||
+          filters.is_known === undefined ||
+          item.is_known === filters.is_known
+      )
+      .filter(
+        (item) =>
+          filters.is_interested === null ||
+          filters.is_interested === undefined ||
+          item.is_interested === filters.is_interested
+      )
+      .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+    const offset = filters.offset ?? 0;
+    return {
+      items: items.slice(offset, offset + 10),
+      has_more: items.length > offset + 10,
+    };
+  }
+  if (!response.ok) throw new Error("lemma database request failed");
+  const data = (await response.json()) as {
+    items?: UserLemmaDatabaseItem[];
+    has_more?: boolean;
+  };
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    has_more: Boolean(data.has_more),
+  };
+}
+
+export async function getLemmaMilestones(): Promise<
+  Record<string, UserLemmaMilestone[]>
+> {
+  const headers = authHeaders();
+  if (!headers) throw new Error("not authenticated");
+  const response = await centralFetch(`${CENTRAL_API}/lemma/milestones`, {
+    headers,
+  });
+  if (!response.ok) throw new Error("lemma milestones request failed");
+  const data = (await response.json()) as {
+    items?: Record<string, UserLemmaMilestone[]>;
+  };
+  return data.items && typeof data.items === "object" ? data.items : {};
+}
+
+export async function deleteLemmaState(key: string): Promise<void> {
+  const headers = authHeaders();
+  if (!headers) throw new Error("not authenticated");
+  const response = await centralFetch(
+    `${CENTRAL_API}/lemma/state?key=${encodeURIComponent(key)}`,
+    {
+      method: "DELETE",
+      headers,
+    }
+  );
+  if (!response.ok) throw new Error("lemma delete request failed");
+  await invalidateLocalLemmaProfileCache();
+}
+
 export async function updateLemmaState(
   key: string,
-  update: { exposure_count?: number; is_known?: boolean; memo?: string },
+  update: { exposure_count?: number; is_known?: boolean; memo?: string }
 ): Promise<UserLemmaState> {
   if (GRADSHOW_MODE) {
     await queueOfflineLemmaStateUpdate(key, update);
@@ -758,16 +873,21 @@ export async function updateLemmaState(
   return profile[key];
 }
 
-export async function getUserLemmaExamples(key: string): Promise<UserLemmaExample[]> {
+export async function getUserLemmaExamples(
+  key: string
+): Promise<UserLemmaExample[]> {
   if (GRADSHOW_MODE) return [];
   const headers = authHeaders();
   if (!headers) return [];
-  const response = await centralFetch(`${CENTRAL_API}/lemma/examples?key=${encodeURIComponent(key)}`, {
-    method: "GET",
-    headers,
-  });
+  const response = await centralFetch(
+    `${CENTRAL_API}/lemma/examples?key=${encodeURIComponent(key)}`,
+    {
+      method: "GET",
+      headers,
+    }
+  );
   if (!response.ok) throw new Error("lemma examples request failed");
-  const data = await response.json() as { items?: UserLemmaExample[] };
+  const data = (await response.json()) as { items?: UserLemmaExample[] };
   return Array.isArray(data.items) ? data.items : [];
 }
 
@@ -791,18 +911,18 @@ export async function saveUserLemmaExample(input: {
 
 export async function getInterests(): Promise<string[]> {
   if (GRADSHOW_MODE) return getOfflineInterestedKeys();
-  const headers = authHeaders()
-  if (!headers) throw new Error("no token")
+  const headers = authHeaders();
+  if (!headers) throw new Error("no token");
 
   try {
     const res = await centralFetch(`${CENTRAL_API}/lemma/interests`, {
       method: "GET",
-      headers
-    })
+      headers,
+    });
 
-    if (!res.ok) throw new Error("fetch interests failed")
+    if (!res.ok) throw new Error("fetch interests failed");
 
-    const data = await res.json()
+    const data = await res.json();
     const items = data.items as string[];
     if (isElectronApp() || isCapacitorApp()) {
       await cacheInterestedLemmaKeys(items);
@@ -836,7 +956,7 @@ export type AnnotationItem = {
   page_name: string;
   source: string;
   created_at: string;
-  user: User
+  user: User;
 };
 
 export type AnnotationCursor = {
@@ -846,7 +966,11 @@ export type AnnotationCursor = {
 
 export async function fetchAnnotations(cursor: AnnotationCursor) {
   if (cursor) return { items: [], next_cursor: null, offline: false };
-  return { items: await listLocalAnnotations(), next_cursor: null, offline: false };
+  return {
+    items: await listLocalAnnotations(),
+    next_cursor: null,
+    offline: false,
+  };
 }
 
 export async function createAnnotation(annotation: Annotation) {
@@ -856,21 +980,26 @@ export async function createAnnotation(annotation: Annotation) {
 // packs 목록
 export async function getPacks(): Promise<PackCatalogEntry[]> {
   if (GRADSHOW_MODE) {
-    return [{
-      lang: "en",
-      version: "1.1.2",
-      lemma_filename: "en-v1.1.2-lemma.zip",
-      lemma_download_url: "",
-      tag: "gradshow",
-      corpus: [{ "Data source": "Bundled exhibition pack" }, { "Corpora used": "English" }],
-    }];
+    return [
+      {
+        lang: "en",
+        version: "1.1.2",
+        lemma_filename: "en-v1.1.2-lemma.zip",
+        lemma_download_url: "",
+        tag: "gradshow",
+        corpus: [
+          { "Data source": "Bundled exhibition pack" },
+          { "Corpora used": "English" },
+        ],
+      },
+    ];
   }
   let packs: PackCatalogEntry[] = PACK_CATALOG;
 
   if (isElectronApp()) {
     const res = await fetch(`${LOCAL_API}/lang/packs`);
     if (!res.ok) throw new Error("pack fetch failed");
-    packs = await res.json() as PackCatalogEntry[];
+    packs = (await res.json()) as PackCatalogEntry[];
   } else if (isCapacitorApp()) {
     const supportedLanguages = new Set(await getSupportedNativePackLanguages());
     packs = packs.filter((pack) => supportedLanguages.has(pack.lang));
@@ -883,13 +1012,15 @@ export async function getPacks(): Promise<PackCatalogEntry[]> {
 // 설치 상태
 export async function getInstalled() {
   if (GRADSHOW_MODE) {
-    return [{
-      lang: "en",
-      version: "1.1.2",
-      installed: true,
-      lemma_installed: true,
-      model_installed: false,
-    }];
+    return [
+      {
+        lang: "en",
+        version: "1.1.2",
+        installed: true,
+        lemma_installed: true,
+        model_installed: false,
+      },
+    ];
   }
   if (isCapacitorApp()) {
     return getInstalledNativePacks();
@@ -897,7 +1028,7 @@ export async function getInstalled() {
 
   if (!isElectronApp()) return [];
 
-  return fetch(`${LOCAL_API}/lang/installed`).then(r => r.json());
+  return fetch(`${LOCAL_API}/lang/installed`).then((r) => r.json());
 }
 
 // 설치
@@ -918,15 +1049,12 @@ export async function installPack(pack: {
   return fetch(`${LOCAL_API}/lang/install`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(pack)
-  }).then(r => r.json());
+    body: JSON.stringify(pack),
+  }).then((r) => r.json());
 }
 
 // 삭제
-export async function uninstallPack(pack: {
-  lang: string;
-  version: string;
-}) {
+export async function uninstallPack(pack: { lang: string; version: string }) {
   if (isCapacitorApp()) {
     await uninstallNativePack(pack);
     return { status: "ok" };
@@ -939,8 +1067,8 @@ export async function uninstallPack(pack: {
   return fetch(`${LOCAL_API}/lang/uninstall`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(pack)
-  }).then(r => r.json());
+    body: JSON.stringify(pack),
+  }).then((r) => r.json());
 }
 
 // progress
@@ -951,5 +1079,5 @@ export async function getProgress(taskId: string) {
   if (!isElectronApp()) {
     throw new Error("local_pack_install_unavailable");
   }
-  return fetch(`${LOCAL_API}/lang/progress/${taskId}`).then(r => r.json());
+  return fetch(`${LOCAL_API}/lang/progress/${taskId}`).then((r) => r.json());
 }
