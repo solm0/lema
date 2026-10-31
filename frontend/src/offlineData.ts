@@ -17,6 +17,7 @@ type PendingLemmaStateUpdate = {
   key: string;
   exposure_count?: number;
   is_known?: boolean;
+  memo?: string;
   created_at: string;
 };
 
@@ -265,6 +266,7 @@ export async function queueOfflineInterestToggle(key: string, next: boolean) {
       exposure_count: existing?.exposure_count ?? 0,
       is_known: existing?.is_known ?? false,
       is_interested: next,
+      memo: existing?.memo ?? "",
       updated_at: new Date().toISOString(),
     };
   });
@@ -272,7 +274,7 @@ export async function queueOfflineInterestToggle(key: string, next: boolean) {
 
 export async function queueOfflineLemmaStateUpdate(
   key: string,
-  update: { exposure_count?: number; is_known?: boolean },
+  update: { exposure_count?: number; is_known?: boolean; memo?: string },
 ) {
   const userId = currentUserId();
   if (!userId) throw new Error("not authenticated");
@@ -288,6 +290,7 @@ export async function queueOfflineLemmaStateUpdate(
       ),
       is_known: update.is_known ?? existing?.is_known ?? false,
       is_interested: existing?.is_interested ?? false,
+      memo: update.memo ?? existing?.memo ?? "",
       updated_at: now,
     };
     vocabulary.stateOutbox = [
@@ -348,6 +351,7 @@ async function syncVocabularyOutboxOnce() {
             exposure_count: existing?.exposure_count ?? 0,
             is_known: existing?.is_known ?? false,
             is_interested: toggle.next,
+            memo: existing?.memo ?? "",
             updated_at: toggle.created_at,
           };
         }
@@ -366,6 +370,7 @@ async function syncVocabularyOutboxOnce() {
           key: update.key,
           exposure_count: update.exposure_count,
           is_known: update.is_known,
+          memo: update.memo,
         }),
       }).catch(() => null);
       if (!response?.ok) return false;

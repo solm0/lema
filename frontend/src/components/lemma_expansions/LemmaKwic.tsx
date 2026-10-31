@@ -14,6 +14,7 @@ import { AlignCenterVertical } from "lucide-react";
 import { lemmaLookupProgressively } from "../../api";
 import { getLookupKey, getLookupKeyForMorph } from "../tokenLookup";
 import { useI18n } from "../../i18n";
+import LemmaActivityToast from "./LemmaActivityToast";
 
 const SHOW_KWIC_DEBUG = false;
 
@@ -206,7 +207,7 @@ const KwicRow = forwardRef<KwicRowHandle, KwicRowProps>(function KwicRow(
       <div
         className={[
           "transition-colors pointer-events-none absolute inset-0 z-0 h-12",
-          hovered.pos === t.pos ? "bg-accent opacity-50" : "opacity-0",
+          hovered.pos === t.pos ? "bg-pos-highlight" : "opacity-0",
         ].join(" ")}
       />
       <div className="relative z-10">
@@ -309,6 +310,7 @@ export default function LemmaKwic({
   );
   const availableKeysRef = useRef<Record<string, LemmaData>>(lemmaInfo ?? {});
   const [loadingLemma, setLoadingLemma] = useState(false);
+  const [fetchProgress, setFetchProgress] = useState({ completed: 0, total: 0 });
   const [showCenterButton, setShowCenterButton] = useState(false);
 
   const canSelectKey = (tokenKey: string) => {
@@ -325,6 +327,7 @@ export default function LemmaKwic({
     attemptedKeysRef.current.clear();
     inflightKeysRef.current.clear();
     setLoadingLemma(false);
+    setFetchProgress({ completed: 0, total: 0 });
   }, [data, language, lemma]);
 
   useEffect(() => {
@@ -402,12 +405,18 @@ export default function LemmaKwic({
 
     pendingKeys.forEach((key) => inflightKeysRef.current.add(key));
     setLoadingLemma(true);
+    setFetchProgress({ completed: 0, total: pendingKeys.size });
 
     void lemmaLookupProgressively(lookupItems, language, {
       batchSize: 25,
       concurrency: 2,
       onBatch: (lookupData) => {
         if (cancelled) return;
+
+        setFetchProgress((prev) => ({
+          ...prev,
+          completed: Math.min(prev.total, prev.completed + Object.keys(lookupData).length),
+        }));
 
         setAvailableKeys((prev) => {
           const nextAvailableKeys = { ...prev, ...lookupData };
@@ -426,6 +435,7 @@ export default function LemmaKwic({
 
         pendingKeys.forEach((key) => inflightKeysRef.current.delete(key));
         setLoadingLemma(false);
+        setFetchProgress({ completed: pendingKeys.size, total: pendingKeys.size });
       });
 
     return () => {
@@ -439,7 +449,7 @@ export default function LemmaKwic({
       data-side-layout-no-swipe="true"
       className="relative flex h-full min-h-0 w-full overflow-hidden"
     >
-      <div className={`absolute left-1/2 top-2 z-30 -translate-x-1/2 bg-neutral-100/70 backdrop-blur-2xl transition-[opacity,transform] duration-200 ${
+      <div className={`absolute left-1/2 top-2 z-30 -translate-x-1/2 bg-neutral-50/70 backdrop-blur-2xl transition-[opacity,transform] duration-200 ${
         showCenterButton
           ? "pointer-events-auto translate-y-0 opacity-100"
           : "pointer-events-none -translate-y-2 opacity-0"
@@ -480,13 +490,13 @@ export default function LemmaKwic({
         ))}
       </div>
 
-      {loadingLemma && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex h-12 items-center justify-center md:inset-x-auto md:bottom-4 md:left-1/2 md:h-auto md:w-max md:-translate-x-1/2">
-          <span className="rounded-full bg-neutral-50/90 px-3 py-1 text-xs text-neutral-500 shadow-sm backdrop-blur-sm">
-            {t("Fetching lemmas...")}
-          </span>
-        </div>
-      )}
+      <LemmaActivityToast
+        open={loadingLemma}
+        title={t("Fetching lemmas...")}
+        description={`${fetchProgress.completed} / ${fetchProgress.total}`}
+        progress={fetchProgress}
+        mobileViewport
+      />
 
       {hovered.pos && (
         <div

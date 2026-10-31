@@ -15,6 +15,7 @@ import type { Annotation, LemmaData, TextAnalysisResult } from "../pageTypes";
 import ResponsiveSideLayout from "../util/ResponsiveSideLayout";
 import Desk, { type DeskHandle } from "../lemma_expansions/Desk";
 import KnownWordsMilestoneToast, { type KnownWordsMilestone } from "../lemma_expansions/KnownWordsMilestoneToast";
+import LemmaActivityToast from "../lemma_expansions/LemmaActivityToast";
 import { useLayout } from "../RootLayout";
 import { type Pack } from "../setting/PackTable";
 import BlockingLoadingModal from "../util/BlockingLoadingModal";
@@ -52,6 +53,7 @@ export default function PageView() {
 
   const [loadingPage, setLoadingPage] = useState(true);
   const [loadingLemma, setLoadingLemma] = useState(false);
+  const [lemmaFetchProgress, setLemmaFetchProgress] = useState({ completed: 0, total: 0 });
   const [offline, setOffline] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
@@ -258,9 +260,14 @@ export default function PageView() {
 
     pendingKeys.forEach((key) => inflightLemmaKeysRef.current.add(key));
     setLoadingLemma(true);
+    setLemmaFetchProgress({ completed: 0, total: pendingKeys.size });
 
     void lemmaLookup(pendingItems, language)
       .then((lookupData) => {
+        setLemmaFetchProgress({
+          completed: Math.min(pendingKeys.size, Object.keys(lookupData).length),
+          total: pendingKeys.size,
+        });
         pendingKeys.forEach((key) => attemptedKeys.add(key));
         const cached = lemmaInfoCache.get(lemmaCacheKey) ?? {};
         const next = { ...cached, ...lookupData };
@@ -412,9 +419,13 @@ export default function PageView() {
               horizontalAlign="center"
             />
             {loadingLemma && !loadingPage && !noPack && (
-              <div className="pointer-events-none absolute bottom-20 left-1/2 z-40 -translate-x-1/2 rounded-full bg-neutral-50/90 px-3 py-1 text-xs text-neutral-500 shadow-sm backdrop-blur-sm md:bottom-4">
-                {t("Fetching lemmas...")}
-              </div>
+              <LemmaActivityToast
+                open
+                title={t("Fetching lemmas...")}
+                description={`${lemmaFetchProgress.completed} / ${lemmaFetchProgress.total}`}
+                progress={lemmaFetchProgress}
+                className="bottom-20 md:bottom-4"
+              />
             )}
           </div>
 

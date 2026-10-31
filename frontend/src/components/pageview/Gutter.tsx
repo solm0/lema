@@ -27,7 +27,7 @@ export function Gutter({
 }) {
   const longPressTimerRef = useRef<number | null>(null);
   const suppressClickRef = useRef(false);
-  const groups: { top: number; items: Annotation[] }[] = [];
+  const groups: { top: number; left: number; items: Annotation[] }[] = [];
   const container = containerRef.current;
 
   useEffect(() => {
@@ -60,7 +60,8 @@ export function Gutter({
     const rect = getTokenRect(container, annotation.start_index);
     if (!rect) return;
 
-    const top = rect.top - containerRect.top + 48;
+    const top = rect.top - containerRect.top - 20;
+    const left = rect.left - containerRect.left;
 
     let found = false;
 
@@ -73,19 +74,19 @@ export function Gutter({
     }
 
     if (!found) {
-      groups.push({ top, items: [annotation] });
+      groups.push({ top, left, items: [annotation] });
     }
   });
 
   return (
-    <div className="absolute top-0 right-0 z-20 w-0 opacity-50 md:relative md:top-auto md:right-auto md:z-auto md:opacity-100">
+    <div className="pointer-events-none absolute inset-0 z-20">
       {groups.map((group, i) => (
         <div
           key={i}
           style={{
             position: "absolute",
             top: group.top,
-            right: 12,
+            left: group.left,
           }}
           className="flex gap-0.5"
         >
@@ -98,9 +99,10 @@ export function Gutter({
                 data-gutter-annotation="true"
                 data-annotation-id={annotation.id}
                 className={`
-                  h-6 w-6 rounded text-neutral-700 transition-colors flex items-center justify-center
+                  pointer-events-auto h-6 w-6 rounded transition-[opacity,background-color] flex items-center justify-center
                   ${disableEmojiEdit ? "pointer-events-none cursor-default opacity-50" : "cursor-pointer"}
                   ${annotationId === annotation.id ? 'bg-neutral-100' : 'bg-transparent'}
+                  ${annotation.type === "emoji" ? "text-neutral-700" : "text-accent opacity-80 hover:opacity-100"}
                   ${!disableEmojiEdit && 'hover:bg-neutral-100'}
                 `}
               onPointerEnter={() =>

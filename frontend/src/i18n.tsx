@@ -138,6 +138,7 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "Don't show this again": "더 이상 보지 않기",
     "You marked {count} {language} words as known!": "{language} 단어 {count}개를 안다고 표시했어요!",
     "You know “{lemma}”.": "‘{lemma}’를 알고 있어요.",
+    "Copied “{lemma}” to clipboard.": "‘{lemma}’를 클립보드에 복사했어요.",
     "sentences containing “{lemma}” will be shown first.": "앞으로 ‘{lemma}’가 포함된 문장을 우선해서 보여드릴게요.",
     "Installation complete.": "설치가 완료되었습니다.",
     "Installation failed.": "설치에 실패했습니다.",

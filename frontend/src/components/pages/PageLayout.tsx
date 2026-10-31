@@ -1514,7 +1514,7 @@ export default function PageLayout() {
                 onPointerUp={handleSidebarResizeEnd}
                 onPointerCancel={handleSidebarResizeCancel}
               >
-                <div className="absolute inset-y-0 left-1/2 w-0.75 -translate-x-1/2 bg-neutral-200 transition-[width,background-color] group-hover:w-1 group-hover:bg-neutral-400" />
+                <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-neutral-200 transition-[width,background-color] group-hover:w-1 group-hover:bg-neutral-400" />
               </div>
             ) : null}
             {sidebarContent}

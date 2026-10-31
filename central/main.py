@@ -96,6 +96,17 @@ def ensure_user_lemma_schema():
                 )
             )
 
+        if "memo" not in columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE user_lemmas "
+                    "ADD COLUMN memo VARCHAR(20) NOT NULL DEFAULT ''"
+                )
+            )
+        conn.execute(
+            text("UPDATE user_lemmas SET memo = substr(memo, 1, 20) WHERE length(memo) > 20")
+        )
+
         if "updated_at" not in columns:
             conn.execute(text("ALTER TABLE user_lemmas ADD COLUMN updated_at DATETIME"))
             conn.execute(text("UPDATE user_lemmas SET updated_at = CURRENT_TIMESTAMP"))

@@ -58,6 +58,7 @@ class UserLemma(Base):
     exposure_count = Column(Integer, nullable=False, default=0)
     is_known = Column(Boolean, nullable=False, default=False)
     is_interested = Column(Boolean, nullable=False, default=False)
+    memo = Column(String(20), nullable=False, default="")
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     __table_args__ = (
         UniqueConstraint("user_id", "lemma_key"),

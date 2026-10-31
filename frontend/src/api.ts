@@ -740,7 +740,7 @@ export async function getLemmaProfile(): Promise<Record<string, UserLemmaState>>
 
 export async function updateLemmaState(
   key: string,
-  update: { exposure_count?: number; is_known?: boolean },
+  update: { exposure_count?: number; is_known?: boolean; memo?: string },
 ): Promise<UserLemmaState> {
   if (GRADSHOW_MODE) {
     await queueOfflineLemmaStateUpdate(key, update);

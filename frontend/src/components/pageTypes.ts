@@ -65,6 +65,7 @@ export type UserLemmaState = {
   exposure_count: number;
   is_known: boolean;
   is_interested: boolean;
+  memo: string;
   updated_at?: string | null;
 };
 

@@ -21,6 +21,9 @@ declare global {
     };
     electronAPI?: {
       platform?: string;
+      minimizeWindow?: () => Promise<void>;
+      toggleMaximizeWindow?: () => Promise<void>;
+      closeWindow?: () => Promise<void>;
       getNowPlaying?: () => Promise<unknown>;
       onDeepLink?: (callback: (url: string) => void) => (() => void) | void;
       relaunchApp?: () => Promise<void>;

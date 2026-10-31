@@ -503,6 +503,7 @@ export default function PageCore({
   getTokenProps,
   renderTokenContent,
   rightAside,
+  contentOverlay,
   overlay,
   interestKeys,
   wrapperStyle,
@@ -535,6 +536,7 @@ export default function PageCore({
     index: number;
   }) => ReactNode;
   rightAside?: ReactNode;
+  contentOverlay?: ReactNode;
   overlay?: ReactNode;
   wrapperStyle?: CSSProperties;
   horizontalAlign?: "left" | "right" | "center";
@@ -845,7 +847,7 @@ export default function PageCore({
               {canManageMetadata && editingMetadataIndex === -1 ? (
                 <input
                   type="text"
-                  className="field-sizing-content min-w-[2ch] max-w-[min(78vw,42rem)] border-0 bg-transparent p-0 text-left outline-none placeholder:text-neutral-400"
+                  className="field-sizing-content min-w-[2ch] max-w-[min(78vw,42rem)] border-0 bg-transparent px-1 py-1 text-left outline-none placeholder:text-neutral-400"
                   placeholder={t("Add metadata")}
                   value={draftMetadata}
                   onChange={(event) => setDraftMetadata(event.target.value)}
@@ -1041,6 +1043,7 @@ export default function PageCore({
           activeLyricBlockIndex={activeLyricBlockIndex}
           syncPlaybackActive={syncPlaybackActive}
         />
+        {contentOverlay}
       </div>
 
       {rightAside}

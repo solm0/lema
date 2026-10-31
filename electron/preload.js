@@ -3,6 +3,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 // 필요하다면 여기서 안전하게 Node API를 renderer에 노출
 contextBridge.exposeInMainWorld("electronAPI", {
   platform: process.platform,
+  minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
+  toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggle-maximize"),
+  closeWindow: () => ipcRenderer.invoke("window:close"),
   getNowPlaying: () => ipcRenderer.invoke("now-playing:get"),
   relaunchApp: () => ipcRenderer.invoke("app:relaunch"),
   readOfflineState: () => ipcRenderer.invoke("offline-state:read"),

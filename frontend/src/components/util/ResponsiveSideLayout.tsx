@@ -55,7 +55,12 @@ export default function ResponsiveSideLayout({
   onSwipeRight,
   children,
 }: Props) {
-  const { pageSidebarOpen, pageSidebarWidth } = useLayout();
+  const {
+    pageSidebarOpen,
+    pageSidebarWidth,
+    setLemmaPanelLeft,
+    setLemmaPanelWidth,
+  } = useLayout();
   const [isMobile, setIsMobile] = useState(
     () => isCapacitorApp() || (typeof window !== "undefined" && window.innerWidth < 768),
   );
@@ -67,6 +72,7 @@ export default function ResponsiveSideLayout({
   const [viewportWidth, setViewportWidth] = useState(
     () => typeof window === "undefined" ? 1280 : window.innerWidth,
   );
+  const desktopPanelRef = useRef<HTMLElement | null>(null);
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
   const resizeCloseArmedRef = useRef(false);
   const [resizeCloseArmed, setResizeCloseArmed] = useState(false);
@@ -109,6 +115,33 @@ export default function ResponsiveSideLayout({
     window.addEventListener("resize", updateViewport);
     return () => window.removeEventListener("resize", updateViewport);
   }, []);
+
+  useEffect(() => {
+    if (isMobile || !open) {
+      setLemmaPanelLeft(null);
+      setLemmaPanelWidth(null);
+      return;
+    }
+
+    const panel = desktopPanelRef.current;
+    if (!panel) return;
+
+    const updatePanelWidth = () => {
+      const { left, width } = panel.getBoundingClientRect();
+      setLemmaPanelLeft(left);
+      setLemmaPanelWidth(width);
+    };
+
+    updatePanelWidth();
+    const observer = new ResizeObserver(updatePanelWidth);
+    observer.observe(panel);
+    return () => observer.disconnect();
+  }, [constrainedDesktopWidth, isMobile, open, setLemmaPanelLeft, setLemmaPanelWidth]);
+
+  useEffect(() => () => {
+    setLemmaPanelLeft(null);
+    setLemmaPanelWidth(null);
+  }, [setLemmaPanelLeft, setLemmaPanelWidth]);
 
   useEffect(() => {
     if (!isMobile || !open) {
@@ -241,6 +274,7 @@ export default function ResponsiveSideLayout({
     if (!open) return null;
     return (
       <aside
+        ref={desktopPanelRef}
         className="relative z-20 h-full min-h-0 min-w-0 shrink-0 overflow-hidden bg-neutral-50"
         style={{
           width: constrainedDesktopWidth,
@@ -263,7 +297,7 @@ export default function ResponsiveSideLayout({
           onPointerUp={onResizePointerEnd}
           onPointerCancel={onResizePointerCancel}
         >
-          <div className="absolute inset-y-0 left-1/2 w-0.75 -translate-x-1/2 bg-neutral-200 transition-[width,background-color] group-hover:w-1 group-hover:bg-neutral-400" />
+          <div className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-neutral-200 transition-[width,background-color] group-hover:w-1 group-hover:bg-neutral-400" />
         </div>
         <div className="h-full min-h-0 min-w-0 w-full overflow-hidden">
           {children}

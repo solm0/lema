@@ -570,7 +570,11 @@ export default function PageContent({
             ${language === "ko" || language === "ja" ? "leading-[1.8] text-xl" : "text-[1.4rem] tracking-[-0.02em]"}
             ${language === "ja" ? 'font-[600]' : 'font-[630]'}
             ${isInPanelLemma ? 'font-bold!' : ''}
-            ${hasGapFillHighlight ? 'bg-neutral-300 after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-neutral-300 after:content-[\"\"]' : ''}
+            ${isInHover
+              ? 'bg-pos-highlight after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-pos-highlight after:content-[\"\"]'
+              : hasGapFillHighlight
+                ? 'bg-neutral-300 after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-neutral-300 after:content-[\"\"]'
+                : ''}
             ${isSelected && 'bg-neutral-200 after:absolute after:left-full after:top-0 after:h-full after:w-[var(--selection-gap-width,0px)] after:bg-neutral-200 after:content-[\"\"]'}
             ${!info && "text-neutral-400"}
             `,
@@ -580,7 +584,7 @@ export default function PageContent({
         };
       }}
       renderTokenContent={({ token }) => renderTokenSurface(token)}
-      rightAside={
+      contentOverlay={
         <Gutter
           annotations={annotations}
           containerRef={containerRef}

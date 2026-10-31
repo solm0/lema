@@ -25,6 +25,7 @@ class LemmaStateRequest(BaseModel):
     exposure_count: int | None = Field(default=None, ge=0, le=10)
     is_known: bool | None = None
     is_interested: bool | None = None
+    memo: str | None = Field(default=None, max_length=20)
 
 
 def _get_or_create_state(db: Session, user_id: int, key: str) -> UserLemma:
@@ -36,6 +37,7 @@ def _get_or_create_state(db: Session, user_id: int, key: str) -> UserLemma:
             exposure_count=0,
             is_known=False,
             is_interested=False,
+            memo="",
             updated_at=datetime.utcnow(),
         )
         db.add(state)
@@ -48,6 +50,7 @@ def _serialize_state(state: UserLemma) -> dict:
         "exposure_count": min(max(state.exposure_count or 0, 0), 10),
         "is_known": bool(state.is_known),
         "is_interested": bool(state.is_interested),
+        "memo": state.memo or "",
         "updated_at": state.updated_at.isoformat() if state.updated_at else None,
     }
 
@@ -65,6 +68,8 @@ def update_lemma_state(
         state.is_known = req.is_known
     if req.is_interested is not None:
         state.is_interested = req.is_interested
+    if req.memo is not None:
+        state.memo = req.memo
     state.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(state)

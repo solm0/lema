@@ -125,7 +125,7 @@ export function Toolbar({
   return (
     <>
       <div
-        className={`flex ${mobileApp ? 'gap-2': 'gap-0.5'} pl-1 border-l border-neutral-400/70`}
+        className={`flex ${mobileApp ? 'gap-2': 'gap-0.5'}`}
       >
         <IconButtonEvent
           icon={<Search size={mobileApp ? 16 : 14} />}

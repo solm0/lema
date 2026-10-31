@@ -15,7 +15,11 @@ import {
 } from "react-router-dom";
 import { IconButton } from "./util/Button";
 import {
+  ChevronRight,
+  Minus,
   PanelLeft,
+  Square,
+  X,
 } from "lucide-react";
 import { isCapacitorApp } from "../platform";
 import { useSettings } from "./useSettings";
@@ -43,10 +47,17 @@ type LayoutContextType = {
   setPageSidebarOpen: (open: boolean) => void;
   pageSidebarWidth: number;
   setPageSidebarWidth: (width: number) => void;
+  breadcrumbOpen: boolean;
+  setBreadcrumbOpen: (open: boolean) => void;
+  lemmaPanelWidth: number | null;
+  setLemmaPanelWidth: (width: number | null) => void;
+  lemmaPanelLeft: number | null;
+  setLemmaPanelLeft: (left: number | null) => void;
 };
 
 const PAGE_SIDEBAR_OPEN_STORAGE_KEY = "pages.sidebar.open";
 const PAGE_SIDEBAR_WIDTH_STORAGE_KEY = "pages.sidebar.width";
+const BREADCRUMB_OPEN_STORAGE_KEY = "lemma.breadcrumb.open";
 const DEFAULT_PAGE_SIDEBAR_WIDTH = 256;
 
 const LayoutContext =
@@ -77,6 +88,20 @@ function loadPageSidebarWidth() {
   return Number.isFinite(saved) ? saved : DEFAULT_PAGE_SIDEBAR_WIDTH;
 }
 
+function loadBreadcrumbOpen() {
+  if (typeof window === "undefined") return true;
+
+  try {
+    const raw = window.localStorage.getItem(BREADCRUMB_OPEN_STORAGE_KEY);
+    if (raw === null) return true;
+
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "boolean" ? parsed : true;
+  } catch {
+    return true;
+  }
+}
+
 
 // ======================================
 // HOOK
@@ -92,6 +117,10 @@ export function useLayout() {
   }
 
   return ctx;
+}
+
+export function useOptionalLayout() {
+  return useContext(LayoutContext);
 }
 
 
@@ -114,10 +143,17 @@ export default function RootLayout() {
     useState(() => loadPageSidebarOpen());
   const [pageSidebarWidth, setPageSidebarWidth] =
     useState(() => loadPageSidebarWidth());
+  const [breadcrumbOpen, setBreadcrumbOpen] =
+    useState(() => loadBreadcrumbOpen());
+  const [lemmaPanelWidth, setLemmaPanelWidth] =
+    useState<number | null>(null);
+  const [lemmaPanelLeft, setLemmaPanelLeft] =
+    useState<number | null>(null);
 
   const isPagePath =
     matchPath("/page/:id", location.pathname) !==
     null;
+  const isWindowsElectron = window.electronAPI?.platform === "win32";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -136,6 +172,15 @@ export default function RootLayout() {
       String(pageSidebarWidth)
     );
   }, [pageSidebarWidth]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    window.localStorage.setItem(
+      BREADCRUMB_OPEN_STORAGE_KEY,
+      JSON.stringify(breadcrumbOpen)
+    );
+  }, [breadcrumbOpen]);
 
   useEffect(() => {
     if (GRADSHOW_MODE) return;
@@ -300,8 +345,14 @@ export default function RootLayout() {
       setPageSidebarOpen,
       pageSidebarWidth,
       setPageSidebarWidth,
+      breadcrumbOpen,
+      setBreadcrumbOpen,
+      lemmaPanelWidth,
+      setLemmaPanelWidth,
+      lemmaPanelLeft,
+      setLemmaPanelLeft,
     }),
-    [panelOpen, pageSidebarOpen, pageSidebarWidth]
+    [breadcrumbOpen, lemmaPanelLeft, lemmaPanelWidth, panelOpen, pageSidebarOpen, pageSidebarWidth]
   );
 
   return (
@@ -322,6 +373,55 @@ export default function RootLayout() {
             />
           )}
         </div>
+        {panelOpen && lemmaPanelLeft !== null && (
+          <div
+            className="hidden md:block fixed top-2 z-[1000] no-drag text-neutral-500"
+            style={{ left: lemmaPanelLeft + 8 }}
+          >
+            <IconButton
+              icon={
+                <ChevronRight
+                  size={15}
+                  className={`transition-transform duration-300 ${
+                    breadcrumbOpen ? "rotate-90" : "rotate-0"
+                  }`}
+                />
+              }
+              onClick={() => setBreadcrumbOpen(!breadcrumbOpen)}
+              title={
+                breadcrumbOpen
+                  ? t("Hide breadcrumb")
+                  : t("Show breadcrumb")
+              }
+            />
+          </div>
+        )}
+        {isWindowsElectron && (
+          <div className="window-controls no-drag">
+            <button
+              type="button"
+              aria-label={t("Minimize")}
+              onClick={() => void window.electronAPI?.minimizeWindow?.()}
+            >
+              <Minus size={15} />
+            </button>
+            <button
+              type="button"
+              aria-label={t("Maximize")}
+              onClick={() => void window.electronAPI?.toggleMaximizeWindow?.()}
+            >
+              <Square size={12} />
+            </button>
+            <button
+              type="button"
+              aria-label={t("Close")}
+              className="window-control-close"
+              onClick={() => void window.electronAPI?.closeWindow?.()}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       <Outlet />

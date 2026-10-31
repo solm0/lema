@@ -21,7 +21,7 @@ const Toast = forwardRef<
 >(({ className = "", ...props }, ref) => (
   <ToastPrimitive.Root
     ref={ref}
-    className={`toast-root relative flex w-full flex-col gap-1 rounded-lg border p-4 shadow-lg data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] ${className}`}
+    className={`toast-root relative flex w-[35ch] flex-col gap-1 rounded-lg border p-3 shadow-md data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] ${className}`}
     {...props}
   />
 ));

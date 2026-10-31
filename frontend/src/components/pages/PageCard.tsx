@@ -342,9 +342,9 @@ export default function PageCard({
             : dropFlashed
               ? "bg-neutral-200/70"
               : selected
-                ? "bg-neutral-400/20"
+                ? "bg-accent/20"
               : isActivePage
-                ? "bg-neutral-400/20"
+                ? "bg-accent/20"
                 : hovered && !dragActive
                   ? "bg-neutral-400/10"
                   : "bg-transparent"

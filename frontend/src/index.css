@@ -214,18 +214,18 @@ html[data-theme="everforest-dark"] {
  * without changing the established layout. */
 html[data-theme="catppuccin-frappe"], html[data-theme="catppuccin-macchiato"],
 html[data-theme="solarized-light"], html[data-theme="solarized-dark"],
-html[data-theme="gruvbox-light"], html[data-theme="gruvbox-light-soft"], html[data-theme="gruvbox-light-hard"], html[data-theme="gruvbox-dark-soft"], html[data-theme="gruvbox-dark-hard"], html[data-theme="gruvbox-material-dark"], html[data-theme="dracula"],
-html[data-theme="tokyo-night-storm"], html[data-theme="tokyo-night-moon"], html[data-theme="tokyo-night-day"],
+html[data-theme="gruvbox-light"], html[data-theme="gruvbox-light-hard"], html[data-theme="gruvbox-dark-soft"], html[data-theme="gruvbox-dark-hard"], html[data-theme="dracula"],
+html[data-theme="tokyo-night-storm"], html[data-theme="tokyo-night-day"],
 html[data-theme="rose-pine"], html[data-theme="rose-pine-dawn"],
 html[data-theme="kanagawa-wave"], html[data-theme="kanagawa-dragon"], html[data-theme="kanagawa-lotus"],
 html[data-theme="everforest-dark-hard"], html[data-theme="everforest-dark-soft"],
-html[data-theme="everforest-light-hard"], html[data-theme="everforest-light"], html[data-theme="everforest-light-soft"],
+html[data-theme="everforest-light-hard"], html[data-theme="everforest-light"],
 html[data-theme="flexoki-light"], html[data-theme="flexoki-dark"],
 html[data-theme="ayu-light"], html[data-theme="ayu-mirage"], html[data-theme="ayu-dark"],
 html[data-theme="one-light"], html[data-theme="one-dark"],
-html[data-theme="monokai"], html[data-theme="monokai-dimmed"],
+html[data-theme="monokai"],
 html[data-theme="night-owl"], html[data-theme="light-owl"],
-html[data-theme="github-light"], html[data-theme="github-dark"], html[data-theme="base16-default-dark"] {
+html[data-theme="github-light"], html[data-theme="github-dark"] {
   --app-neutral-50: var(--app-page-bg); --app-neutral-100: var(--app-surface-bg); --app-neutral-200: var(--app-surface-raised); --app-neutral-300: var(--app-border); --app-neutral-400: var(--app-border-strong); --app-neutral-500: color-mix(in srgb, var(--app-text) 65%, var(--app-page-bg)); --app-neutral-600: color-mix(in srgb, var(--app-text) 82%, var(--app-page-bg)); --app-neutral-700: var(--app-text); --app-neutral-800: var(--app-text-strong); --app-neutral-900: var(--app-text-strong); --app-neutral-950: var(--app-text-strong);
   --app-green-50: color-mix(in srgb, var(--app-success) 12%, var(--app-page-bg)); --app-green-100: color-mix(in srgb, var(--app-success) 20%, var(--app-page-bg)); --app-green-200: color-mix(in srgb, var(--app-success) 34%, var(--app-page-bg)); --app-green-300: color-mix(in srgb, var(--app-success) 50%, var(--app-page-bg)); --app-green-400: color-mix(in srgb, var(--app-success) 74%, var(--app-page-bg)); --app-green-500: var(--app-success); --app-green-600: var(--app-success); --app-green-700: var(--app-success); --app-green-800: var(--app-success); --app-green-900: var(--app-success);
   --app-red-50: color-mix(in srgb, var(--app-danger) 12%, var(--app-page-bg)); --app-red-100: color-mix(in srgb, var(--app-danger) 20%, var(--app-page-bg)); --app-red-200: color-mix(in srgb, var(--app-danger) 34%, var(--app-page-bg)); --app-red-300: color-mix(in srgb, var(--app-danger) 50%, var(--app-page-bg)); --app-red-400: color-mix(in srgb, var(--app-danger) 74%, var(--app-page-bg)); --app-red-500: var(--app-danger); --app-red-600: var(--app-danger); --app-red-700: var(--app-danger); --app-red-800: var(--app-danger); --app-red-900: var(--app-danger);
@@ -237,14 +237,11 @@ html[data-theme="catppuccin-macchiato"] { --app-page-bg:#24273a; --app-surface-b
 html[data-theme="solarized-light"] { --app-page-bg:#fdf6e3; --app-surface-bg:#eee8d5; --app-surface-raised:#fdf6e3; --app-border:#93a1a1; --app-border-strong:#839496; --app-text:#657b83; --app-text-strong:#586e75; --app-accent:#268bd2; --app-accent-foreground:#fdf6e3; --app-success:#859900; --app-danger:#dc322f; --app-warning:#b58900; --app-info:#268bd2; }
 html[data-theme="solarized-dark"] { --app-page-bg:#002b36; --app-surface-bg:#073642; --app-surface-raised:#0b4654; --app-border:#586e75; --app-border-strong:#657b83; --app-text:#839496; --app-text-strong:#eee8d5; --app-accent:#268bd2; --app-accent-foreground:#fdf6e3; --app-success:#859900; --app-danger:#dc322f; --app-warning:#b58900; --app-info:#2aa198; }
 html[data-theme="gruvbox-light"] { --app-page-bg:#fbf1c7; --app-surface-bg:#f2e5bc; --app-surface-raised:#ebdbb2; --app-border:#d5c4a1; --app-border-strong:#bdae93; --app-text:#665c54; --app-text-strong:#3c3836; --app-accent:#458588; --app-accent-foreground:#fbf1c7; --app-success:#79740e; --app-danger:#cc241d; --app-warning:#b57614; --app-info:#458588; }
-html[data-theme="gruvbox-light-soft"] { --app-page-bg:#f2e5bc; --app-surface-bg:#ebdbb2; --app-surface-raised:#e4d5a7; --app-border:#d5c4a1; --app-border-strong:#bdae93; --app-text:#665c54; --app-text-strong:#3c3836; --app-accent:#458588; --app-accent-foreground:#fbf1c7; --app-success:#79740e; --app-danger:#cc241d; --app-warning:#b57614; --app-info:#458588; }
 html[data-theme="gruvbox-light-hard"] { --app-page-bg:#f9f5d7; --app-surface-bg:#fbf1c7; --app-surface-raised:#f2e5bc; --app-border:#d5c4a1; --app-border-strong:#bdae93; --app-text:#665c54; --app-text-strong:#3c3836; --app-accent:#458588; --app-accent-foreground:#fbf1c7; --app-success:#79740e; --app-danger:#cc241d; --app-warning:#b57614; --app-info:#458588; }
 html[data-theme="gruvbox-dark-soft"] { --app-page-bg:#32302f; --app-surface-bg:#3c3836; --app-surface-raised:#504945; --app-border:#665c54; --app-border-strong:#7c6f64; --app-text:#ebdbb2; --app-text-strong:#fbf1c7; --app-accent:#83a598; --app-accent-foreground:#282828; --app-success:#b8bb26; --app-danger:#fb4934; --app-warning:#fabd2f; --app-info:#83a598; }
 html[data-theme="gruvbox-dark-hard"] { --app-page-bg:#1d2021; --app-surface-bg:#282828; --app-surface-raised:#3c3836; --app-border:#504945; --app-border-strong:#665c54; --app-text:#ebdbb2; --app-text-strong:#fbf1c7; --app-accent:#83a598; --app-accent-foreground:#1d2021; --app-success:#b8bb26; --app-danger:#fb4934; --app-warning:#fabd2f; --app-info:#83a598; }
-html[data-theme="gruvbox-material-dark"] { --app-page-bg:#282828; --app-surface-bg:#32302f; --app-surface-raised:#3c3836; --app-border:#504945; --app-border-strong:#665c54; --app-text:#d4be98; --app-text-strong:#ebdbb2; --app-accent:#7daea3; --app-accent-foreground:#282828; --app-success:#a9b665; --app-danger:#ea6962; --app-warning:#d8a657; --app-info:#7daea3; }
 html[data-theme="dracula"] { --app-page-bg:#282a36; --app-surface-bg:#343746; --app-surface-raised:#44475a; --app-border:#6272a4; --app-border-strong:#7d8bb8; --app-text:#f8f8f2; --app-text-strong:#ffffff; --app-accent:#bd93f9; --app-accent-foreground:#282a36; --app-success:#50fa7b; --app-danger:#ff5555; --app-warning:#f1fa8c; --app-info:#8be9fd; }
 html[data-theme="tokyo-night-storm"] { --app-page-bg:#24283b; --app-surface-bg:#292e42; --app-surface-raised:#3b4261; --app-border:#414868; --app-border-strong:#565f89; --app-text:#c0caf5; --app-text-strong:#d5d6db; --app-accent:#7aa2f7; --app-accent-foreground:#1f2335; --app-success:#9ece6a; --app-danger:#f7768e; --app-warning:#e0af68; --app-info:#7dcfff; }
-html[data-theme="tokyo-night-moon"] { --app-page-bg:#222436; --app-surface-bg:#1e2030; --app-surface-raised:#2d3f76; --app-border:#3b4261; --app-border-strong:#636da6; --app-text:#c8d3f5; --app-text-strong:#e9edff; --app-accent:#82aaff; --app-accent-foreground:#222436; --app-success:#c3e88d; --app-danger:#ff757f; --app-warning:#ffc777; --app-info:#86e1fc; }
 html[data-theme="tokyo-night-day"] { --app-page-bg:#e1e2e7; --app-surface-bg:#d5d6db; --app-surface-raised:#cbccd1; --app-border:#b4b5b9; --app-border-strong:#9699a3; --app-text:#3760bf; --app-text-strong:#0f0f14; --app-accent:#2e7de9; --app-accent-foreground:#ffffff; --app-success:#587539; --app-danger:#f52a65; --app-warning:#8c6c3e; --app-info:#007197; }
 html[data-theme="rose-pine"] { --app-page-bg:#191724; --app-surface-bg:#1f1d2e; --app-surface-raised:#26233a; --app-border:#403d52; --app-border-strong:#6e6a86; --app-text:#e0def4; --app-text-strong:#f5f1ff; --app-accent:#c4a7e7; --app-accent-foreground:#191724; --app-success:#9ccfd8; --app-danger:#eb6f92; --app-warning:#f6c177; --app-info:#9ccfd8; }
 html[data-theme="rose-pine-dawn"] { --app-page-bg:#faf4ed; --app-surface-bg:#fffaf3; --app-surface-raised:#f2e9de; --app-border:#dfdad9; --app-border-strong:#9893a5; --app-text:#575279; --app-text-strong:#26233a; --app-accent:#907aa9; --app-accent-foreground:#ffffff; --app-success:#56949f; --app-danger:#b4637a; --app-warning:#ea9d34; --app-info:#56949f; }
@@ -255,7 +252,6 @@ html[data-theme="everforest-dark-hard"] { --app-page-bg:#272e33; --app-surface-b
 html[data-theme="everforest-dark-soft"] { --app-page-bg:#333c43; --app-surface-bg:#3a464c; --app-surface-raised:#434f55; --app-border:#555f66; --app-border-strong:#5d6b66; --app-text:#d3c6aa; --app-text-strong:#e9ddc3; --app-accent:#7fbbb3; --app-accent-foreground:#333c43; --app-success:#a7c080; --app-danger:#e67e80; --app-warning:#dbbc7f; --app-info:#7fbbb3; }
 html[data-theme="everforest-light-hard"] { --app-page-bg:#fffbef; --app-surface-bg:#f8f5e4; --app-surface-raised:#f2efdf; --app-border:#e8e5d5; --app-border-strong:#bec5b2; --app-text:#5c6a72; --app-text-strong:#343f44; --app-accent:#3a94c5; --app-accent-foreground:#ffffff; --app-success:#8da101; --app-danger:#f85552; --app-warning:#dfa000; --app-info:#3a94c5; }
 html[data-theme="everforest-light"] { --app-page-bg:#fdf6e3; --app-surface-bg:#f4f0d9; --app-surface-raised:#efebd4; --app-border:#e0dcc7; --app-border-strong:#bdc3af; --app-text:#5c6a72; --app-text-strong:#343f44; --app-accent:#3a94c5; --app-accent-foreground:#ffffff; --app-success:#8da101; --app-danger:#f85552; --app-warning:#dfa000; --app-info:#3a94c5; }
-html[data-theme="everforest-light-soft"] { --app-page-bg:#f3ead3; --app-surface-bg:#eae4ca; --app-surface-raised:#e5dfc5; --app-border:#d8d3ba; --app-border-strong:#b9c0ab; --app-text:#5c6a72; --app-text-strong:#343f44; --app-accent:#3a94c5; --app-accent-foreground:#ffffff; --app-success:#8da101; --app-danger:#f85552; --app-warning:#dfa000; --app-info:#3a94c5; }
 html[data-theme="flexoki-light"] { --app-page-bg:#fffcf0; --app-surface-bg:#f2f0e5; --app-surface-raised:#e6e4d9; --app-border:#cecdc3; --app-border-strong:#b7b5ac; --app-text:#575653; --app-text-strong:#100f0f; --app-accent:#205ea6; --app-accent-foreground:#ffffff; --app-success:#66800b; --app-danger:#af3029; --app-warning:#ad8301; --app-info:#24837b; }
 html[data-theme="flexoki-dark"] { --app-page-bg:#100f0f; --app-surface-bg:#1c1b1a; --app-surface-raised:#282726; --app-border:#403e3c; --app-border-strong:#575653; --app-text:#cecdc3; --app-text-strong:#fffcf0; --app-accent:#4385be; --app-accent-foreground:#100f0f; --app-success:#879a39; --app-danger:#d14d41; --app-warning:#d0a215; --app-info:#3aa99f; }
 html[data-theme="ayu-light"] { --app-page-bg:#fcfcfc; --app-surface-bg:#f3f4f5; --app-surface-raised:#ffffff; --app-border:#d9d7ce; --app-border-strong:#b3b1ad; --app-text:#5c6773; --app-text-strong:#242936; --app-accent:#399ee6; --app-accent-foreground:#ffffff; --app-success:#86b300; --app-danger:#f07171; --app-warning:#f2ae49; --app-info:#399ee6; }
@@ -264,12 +260,20 @@ html[data-theme="ayu-dark"] { --app-page-bg:#0a0e14; --app-surface-bg:#0d1017; -
 html[data-theme="one-light"] { --app-page-bg:#fafafa; --app-surface-bg:#f0f0f0; --app-surface-raised:#ffffff; --app-border:#d7dae0; --app-border-strong:#a0a1a7; --app-text:#383a42; --app-text-strong:#20222a; --app-accent:#4078f2; --app-accent-foreground:#ffffff; --app-success:#50a14f; --app-danger:#e45649; --app-warning:#c18401; --app-info:#4078f2; }
 html[data-theme="one-dark"] { --app-page-bg:#282c34; --app-surface-bg:#21252b; --app-surface-raised:#2c313a; --app-border:#3e4451; --app-border-strong:#5c6370; --app-text:#abb2bf; --app-text-strong:#e6e6e6; --app-accent:#61afef; --app-accent-foreground:#282c34; --app-success:#98c379; --app-danger:#e06c75; --app-warning:#e5c07b; --app-info:#61afef; }
 html[data-theme="monokai"] { --app-page-bg:#272822; --app-surface-bg:#1e1f1c; --app-surface-raised:#3e3d32; --app-border:#49483e; --app-border-strong:#75715e; --app-text:#f8f8f2; --app-text-strong:#ffffff; --app-accent:#66d9ef; --app-accent-foreground:#272822; --app-success:#a6e22e; --app-danger:#f92672; --app-warning:#e6db74; --app-info:#66d9ef; }
-html[data-theme="monokai-dimmed"] { --app-page-bg:#1e1e1e; --app-surface-bg:#292929; --app-surface-raised:#3a3a3a; --app-border:#515151; --app-border-strong:#888888; --app-text:#b9b9b9; --app-text-strong:#e6e6e6; --app-accent:#79abff; --app-accent-foreground:#1e1e1e; --app-success:#b4d273; --app-danger:#fb758b; --app-warning:#e5b567; --app-info:#79abff; }
 html[data-theme="night-owl"] { --app-page-bg:#011627; --app-surface-bg:#001122; --app-surface-raised:#0b2942; --app-border:#102a44; --app-border-strong:#2c5b7c; --app-text:#d6deeb; --app-text-strong:#ffffff; --app-accent:#82aaff; --app-accent-foreground:#011627; --app-success:#addb67; --app-danger:#ef5350; --app-warning:#ecc48d; --app-info:#7fdbca; }
 html[data-theme="light-owl"] { --app-page-bg:#fbfbfb; --app-surface-bg:#f1f1f1; --app-surface-raised:#ffffff; --app-border:#d0d0d0; --app-border-strong:#989898; --app-text:#403f53; --app-text-strong:#202027; --app-accent:#4876d6; --app-accent-foreground:#ffffff; --app-success:#2aa198; --app-danger:#d3423e; --app-warning:#ad6e00; --app-info:#4876d6; }
 html[data-theme="github-light"] { --app-page-bg:#ffffff; --app-surface-bg:#f6f8fa; --app-surface-raised:#ffffff; --app-border:#d0d7de; --app-border-strong:#afb8c1; --app-text:#1f2328; --app-text-strong:#0d1117; --app-accent:#0969da; --app-accent-foreground:#ffffff; --app-success:#1a7f37; --app-danger:#cf222e; --app-warning:#9a6700; --app-info:#0969da; }
 html[data-theme="github-dark"] { --app-page-bg:#0d1117; --app-surface-bg:#161b22; --app-surface-raised:#21262d; --app-border:#30363d; --app-border-strong:#484f58; --app-text:#c9d1d9; --app-text-strong:#f0f6fc; --app-accent:#58a6ff; --app-accent-foreground:#0d1117; --app-success:#3fb950; --app-danger:#f85149; --app-warning:#d29922; --app-info:#58a6ff; }
-html[data-theme="base16-default-dark"] { --app-page-bg:#181818; --app-surface-bg:#282828; --app-surface-raised:#383838; --app-border:#585858; --app-border-strong:#b8b8b8; --app-text:#d8d8d8; --app-text-strong:#f8f8f8; --app-accent:#7cafc2; --app-accent-foreground:#181818; --app-success:#a1b56c; --app-danger:#ab4642; --app-warning:#f7ca88; --app-info:#7cafc2; }
+
+/* These light palettes use near-white raised surfaces.  Existing compact UI
+ * borders still use neutral-200/300, so map those utilities to their actual
+ * border roles instead of letting them blend into the page. */
+html[data-theme="solarized-light"], html[data-theme="ayu-light"],
+html[data-theme="light-owl"], html[data-theme="github-light"],
+html[data-theme="everforest-light-hard"], html[data-theme="everforest-light"], html[data-theme="one-light"] {
+  --app-neutral-200: var(--app-border);
+  --app-neutral-300: var(--app-border-strong);
+}
 
 #root {
   min-height: 100svh;
@@ -307,6 +311,13 @@ h3 {
   font-size: var(--text-xl);
   font-weight: var(--font-weight-medium);
   font-family: var(--font-pretendard);
+}
+
+/* KWIC words that share the hovered word's part of speech.  Mixing the
+ * palette accent into the page keeps the highlight close to its background
+ * across light and dark themes without relying on element opacity. */
+:root {
+  --app-pos-highlight: color-mix(in srgb, var(--app-accent) 18%, var(--app-page-bg));
 }
 
 @theme inline {
@@ -352,6 +363,7 @@ h3 {
   --color-on-accent: var(--app-accent-foreground);
   --color-info: var(--app-info);
   --color-info-subtle: var(--app-info-subtle);
+  --color-pos-highlight: var(--app-pos-highlight);
 }
 
 html,
@@ -383,6 +395,31 @@ body {
   -webkit-app-region: drag;
 
   user-select: none;
+}
+
+.window-controls {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-self: stretch;
+  margin-right: -24px;
+}
+
+.window-controls button {
+  display: grid;
+  width: 46px;
+  place-items: center;
+  color: var(--app-text);
+  transition: background-color 120ms ease;
+}
+
+.window-controls button:hover {
+  background-color: var(--app-border);
+}
+
+.window-controls .window-control-close:hover {
+  background-color: var(--app-danger);
+  color: #fff;
 }
 
 .no-drag {

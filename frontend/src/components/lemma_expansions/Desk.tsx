@@ -14,6 +14,7 @@ import { getLemmaProfile, updateLemmaState } from "../../api.ts";
 import { isCapacitorApp } from "../../platform.ts";
 import KnownWordsMilestoneToast, { type KnownWordsMilestone } from "./KnownWordsMilestoneToast.tsx";
 import { isKnownWordsMilestone } from "./knownWordMilestones.ts";
+import { useOptionalLayout } from "../RootLayout.tsx";
 
 const EXPOSURE_DELAY_MS = 750;
 const MAX_EXPOSURE_COUNT = 10;
@@ -45,6 +46,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
   interestKeys,
   onKnownWordsMilestone,
 }, ref) {
+  const layout = useOptionalLayout();
   const breadcrumbRef = useRef<{ addNode: (parentLemma: string, newNode: TreeNode) => void }>(null);
   const [activeNode, setActiveNode] = useState<D3Node | null>(null);
   const [lemmaDatas, setLemmaDatas] = useState<LemmaData[]>([initialLemma]);
@@ -53,6 +55,8 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
   const [profile, setProfile] = useState<Record<string, UserLemmaState>>({});
   const [hasExplored, setHasExplored] = useState(false);
   const [knownWordsMilestone, setKnownWordsMilestone] = useState<KnownWordsMilestone | null>(null);
+  const [isMemoEditing, setIsMemoEditing] = useState(false);
+  const breadcrumbOpen = layout?.breadcrumbOpen ?? true;
   const profileRef = useRef(profile);
   const profileLoadRef = useRef<Promise<Record<string, UserLemmaState>> | null>(null);
   const knownCountsRef = useRef<Record<string, number>>({});
@@ -104,6 +108,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
         is_interested: current?.is_interested
           ?? interestKeys?.has(activeGlobalKey)
           ?? false,
+        memo: current?.memo ?? "",
         updated_at: new Date().toISOString(),
       };
       profileRef.current = { ...profileRef.current, [activeGlobalKey]: next };
@@ -129,6 +134,7 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
       is_interested: current?.is_interested
         ?? interestKeys?.has(activeGlobalKey)
         ?? false,
+      memo: current?.memo ?? "",
       updated_at: new Date().toISOString(),
     };
     profileRef.current = { ...profileRef.current, [activeGlobalKey]: next };
@@ -156,6 +162,30 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
       setProfile(profileRef.current);
     }
   }, [activeGlobalKey, interestKeys, language, onKnownWordsMilestone]);
+
+  const setActiveMemo = useCallback(async (memo: string) => {
+    if (!activeGlobalKey) return;
+    await profileLoadRef.current;
+    const current = profileRef.current[activeGlobalKey];
+    if ((current?.memo ?? "") === memo) return;
+    const next: UserLemmaState = {
+      key: activeGlobalKey,
+      exposure_count: current?.exposure_count ?? 0,
+      is_known: current?.is_known ?? false,
+      is_interested: current?.is_interested
+        ?? interestKeys?.has(activeGlobalKey)
+        ?? false,
+      memo,
+      updated_at: new Date().toISOString(),
+    };
+    profileRef.current = { ...profileRef.current, [activeGlobalKey]: next };
+    setProfile(profileRef.current);
+    const saved = await updateLemmaState(activeGlobalKey, { memo });
+    if (saved) {
+      profileRef.current = { ...profileRef.current, [activeGlobalKey]: saved };
+      setProfile(profileRef.current);
+    }
+  }, [activeGlobalKey, interestKeys]);
 
   const markActiveKnown = useCallback(() => setActiveKnown(true), [setActiveKnown]);
 
@@ -199,8 +229,12 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
         milestone={knownWordsMilestone}
         onClose={() => setKnownWordsMilestone(null)}
       />
-      <div className={`grid shrink-0 overflow-hidden rounded-3xl bg-neutral-50 transition-[grid-template-rows,opacity] duration-300 md:grid-rows-[1fr] md:rounded-none md:opacity-100 ${
+      <div className={`grid shrink-0 overflow-hidden rounded-3xl bg-neutral-50 transition-[grid-template-rows,opacity] duration-300 ease-in-out md:rounded-none ${
         hasExplored ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+      } ${
+        breadcrumbOpen
+          ? "md:grid-rows-[1fr] md:opacity-100"
+          : "md:grid-rows-[0fr] md:opacity-0"
       }`}>
         <div className="min-h-0 overflow-hidden">
           <Breadcrumb
@@ -212,7 +246,9 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
           />
         </div>
       </div>
-      <div className="h-[min(66vh,26rem)] min-h-0 overflow-hidden rounded-3xl bg-neutral-50 shadow-xl md:h-auto md:flex-1 md:rounded-none md:shadow-none">
+      <div className={`${isMemoEditing ? "h-[min(22vh,8.667rem)]" : "h-[min(66vh,26rem)]"} min-h-0 overflow-hidden rounded-3xl bg-neutral-50 shadow-xl transition-[height,margin] duration-300 ease-in-out md:h-auto md:flex-1 md:rounded-none md:border-t md:border-neutral-200 md:shadow-none ${
+        breadcrumbOpen ? "md:mt-0" : "md:mt-10"
+      }`}>
         <LemmaExpansionWrapper
           activeNode={activeNode}
           lemmaDatas={lemmaDatas}
@@ -232,6 +268,9 @@ const Desk = forwardRef<DeskHandle, DeskProps>(function Desk({
           interestKeys={interestKeys}
           isKnown={activeGlobalKey ? profile[activeGlobalKey]?.is_known ?? false : false}
           onToggleKnown={setActiveKnown}
+          memo={activeGlobalKey ? profile[activeGlobalKey]?.memo ?? "" : ""}
+          onSaveMemo={setActiveMemo}
+          onMemoEditingChange={setIsMemoEditing}
         />
       </div>
     </div>
