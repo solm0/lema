@@ -119,7 +119,7 @@ class RecapApiTests(unittest.TestCase):
             failed = self.client.post(
                 f"/api/lemma/recap/items/{first_id}/answer",
                 headers=self.headers,
-                json={"choice_key": "wrong-b/NOUN/en"},
+                json={"choice_key": "wrong-b/NOUN/en", "final_attempt": True},
             )
             self.assertEqual(failed.json()["status"], "failed")
 

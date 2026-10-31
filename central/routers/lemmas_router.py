@@ -74,6 +74,7 @@ class RecapQuestionRequest(BaseModel):
 
 class RecapAnswerRequest(BaseModel):
     choice_key: str = Field(min_length=1, max_length=600)
+    final_attempt: bool = False
 
 
 MAX_EXAMPLES_PER_USER = 10_000
@@ -121,7 +122,6 @@ def _serialize_recap_item(item: UserRecapItem) -> dict:
         "lemma_key": item.lemma_key,
         "position": item.position,
         "status": item.status,
-        "attempt_count": item.attempt_count,
     }
 
 
@@ -551,7 +551,6 @@ def reset_today_recap_session(
     ).all()
     for row in rows:
         row.status = "pending"
-        row.attempt_count = 0
         row.answered_at = None
         row.question_json = None
     if rows:
@@ -654,7 +653,6 @@ def answer_recap_question(
     answer_key = question.get("answer_key")
     now = datetime.utcnow()
     correct = req.choice_key == answer_key
-    item.attempt_count = min(2, (item.attempt_count or 0) + 1)
     if correct:
         item.status = "passed"
         item.answered_at = now
@@ -665,7 +663,7 @@ def answer_recap_question(
         if lemma is not None:
             lemma.last_recap_succeeded_at = now
             lemma.updated_at = now
-    elif item.attempt_count >= 2:
+    elif req.final_attempt:
         item.status = "failed"
         item.answered_at = now
         lemma = db.query(UserLemma).filter_by(
@@ -679,7 +677,7 @@ def answer_recap_question(
     db.commit()
     return {
         "correct": correct,
-        "retry_available": not correct and item.status == "pending",
+        "retry_available": not correct and not req.final_attempt,
         "status": item.status,
         "answer_key": answer_key if item.status != "pending" else None,
         "week_completed": week.completed_at is not None,

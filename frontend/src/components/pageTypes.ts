@@ -105,7 +105,6 @@ export type RecapItem = {
   lemma_key: string;
   position: number;
   status: "pending" | "passed" | "failed" | "expired";
-  attempt_count: number;
 };
 
 export type RecapState = {

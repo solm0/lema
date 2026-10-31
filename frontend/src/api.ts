@@ -929,13 +929,13 @@ export async function saveLemmaRecapQuestion(
   return ((await response.json()) as { question: RecapQuestion }).question;
 }
 
-export async function answerLemmaRecapQuestion(itemId: number, choiceKey: string) {
+export async function answerLemmaRecapQuestion(itemId: number, choiceKey: string, finalAttempt: boolean) {
   const headers = authHeaders();
   if (!headers) throw new Error("not authenticated");
   const response = await centralFetch(`${CENTRAL_API}/lemma/recap/items/${itemId}/answer`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ choice_key: choiceKey }),
+    body: JSON.stringify({ choice_key: choiceKey, final_attempt: finalAttempt }),
   });
   if (!response.ok) throw new Error("recap answer request failed");
   return response.json() as Promise<{

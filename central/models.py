@@ -145,7 +145,6 @@ class UserRecapItem(Base):
     position = Column(Integer, nullable=False)
     status = Column(String(12), nullable=False, default="pending")
     session_date = Column(String(10), nullable=True)
-    attempt_count = Column(Integer, nullable=False, default=0)
     question_json = Column(String, nullable=True)
     answered_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=utc_now_naive)
