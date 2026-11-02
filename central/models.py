@@ -145,6 +145,9 @@ class UserRecapItem(Base):
     position = Column(Integer, nullable=False)
     status = Column(String(12), nullable=False, default="pending")
     session_date = Column(String(10), nullable=True)
+    # Retained for existing SQLite databases where this legacy column is
+    # NOT NULL. It is no longer used by the recap flow or exposed by the API.
+    attempt_count = Column(Integer, nullable=False, default=0)
     question_json = Column(String, nullable=True)
     answered_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False, default=utc_now_naive)
