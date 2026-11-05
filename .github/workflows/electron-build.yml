@@ -65,6 +65,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Java for the bundled OpenNLP sidecar
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - name: Install Linux system packages
         if: runner.os == 'Linux'
         run: |

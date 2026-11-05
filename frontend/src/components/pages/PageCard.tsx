@@ -148,7 +148,7 @@ export default function PageCard({
   );
   const disableServerActions = false;
 
-  const leftPadding = 8 + level * 20;
+  const padding = 12 + level * 20;
 
   const trailingVisible =
     editing || (!isMobileLike && (hovered || menuOpen));
@@ -334,7 +334,7 @@ export default function PageCard({
       }}
       onPointerDown={handlePointerDown}
       onClick={handleClick}
-      className={`group relative min-h-10 md:min-h-7 flex items-center cursor-pointer rounded-md transition-all active:bg-neutral-400/10 ${
+      className={`group relative min-h-10 md:min-h-8 flex items-center cursor-pointer rounded-full transition-all active:bg-neutral-400/10 pr-2 md:pr-0 ${
         dragging
           ? "bg-neutral-200/90"
           : isDragTarget
@@ -350,10 +350,10 @@ export default function PageCard({
                   : "bg-transparent"
       }`}
       style={{
-        paddingLeft: leftPadding,
+        paddingLeft: padding,
       }}
     >
-      <div className="flex w-full items-center gap-1.5 pr-1">
+      <div className="flex w-full items-center gap-1.5">
         {notebook &&
           <div className="flex shrink-0 items-center gap-1 text-neutral-600 md:text-neutral-500">
             {expanded ? (
@@ -364,7 +364,7 @@ export default function PageCard({
           </div>
         }
 
-        <div className="min-w-0 flex-1 text-sm md:text-[0.8rem]">
+        <div className="min-w-0 flex-1 text-lg md:text-[0.8rem]">
           {editing ? (
             <input
               data-no-drag="true"
@@ -400,7 +400,7 @@ export default function PageCard({
         <div className={`relative flex shrink-0 items-center gap-1 transition-opacity ml-auto ${trailingVisible ? "opacity-100" : "opacity-0"}`}>
           {editing ? (
             <IconButtonEvent
-              icon={<Check size={13} />}
+              icon={<Check />}
               onClick={(event) => {
                 event.stopPropagation();
                 void handleRename();
@@ -412,7 +412,7 @@ export default function PageCard({
           {showMenuButton ? (
             <div className="relative">
               <IconButtonEvent
-                icon={<Ellipsis size={14} />}
+                icon={<Ellipsis />}
                 onClick={(event) => {
                   event.stopPropagation();
                   if (disableServerActions) return;

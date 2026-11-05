@@ -1,0 +1,3 @@
+rootProject.name = "lema-nlp"
+
+include(":core", ":desktop-sidecar")

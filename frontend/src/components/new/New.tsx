@@ -3,7 +3,7 @@ import PagePreview from "./PagePreview";
 import { fetchNotebooks, savePage, type SavePageProgress } from "../../api";
 import { useLocation, useNavigate } from "react-router-dom";
 import PasteReader from "./PasteReader";
-import Button from "../util/Button";
+import TextButton from "../util/Button";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import type { TextAnalysisResult } from "../pageTypes";
 import { filterTextAnalysisByRanges, type SelectionRange } from "../pageUtils";
@@ -192,7 +192,7 @@ export default function New() {
       <div className="shrink-0 sticky bottom-0 flex justify-end w-full gap-2">
 
         {isPreviewStep && (
-          <Button
+          <TextButton
             text={t("Retry")}
             onClick={handleReset}
             fit
@@ -201,7 +201,7 @@ export default function New() {
         )}
 
         {statusText ? (
-          <Button
+          <TextButton
             text={statusText}
             onClick={() => {}}
             disabled
@@ -209,7 +209,7 @@ export default function New() {
             black
           />
         ) : footerAction && !isPreviewStep ? (
-          <Button
+          <TextButton
             text={footerAction.text}
             onClick={footerAction.onClick}
             disabled={footerAction.disabled || !language}
@@ -217,7 +217,7 @@ export default function New() {
             black
           />
         ) : (
-          <Button 
+          <TextButton 
             text={t("Next")}
             onClick={handleNext}
             disabled={!isReady || !language}
@@ -266,7 +266,7 @@ export default function New() {
           </div>
 
           {/* save */}
-          <Button
+          <TextButton
             text={saveButtonText}
             onClick={handleSave}
             disabled={Boolean(saveProgress)}

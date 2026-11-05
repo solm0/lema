@@ -173,6 +173,7 @@ repositories {
 }
 
 dependencies {
+    implementation project(':nlp-core')
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"

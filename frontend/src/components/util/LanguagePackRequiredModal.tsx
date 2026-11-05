@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useI18n } from "../../i18n";
 import { LANG_MAP } from "../setting/PackTable";
 import { ResponsiveModal } from "./ResponsiveModal";
-import Button from "./Button";
+import TextButton from "./Button";
 
 export default function LanguagePackRequiredModal({
   language,
@@ -44,7 +44,7 @@ export default function LanguagePackRequiredModal({
           })}
         </h2>
         <div className="flex flex-col gap-3">
-          <Button text={t("Settings")} onClick={handleOpenSettings} fit black />
+          <TextButton text={t("Settings")} onClick={handleOpenSettings} fit black />
           <button
             type="button"
             className="text-neutral-500 text-sm cursor-pointer"

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Tags } from "lucide-react";
+import { ListFilter, MessageSquareMore } from "lucide-react";
 import { useInfiniteAnnotations } from "./useInfiniteAnnotations";
 import AnnotationCard from "./AnnotationCard";
 import type { TimelineItem } from "../../types";
 import BlockingLoadingModal from "../util/BlockingLoadingModal";
 import OfflineState from "../util/OfflineState";
+import EmptyState from "../util/EmptyState";
 import { useI18n } from "../../i18n";
 import { CENTRAL_RESTORED_EVENT } from "../../network";
 import { FilterSelect } from "../pages/PageFilters";
@@ -64,9 +65,10 @@ export default function Annotations() {
     <div className="flex flex-col gap-14 w-full h-full overflow-y-scroll px-3 md:px-6 bg-neutral-50">
       <div className="sticky top-0 z-30 flex flex-col gap-7 bg-neutral-50 pt-12">
         <h2 className="mobile-page-heading">{t("Annotations")}</h2>
-        <div className="flex min-w-0 items-center gap-0.5 overflow-hidden pl-0.5 text-xs">
+        <div className="flex min-w-0 self-end md:self-start items-center gap-2 overflow-hidden md:pl-0.5">
+          <ListFilter className="w-4 h-4 md:w-3.5 md:h-3.5 text-neutral-300" />
           <FilterSelect
-            icon={<Tags size={14} />}
+            icon={<MessageSquareMore className="w-4 h-4 md:w-3.5 md:h-3.5" />}
             options={[
               { value: "memo", label: t("Memo") },
               { value: "link", label: t("Link") },
@@ -104,7 +106,14 @@ export default function Annotations() {
         <div ref={sentinelRef} className="h-10 w-full" />
 
         <BlockingLoadingModal open={loading} message="Loading annotations..." />
-        {!hasMore && <p className="text-center opacity-50 pb-18 text-sm">{t("End of the list")}</p>}
+        {!loading && !offline && !hasMore && filteredItems.length === 0 && (
+          <div className="w-full">
+            <EmptyState
+              icon={MessageSquareMore}
+              message={t(items.length === 0 ? "No annotations yet." : "No matches found.")}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

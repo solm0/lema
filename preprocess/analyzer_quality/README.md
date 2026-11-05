@@ -116,6 +116,25 @@ python3 preprocess/analyzer_quality/run_android.py \
 python3 preprocess/analyzer_quality/run_android_performance.py --language en
 ```
 
+## macOS English OpenNLP sidecar 비교
+
+영어 sidecar는 Android와 같은 공통 Java 분석 모듈을 사용한다. 아래 명령은 기존
+언어팩 표본 1,000개로 네 가지를 한 번에 기록한다: Stanza와의 결과 차이, 기존
+lemma-pack DB 호환성, cold/warm 속도, sidecar·Java runtime·Torch의 파일 크기.
+
+먼저 sidecar를 빌드한다.
+
+```bash
+bash scripts/build-opennlp-sidecar.sh
+python3 preprocess/analyzer_quality/run_desktop_opennlp.py \
+  --sample-size 1000 --iterations 5 \
+  --json-out /tmp/en-desktop-opennlp.json \
+  --mismatches-out /tmp/en-desktop-opennlp-mismatches.json
+```
+
+이 검사는 개발용으로 Stanza도 함께 실행한다. 제품 코드의 영어 기본값은 OpenNLP이며,
+비교가 끝날 때까지 `LEMA_ENGLISH_ANALYZER=stanza`로 기존 엔진을 되돌릴 수 있다.
+
 독일어 모델은 `--language de`, 러시아어 모델은 `--language ru`로 같은
 로드·힙·지연 지표를 측정한다.
 

@@ -1,5 +1,7 @@
 include ':app'
 include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
+include ':nlp-core'
+project(':nlp-core').projectDir = new File('../../nlp-java/core')
 
 apply from: 'capacitor.settings.gradle'

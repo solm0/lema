@@ -115,6 +115,7 @@ export function ResponsiveModal({
 
   const modalContent = (
     <div
+      data-modal-open={open}
       className={`${usePortal ? "fixed" : "absolute"} inset-0 z-60 ${big && !isMobile && usePortal ? 'p-20' : ''}`}
       style={zIndex === undefined ? undefined : { zIndex }}
     >

@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-export default function Button({
-  text, onClick, disabled = false, fit = false, black = false, red = false,
+export default function TextButton({
+  text, icon, onClick, disabled = false, fit = false, black = false, red = false,
 }: {
   text: string;
+  icon?: ReactNode;
   onClick: () => void;
   disabled?: boolean;
   fit?: boolean;
@@ -15,14 +16,15 @@ export default function Button({
     <button
       disabled={disabled}
       className={`
-         rounded-sm text-sm cursor-pointer transition-colors font-medium
-        ${fit ? 'px-6 py-3 w-full' : 'px-6 py-1.5 w-auto'}
+        rounded-full text-sm cursor-pointer transition-colors font-medium px-4 inline-flex items-center justify-center gap-1
+        ${fit ? 'h-12 md:h-10 w-full' : 'h-12 md:h-10 w-auto'}
         ${disabled ? 'opacity-30 pointer-events-none' : 'opacity-100 pointer-events-auto'}
-        ${black ? 'text-neutral-200 bg-neutral-900 hover:bg-neutral-200 hover:text-neutral-900 border border-transparent hover:border-neutral-300' : 'text-neutral-800 bg-neutral-100 hover:bg-neutral-800 hover:text-neutral-100 border border-neutral-300 hover:border-transparent'}
+        ${black ? 'text-neutral-200 bg-neutral-700 hover:bg-neutral-900 hover:text-neutral-100' : 'text-neutral-600 hover:text-neutral-700 bg-neutral-100 border border-neutral-200 hover:bg-neutral-200'}
         ${red && 'bg-red-200 hover:bg-red-300 border-0 text-red-800 hover:text-red-800'}
       `}
       onClick={() => onClick()}
     >
+      {icon}
       <span>{text}</span>
     </button>
   )
@@ -49,7 +51,7 @@ export function LinkButton({
 }
 
 export function IconButton({
-  icon, onClick, disabled = false, title, active = false, mobileMenu = false
+  icon, onClick, disabled = false, title, active = false, mobileMenu = false, red = false
 }: {
   icon: ReactNode;
   onClick: () => void;
@@ -57,6 +59,7 @@ export function IconButton({
   title?: string;
   active?: boolean;
   mobileMenu?: boolean;
+  red?: boolean;
 }) {
   return (
     <button
@@ -64,9 +67,9 @@ export function IconButton({
       className={`
         aspect-square p-1 rounded transition-colors cursor-pointer flex items-center justify-center
         ${disabled ? 'opacity-40 pointer-events-none' : 'opacity-100 pointer-events-auto'}
-        ${mobileMenu 
+        ${red ? 'text-red-600 hover:bg-red-200/30' : mobileMenu 
           ? active ? '' : 'text-neutral-400'
-          : active ? 'bg-neutral-400/40' : 'bg-transparent hover:bg-neutral-400/20'
+          : active ? 'bg-neutral-200 text-neutral-600' : 'bg-transparent hover:bg-neutral-200/50 text-neutral-500'
         }
       `}
       onClick={() => onClick()}
@@ -78,19 +81,22 @@ export function IconButton({
 }
 
 export function IconButtonEvent({
-  icon, onClick, disabled = false, title
+  icon, onClick, disabled = false, title, red = false
 }: {
   icon: React.ReactNode;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
-  title?: string
+  title?: string;
+  red?: boolean;
 }) {
   return (
     <button
       disabled={disabled}
       className={`
-        aspect-square p-1 rounded transition-colors cursor-pointer flex items-center justify-center
-        bg-transparent hover:bg-neutral-400/20
+        w-10 h-10 md:w-8 md:h-8
+        aspect-square p-3 md:p-2 rounded-full transition-colors cursor-pointer flex items-center justify-center
+        ${red ? 'text-red-600 hover:bg-red-200/30' : 'text-neutral-600 md:text-neutral-500 hover:text-neutral-600 bg-neutral-200 md:bg-transparent md:hover:bg-neutral-200'}
+
         ${disabled ? 'opacity-40 pointer-events-none' : 'opacity-100 pointer-events-auto'}
       `}
       onClick={onClick}

@@ -346,6 +346,27 @@ h3 {
   --app-pos-highlight: color-mix(in srgb, var(--app-accent) 18%, var(--app-page-bg));
 }
 
+@keyframes today-example-shimmer {
+  from { left: -50%; }
+  to { left: 150%; }
+}
+
+.today-example-loading::after {
+  content: "";
+  position: absolute;
+  top: -100%;
+  width: 35%;
+  height: 300%;
+  pointer-events: none;
+  transform: rotate(45deg);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+  animation: today-example-shimmer 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-example-loading::after { animation: none; }
+}
+
 @theme inline {
   --font-pretendard: "Pretendard", sans-serif;
   --color-neutral-50: var(--app-neutral-50);

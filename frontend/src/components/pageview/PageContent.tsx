@@ -15,7 +15,7 @@ import { useI18n } from "../../i18n";
 import { deleteAnnotation } from "../../api";
 import AnnotationOverlay, { type AnnotationAnchor } from "./AnnotationOverlay";
 import { ResponsiveModal } from "../util/ResponsiveModal";
-import Button from "../util/Button";
+import TextButton from "../util/Button";
 
 const LONG_PRESS_MS = 600;
 const DRAG_THRESHOLD = 8;
@@ -41,6 +41,7 @@ export default function PageContent({
   scrollRef,
   setAnnotations,
   horizontalAlign = "center",
+  textAlign = "justify",
   contentPaddingClass,
   getTokenClassName,
   allowOverflow = false,
@@ -65,6 +66,7 @@ export default function PageContent({
   scrollRef?: (fn: (startIndex: number) => void) => void;
   setAnnotations: React.Dispatch<React.SetStateAction<Annotation[]>>;
   horizontalAlign?: "left" | "right" | "center";
+  textAlign?: "left" | "justify";
   contentPaddingClass?: string;
   getTokenClassName?: (args: { token: Token; key: string | null }) => string | undefined;
   allowOverflow?: boolean;
@@ -549,6 +551,7 @@ export default function PageContent({
       onPointerCancel={handlePointerCancel}
       wrapperStyle={{ touchAction: isSelecting ? "none" : "pan-y" }}
       horizontalAlign={horizontalAlign}
+      textAlign={textAlign}
       contentPaddingClass={contentPaddingClass}
       allowOverflow={allowOverflow}
       interestKeys={interestKeys}
@@ -775,7 +778,7 @@ export default function PageContent({
           <ResponsiveModal open={emojiDeleteTarget !== null} onClose={() => setEmojiDeleteTarget(null)}>
             <div className="flex flex-col gap-7 md:pb-3">
               <h2>{t("Delete this annotation?")}</h2>
-              <Button
+              <TextButton
                 text={t("Delete")}
                 onClick={() => {
                   if (!emojiDeleteTarget?.id) return;

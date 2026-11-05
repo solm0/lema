@@ -1,0 +1,34 @@
+plugins {
+    id 'application'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+application {
+    mainClass = 'com.solmi.lema.sidecar.Main'
+}
+
+dependencies {
+    implementation project(':core')
+    implementation 'org.apache.opennlp:opennlp-tools:2.5.3'
+}
+
+tasks.register('fatJar', Jar) {
+    archiveBaseName = 'lema-opennlp-sidecar'
+    archiveClassifier = ''
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': application.mainClass.get()
+    }
+    from sourceSets.main.output
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.collect { entry ->
+            entry.isDirectory() ? entry : zipTree(entry)
+        }
+    }
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+}

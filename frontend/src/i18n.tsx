@@ -97,6 +97,7 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "Connect to the internet to see installable languages.":
       "설치 가능한 언어를 보려면 네트워크에 연결하세요.",
     Create: "생성",
+    "Create page": "생성하기",
     "Create an account": "계정 만들기",
     "Creating account...": "계정을 만드는 중...",
     "Create new link": "새 링크 만들기",
@@ -104,7 +105,6 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "Create Notebook": "폴더 만들기",
     "Create notebook": "폴더 만들기",
     "Create Page": "페이지 만들기",
-    "Create page": "페이지 만들기",
     "Created:": "생성일:",
     Deactivate: "비활성화",
     Delete: "삭제",
@@ -272,6 +272,8 @@ const translations: Record<AppLocale, Record<string, string>> = {
     "No active track was detected. On macOS, supported players are the desktop Spotify app and Music app. On Android, any player exposing a media session should work after notification access is granted.":
       "활성 트랙이 감지되지 않았습니다. macOS에서는 데스크톱 Spotify 앱과 Music 앱을 지원합니다. Android에서는 알림 접근 권한을 허용하면 미디어 세션을 노출하는 플레이어를 사용할 수 있습니다.",
     "No matches found.": "검색 결과가 없습니다.",
+    "No pages yet.": "아직 페이지가 없어요.",
+    "No annotations yet.": "아직 주석이 없어요.",
     Notifications: "알림",
     "Notifications are blocked on this device. Open settings.":
       "이 기기에서는 알림이 차단되어 있습니다. 설정을 열어주세요.",

@@ -77,16 +77,18 @@ RUNTIME_MANIFESTS = {
     },
     "en": {
         "lang": "en",
-        "runtime_version": 1,
-        "shared_dependencies": ["torch"],
-        "language_packages": ["stanza", "udtools", "udapi", "regex"],
-        "resource_packages": ["udtools"],
+        "runtime_version": 2,
+        # English now uses the bundled Java OpenNLP sidecar.  Its four model
+        # files are installed in the user runtime directory by model_store.
+        "shared_dependencies": [],
+        "language_packages": [],
+        "resource_packages": [],
         "models": [
             {
-                "id": "stanza-en",
-                "provider": "stanza",
+                "id": "opennlp-en-ud-ewt",
+                "provider": "opennlp",
                 "lang": "en",
-                "resource_id": "stanza-model-en",
+                "resource_id": "opennlp-model-en",
             }
         ],
     },

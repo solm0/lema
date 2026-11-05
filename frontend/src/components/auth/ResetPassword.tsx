@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { resetPassword } from "../../api"
 import SystemMessage from "./SystemMessage"
-import Button, { LinkButton } from "../../components/util/Button"
+import TextButton, { LinkButton } from "../../components/util/Button"
 import { useI18n } from "../../i18n"
 import { resolveAuthMessage } from "./errorMessages"
 import { isDefinitelyOffline, isNetworkError } from "../../network"
@@ -77,7 +77,7 @@ export default function ResetPassword(){
 
         <div className="flex flex-col gap-2 w-full">
           <SystemMessage msg={msg} />
-          <Button text={submitting ? t("Updating password...") : t("Change password")} onClick={submit} disabled={submitting} fit />
+          <TextButton text={submitting ? t("Updating password...") : t("Change password")} onClick={submit} disabled={submitting} fit />
         </div>
 
       </div>

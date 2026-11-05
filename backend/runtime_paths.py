@@ -74,6 +74,15 @@ def get_stanza_model_root() -> Path:
     return get_backend_root() / "models"
 
 
+def get_opennlp_model_root() -> Path:
+    override = _resolve_override("LEMA_OPENNLP_MODEL_ROOT", "NAUTILUS_OPENNLP_MODEL_ROOT")
+
+    if override is not None:
+        return override
+
+    return get_runtime_root() / "opennlp-models"
+
+
 def get_frontend_dist_dir() -> Path | None:
     override = os.getenv("LEMA_FRONTEND_DIST") or os.getenv("NAUTILUS_FRONTEND_DIST")
 

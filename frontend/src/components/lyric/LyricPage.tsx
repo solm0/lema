@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { App as CapacitorApp } from "@capacitor/app";
 
-import Button from "../util/Button";
+import TextButton from "../util/Button";
 import LanguageSelect from "../util/LanguageSelect";
 import type { TextAnalysisResult, TextBlock } from "../pageTypes";
 import {
@@ -411,7 +411,7 @@ export default function LyricPage() {
               </p>
             </div>
             <div className="flex justify-start">
-              <Button text={t("Review access")} onClick={() => setOpenAccessConsent(true)} fit black />
+              <TextButton text={t("Review access")} onClick={() => setOpenAccessConsent(true)} fit black />
             </div>
           </div>
         )}
@@ -507,14 +507,14 @@ export default function LyricPage() {
         ) : null}
         <div className="w-full">
           {savedPageId ? (
-            <Button
+            <TextButton
               text={t("Go to page")}
               onClick={() => navigate(`/page/${savedPageId}`)}
               fit
               black
             />
           ) : (
-            <Button
+            <TextButton
               text={saveButtonText}
               onClick={handleSave}
               disabled={isSaveDisabled}

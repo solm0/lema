@@ -307,7 +307,7 @@ export default function ResponsiveSideLayout({
   const cardTop = Math.round(window.innerHeight * 0.44);
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] overflow-hidden" style={swipeHintStyle}>
+    <div data-mobile-lemma-panel className="fixed inset-0 z-[1000] overflow-hidden" style={swipeHintStyle}>
       {showSwipeHint ? (
         <MobileSwipeHint
           checked={hideSwipeHintPermanently}

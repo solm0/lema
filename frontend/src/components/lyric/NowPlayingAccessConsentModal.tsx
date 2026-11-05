@@ -1,6 +1,6 @@
 import { ANDROID_PRIVACY_POLICY_URL } from "../../config";
 import { useI18n } from "../../i18n";
-import Button from "../util/Button";
+import TextButton from "../util/Button";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 
 type Props = {
@@ -34,13 +34,13 @@ export default function NowPlayingAccessConsentModal({
           </a>
         </div>
         <div className="flex flex-col gap-2">
-          <Button
+          <TextButton
             text={t("Agree and open settings")}
             onClick={onAccept}
             fit
             black
           />
-          <Button text={t("Not now")} onClick={onClose} fit />
+          <TextButton text={t("Not now")} onClick={onClose} fit />
         </div>
       </div>
     </ResponsiveModal>

@@ -1,5 +1,5 @@
 import { GlobeX } from "lucide-react";
-import Button from "./Button";
+import TextButton from "./Button";
 import { useI18n } from "../../i18n";
 
 export default function OfflineState({
@@ -25,7 +25,7 @@ export default function OfflineState({
         </div>
 
         <div className="flex justify-center">
-          <Button text={t("Try again")} onClick={onRetry} fit />
+          <TextButton text={t("Try again")} onClick={onRetry} fit />
         </div>
       </div>
     </div>

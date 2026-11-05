@@ -14,7 +14,7 @@ import {
 } from "../../api";
 import { Check, Pencil } from "lucide-react";
 import { type User } from "../../types";
-import Button, { IconButtonEvent } from "../util/Button";
+import TextButton, { IconButtonEvent } from "../util/Button";
 import { useLocation, useNavigate } from "react-router-dom";
 import PackTable from "./PackTable";
 import { SettingToggle } from "../util/ToggleButton";
@@ -112,7 +112,7 @@ function AppVersionSection() {
               </ul>
             )}
           </div>
-          <Button text={t("Download now")} onClick={openDownloadPage} black />
+          <TextButton text={t("Download now")} onClick={openDownloadPage} black />
         </div>
       )}
     </section>
@@ -166,12 +166,12 @@ function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button
+        <TextButton
           text={busy === "export" ? t("Exporting...") : t("Export library")}
           onClick={() => void handleExport()}
           disabled={disabled || busy !== null}
         />
-        <Button
+        <TextButton
           text={busy === "import" ? t("Importing...") : t("Import and merge")}
           onClick={() => void handleImport()}
           disabled={disabled || busy !== null}
@@ -342,12 +342,12 @@ export function UserProfile() {
             {!offline ? (
               editing ? (
                 <IconButtonEvent
-                  icon={<Check size={14} />}
+                  icon={<Check />}
                   onClick={handleSave}
                 />
               ) : (
                 <IconButtonEvent
-                  icon={<Pencil size={13} />}
+                  icon={<Pencil />}
                   onClick={()=>setEditing(true)}
                 />
               )
@@ -357,10 +357,10 @@ export function UserProfile() {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={() => setOpenLogoutModal(true)} text={t("Logout")} />
+          <TextButton onClick={() => setOpenLogoutModal(true)} text={t("Logout")} />
         </div>
 
-        <Button
+        <TextButton
           onClick={() => {
             setResetVocabularyError("");
             setOpenResetVocabularyModal(true);
@@ -371,7 +371,7 @@ export function UserProfile() {
         />
 
         {localLibraryAvailable && (
-          <Button
+          <TextButton
             onClick={() => {
               setResetLibraryError("");
               setOpenResetLibraryModal(true);
@@ -382,7 +382,7 @@ export function UserProfile() {
           />
         )}
 
-        <Button
+        <TextButton
           onClick={() => {
             setDeleteError("");
             setOpenDeleteModal(true);
@@ -396,7 +396,7 @@ export function UserProfile() {
       <ResponsiveModal open={openLogoutModal} onClose={() => setOpenLogoutModal(false)}>
         <div className="flex flex-col gap-7 md:pb-3">
           <h2>{t("Log out?")}</h2>
-          <Button
+          <TextButton
             text={t("Yes")}
             onClick={logout}
             fit
@@ -421,7 +421,7 @@ export function UserProfile() {
                   {deleteError && (
                     <p className="text-sm text-red-600">{deleteError}</p>
                   )}
-                  <Button
+                  <TextButton
                     text={deleting ? t("Deleting...") : t("Delete")}
                     onClick={handleDeleteAccount}
                     disabled={deleting}
@@ -452,7 +452,7 @@ export function UserProfile() {
               {resetVocabularyError && (
                 <p className="text-sm text-red-600">{resetVocabularyError}</p>
               )}
-              <Button
+              <TextButton
                 text={resettingVocabulary ? t("Resetting...") : t("Reset vocabulary records")}
                 onClick={handleResetVocabulary}
                 disabled={resettingVocabulary}
@@ -476,7 +476,7 @@ export function UserProfile() {
           {resetLibraryError && (
             <p className="text-sm text-red-600">{resetLibraryError}</p>
           )}
-          <Button
+          <TextButton
             text={resettingLibrary ? t("Resetting...") : t("Reset local library")}
             onClick={handleResetLocalLibrary}
             disabled={resettingLibrary}
@@ -687,7 +687,7 @@ export default function Setting() {
                     <option value="ko">ko</option>
                   </select>
                   {pendingLanguageChange ? (
-                    <Button
+                    <TextButton
                     text={t("Relaunch")}
                     onClick={() => {
                       void relaunchApp();
@@ -811,8 +811,8 @@ export default function Setting() {
               <span>Current recap words</span>
               <span>Test: {debugRecap?.test_items.map((item) => item.lemma_key).join(", ") || "—"}</span>
               <span>Showcase: {debugRecap?.showcase_items.map((item) => item.lemma_key).join(", ") || "—"}</span>
-              <Button text={rerollingRecap ? "Rerolling..." : "Reroll showcase"} onClick={() => void rerollRecap()} disabled={rerollingRecap || GRADSHOW_MODE} />
-              <Button text={resettingRecap ? t("Resetting...") : t("Reset today's Revival")} onClick={() => void resetTodayRecap()} disabled={resettingRecap || GRADSHOW_MODE} />
+              <TextButton text={rerollingRecap ? "Rerolling..." : "Reroll showcase"} onClick={() => void rerollRecap()} disabled={rerollingRecap || GRADSHOW_MODE} />
+              <TextButton text={resettingRecap ? t("Resetting...") : t("Reset today's Revival")} onClick={() => void resetTodayRecap()} disabled={resettingRecap || GRADSHOW_MODE} />
             </div>
           </div>
         </section>

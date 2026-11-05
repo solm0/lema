@@ -31,13 +31,13 @@ export function FilterSelect({
     <div
       className={`relative flex min-w-0 items-center ${
         selectedValue
-          ? "w-auto max-w-full shrink rounded-full bg-neutral-400/15 text-neutral-700"
-          : "shrink-0 text-neutral-700"
+          ? "w-auto max-w-full shrink rounded-full bg-neutral-400/15"
+          : "shrink-0"
       }`}
     >
       <label
-        className={`relative flex min-w-0 cursor-pointer items-center justify-center gap-1 rounded-full transition-colors hover:bg-neutral-400/20 ${
-          selectedValue ? "h-8 md:h-6 flex-1 pl-2 pr-2 md:pl-1.5 md:pr-1.5" : "h-8 w-8 md:h-6 md:w-6"
+        className={`relative flex min-w-0 cursor-pointer items-center justify-center gap-2 md:gap-1 rounded-full text-neutral-500 hover:text-neutral-600 font-medium transition-colors hover:bg-neutral-400/20 ${
+          selectedValue ? "h-10 md:h-8 flex-1 p-3 md:pl-2 md:pr-2" : "h-10 w-10 md:h-8 md:w-8"
         }`}
         title={title}
       >
@@ -69,7 +69,7 @@ export function FilterSelect({
             event.stopPropagation();
             onChange(null);
           }}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-400/25 hover:text-neutral-800"
+          className="flex h-8 md:h-6 pr-2 p-0 shrink-0 items-center justify-center rounded-full text-neutral-600 opacity-80 transition-opacity hover:opacity-100"
           title={title}
         >
           <X size={12} />
@@ -132,7 +132,7 @@ export function PageFilters({
   ];
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden text-sm md:text-xs pl-0 md:pl-0.5">
+    <div className="flex min-w-0 flex-1 items-center overflow-hidden text-sm md:text-xs pl-0 md:pl-0.5">
       <FilterSelect
         icon={<Languages className="w-4 h-4 md:w-3.5 md:h-3.5" />}
         options={languageOptions}

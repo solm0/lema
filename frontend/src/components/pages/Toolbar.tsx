@@ -1,6 +1,6 @@
 import { Folder, Globe2, Music4, Plus, Search, Type } from "lucide-react";
 import { Link } from "react-router-dom";
-import Button, { IconButtonEvent } from "../util/Button";
+import TextButton, { IconButtonEvent } from "../util/Button";
 import { MiniPopup } from "../util/MiniPopup";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import { useRef, useState } from "react";
@@ -46,7 +46,7 @@ function CreateNotebookContent({
         className="border-2 border-neutral-300 rounded-sm px-3 py-2 focus:outline-none opacity-50 focus:opacity-100"
         autoFocus
       />
-      <Button
+      <TextButton
         disabled={!name.trim() || creating}
         onClick={() => void handleCreate()}
         text={t("Create")}
@@ -125,17 +125,17 @@ export function Toolbar({
   return (
     <>
       <div
-        className={`flex gap-2 md:gap-0.5`}
+        className={`flex gap-2 md:gap-0`}
       >
         <IconButtonEvent
-          icon={<Search className="w-4 h-4 md:w-3.5 md:h-3.5" />}
+          icon={<Search />}
           onClick={onSearch}
           title={t("Search")}
         />
 
         <div className="relative">
           <IconButtonEvent
-            icon={<Plus className="w-4.5 h-4.5 md:w-4 md:h-4" />}
+            icon={<Plus />}
             onClick={(e) => {
               e.stopPropagation();
               setOpenFilePopup((v) => !v);

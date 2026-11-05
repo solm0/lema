@@ -385,6 +385,14 @@ async function startBackend() {
   const runtimePackageRoot = path.join(runtimeRoot, "site-packages");
   const dataStaticRoot = path.join(userDataRoot, "language-data", "static");
   const stanzaModelRoot = path.join(userDataRoot, "language-models", "stanza");
+  const openNlpModelRoot = path.join(userDataRoot, "language-models", "opennlp");
+  const bundledSidecarJava = path.join(
+    process.resourcesPath,
+    "analyzer",
+    "runtime",
+    "bin",
+    process.platform === "win32" ? "java.exe" : "java"
+  );
   const libraryRoot = path.join(userDataRoot, "library");
   const libraryDbPath = path.join(libraryRoot, "lema.sqlite");
 
@@ -398,12 +406,22 @@ async function startBackend() {
           LEMA_RUNTIME_PACKAGE_ROOT: runtimePackageRoot,
           LEMA_DATA_STATIC_ROOT: dataStaticRoot,
           LEMA_STANZA_MODEL_ROOT: stanzaModelRoot,
+          LEMA_OPENNLP_MODEL_ROOT: openNlpModelRoot,
+          LEMA_OPENNLP_SIDECAR_JAR: path.join(
+            process.resourcesPath, "analyzer", "lema-opennlp-sidecar.jar"
+          ),
+          LEMA_OPENNLP_SIDECAR_JAVA: bundledSidecarJava,
           NAUTILUS_RUNTIME_ROOT: runtimeRoot,
           NAUTILUS_RUNTIME_PACKAGE_ROOT: runtimePackageRoot,
           NAUTILUS_DATA_STATIC_ROOT: dataStaticRoot,
           NAUTILUS_STANZA_MODEL_ROOT: stanzaModelRoot,
+          NAUTILUS_OPENNLP_MODEL_ROOT: openNlpModelRoot,
         }
-      : {}),
+      : {
+          LEMA_OPENNLP_SIDECAR_JAR: path.join(
+            __dirname, "..", "desktop-sidecar", "dist", "lema-opennlp-sidecar.jar"
+          ),
+        }),
     LEMA_FRONTEND_DIST: isPackaged
       ? path.join(backendCwd, "frontend")
       : path.join(__dirname, "..", "frontend", "dist"),

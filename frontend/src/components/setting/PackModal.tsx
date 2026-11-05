@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getProgress, installPack } from "../../api";
 import { ResponsiveModal } from "../util/ResponsiveModal";
-import Button from "../util/Button";
+import TextButton from "../util/Button";
 import { useI18n } from "../../i18n";
 
 const LANG_MAP: Record<string, string> = {
@@ -208,7 +208,7 @@ export default function PackModal({
           <div className="flex flex-col gap-4">
             <div className="text-sm text-green-600">{t("Installed successfully.")}</div>
 
-            <Button
+            <TextButton
               onClick={handleClose}
               text={t("Close")}
               black

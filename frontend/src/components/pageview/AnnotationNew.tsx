@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { SidePanelState } from "./PageView"
 import type { Annotation } from "../pageTypes";
 import { createAnnotation as createAnnotationRequest } from "../../api";
-import Button from "../util/Button";
+import TextButton from "../util/Button";
 import { useI18n } from "../../i18n";
 
 export function isValidUrl(str: string) {
@@ -91,7 +91,7 @@ export default function AnnotationNew({
         )
       }
       <div className="absolute bottom-2 left-0 px-2 w-full flex flex-col">
-        <Button
+        <TextButton
           text={annotationData.type === "memo" ? t("Create new memo") : t("Create new link")}
           onClick={handleCreateAnnotation}
           disabled={!canSave}

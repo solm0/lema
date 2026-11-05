@@ -68,6 +68,7 @@ PYINSTALLER_ARGS=(
   --paths "$ROOT_DIR/backend"
   --collect-submodules shared
   --collect-submodules language_config
+  --collect-submodules sidecars
 )
 
 PYINSTALLER_DATA_PACKAGES=(
@@ -115,11 +116,14 @@ if ((${#OPTIONAL_DATA_DIRS[@]} > 0)); then
   done
 fi
 
-echo "[1/3] Building frontend web app"
+echo "[1/4] Building frontend web app"
 node "$ROOT_DIR/scripts/sync-app-version.mjs"
 (cd "$ROOT_DIR/frontend" && APP_VERSION_OVERRIDE="$DESKTOP_VERSION" npm run build)
 
-echo "[2/3] Packaging backend into backend-dist"
+echo "[2/4] Building shared OpenNLP desktop sidecar"
+bash "$ROOT_DIR/scripts/build-opennlp-sidecar.sh"
+
+echo "[3/4] Packaging backend into backend-dist"
 rm -rf "$BACKEND_TEMP_DIST" "$PYINSTALLER_WORK_DIR" "$FINAL_BACKEND_DIST"
 mkdir -p "$BACKEND_TEMP_DIST" "$PYINSTALLER_WORK_DIR" "$FINAL_BACKEND_DIST"
 
@@ -131,7 +135,7 @@ cp -R "$BACKEND_TEMP_DIST/main/." "$FINAL_BACKEND_DIST/"
 mkdir -p "$FINAL_BACKEND_DIST/frontend"
 cp -R "$FRONTEND_DIST/." "$FINAL_BACKEND_DIST/frontend/"
 
-echo "[3/3] Building Electron package for $TARGET"
+echo "[4/4] Building Electron package for $TARGET"
 (cd "$ROOT_DIR/electron" && npm run "$ELECTRON_SCRIPT")
 
 echo "Done. Electron output is in: $ROOT_DIR/electron/dist-electron"

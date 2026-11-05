@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import { useI18n } from "../../i18n";
 import "./MobileSwipeHint.css";
-import Button from "./Button";
+import TextButton from "./Button";
 
 type MobileSwipeHintProps = {
   checked: boolean;
@@ -70,7 +70,7 @@ export function MobileSwipeHint({
           className="absolute bottom-[calc(env(safe-area-inset-bottom)+6.3rem)] left-1/2 -translate-x-1/2 z-10 w-[calc(100%-2rem)] "
           onClick={onClose}
         >
-          <Button text={t("OK")} onClick={onClose} fit black />
+          <TextButton text={t("OK")} onClick={onClose} fit black />
         </div>
 
       </section>

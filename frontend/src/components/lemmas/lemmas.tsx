@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowRight,
   GraduationCap,
   Info,
   ListFilter,
@@ -15,7 +14,6 @@ import {
   deleteLemmaState,
   getLemmaDatabase,
   getLemmaMilestones,
-  getLemmaRecap,
   lemmaLookupOne,
   setInterest,
   updateLemmaState,
@@ -24,9 +22,8 @@ import type {
   LemmaData,
   UserLemmaDatabaseItem,
   UserLemmaMilestone,
-  RecapState,
 } from "../pageTypes";
-import { Recap } from "./Recap";
+import Revival from "./Revival";
 import { FilterSelect } from "../pages/PageFilters";
 import ResponsiveSideLayout from "../util/ResponsiveSideLayout";
 import { ResponsiveModal } from "../util/ResponsiveModal";
@@ -36,7 +33,6 @@ import { hasLemmaPackInstalled } from "../util/LanguageSelect";
 import { useLayout } from "../RootLayout";
 import { useI18n } from "../../i18n";
 import { IconButton } from "../util/Button";
-import { useSettings } from "../useSettings";
 import { LANGUAGE_NAMES } from "../lemma_expansions/KnownWordsMilestoneToast";
 
 const POS_ORDER = [
@@ -154,29 +150,8 @@ function Timeline({
   );
 }
 
-function RevivalBanner({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="flex h-100 w-full flex-col justify-between rounded-3xl bg-accent p-7">
-      <div className="flex flex-col gap-3">
-        <p className="max-w-[60ch] text-2xl font-medium text-neutral-50">{title}</p>
-        <p className="max-w-[60ch] font-medium text-neutral-50 opacity-80">{description}</p>
-      </div>
-      {action}
-    </div>
-  );
-}
-
 export default function Lemmas() {
   const { t } = useI18n();
-  const { settings } = useSettings();
   const { setTitlebarAction, setPanelOpen } = useLayout();
   const [items, setItems] = useState<UserLemmaDatabaseItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -184,7 +159,6 @@ export default function Lemmas() {
   const [milestones, setMilestones] = useState<
     Record<string, UserLemmaMilestone[]>
   >({});
-  const [recap, setRecap] = useState<RecapState | null>(null);
   const [filters, setFilters] = useState<DatabaseFilters>({
     q: "",
     pos: null,
@@ -255,12 +229,6 @@ export default function Lemmas() {
       .then(setMilestones)
       .catch(() => setMilestones({}));
   }, []);
-  const loadRecap = useCallback(() => {
-    void getLemmaRecap(settings.recap_languages).then(setRecap).catch(() => setRecap(null));
-  }, [settings.recap_languages]);
-  useEffect(() => {
-    loadRecap();
-  }, [loadRecap]);
   useEffect(() => {
     setPanelOpen(lemmaData !== null);
   }, [lemmaData, setPanelOpen]);
@@ -433,43 +401,7 @@ export default function Lemmas() {
         <div className="mx-auto flex max-w-6xl flex-col gap-21">
           <section className="flex w-full min-w-0 flex-col items-start">
             <h3 className="mb-3">{t("Revival")}</h3>
-            {recap?.state === "completed" ? (
-              <RevivalBanner
-                title={t("This week's Revival is complete.")}
-                description={t("See you next week.")}
-              />
-            ) : recap?.state === "daily_complete" ? (
-              <RevivalBanner
-                title={t("Today's Revival is complete.")}
-                description={t("Come back tomorrow for the next session.")}
-              />
-            ) : recap?.state === "warming_up" ? (
-              <RevivalBanner
-                title={t("Revival is not available yet.")}
-                description={t("Check back after more lemmas have been collected.")}
-              />
-            ) : recap?.available ? (
-              <Recap onFinished={loadRecap} languages={settings.recap_languages}
-                renderTrigger={({ start, loading }) => (
-                  <RevivalBanner
-                    title={t("We found lemmas ready to be revived.")}
-                    description={t("Use this session to revive them.")}
-                    action={(
-                      <button type="button" onClick={start} disabled={loading}
-                        className="self-end flex items-center gap-1 rounded-full bg-neutral-50 px-5 py-2 text-xl font-semibold disabled:opacity-50">
-                        {t("Start Revival")}
-                        <ArrowRight size={20} />
-                      </button>
-                    )}
-                  />
-                )}
-              />
-            ) : (
-              <RevivalBanner
-                title={t("Revival is not available yet.")}
-                description={t("Check back after more lemmas have been collected.")}
-              />
-            )}
+            <Revival />
           </section>
           <section className="flex w-full min-w-0 flex-col items-start gap-6">
             <h3 className="mb-2">{t("Achievements")}</h3>

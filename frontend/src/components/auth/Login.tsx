@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { login, verifyToken } from "../../api"
 import { useNavigate } from "react-router-dom"
-import Button, { LinkButton } from "../../components/util/Button"
+import TextButton, { LinkButton } from "../../components/util/Button"
 import SystemMessage from "./SystemMessage"
 import { useI18n } from "../../i18n"
 import { resolveAuthMessage } from "./errorMessages"
@@ -105,7 +105,7 @@ export default function Login(){
 
         <div className="flex flex-col gap-2 w-full">
           <SystemMessage msg={displayMessage} />
-          <Button text={buttonText} onClick={submit} disabled={submitting || cooldownSeconds > 0} fit />
+          <TextButton text={buttonText} onClick={submit} disabled={submitting || cooldownSeconds > 0} fit />
         </div>
       </div>
 

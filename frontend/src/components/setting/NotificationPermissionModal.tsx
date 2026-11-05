@@ -1,4 +1,4 @@
-import Button from "../util/Button";
+import TextButton from "../util/Button";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import { useI18n } from "../../i18n";
 
@@ -25,7 +25,7 @@ export default function NotificationPermissionModal({
         <p className="pr-8 text-sm text-neutral-500">
           {t(body)}
         </p>
-        <Button
+        <TextButton
           text={t("Open notification settings")}
           onClick={onOpenSettings}
           fit

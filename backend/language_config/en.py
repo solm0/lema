@@ -1,7 +1,7 @@
 import unicodedata
 
 from pathlib import Path
-from .model_store import ensure_model_installed
+from .model_store import english_analyzer_engine, ensure_model_installed
 from .sqlite_pack import LanguagePackDB, find_pack_db
 
 
@@ -50,13 +50,18 @@ def get_config(base_dir: Path):
     db_path = find_pack_db(version_path)
     pack_db = LanguagePackDB(db_path) if db_path else None
 
-    return {
+    config = {
         "normalize": normalize,
         "get_nlp": get_nlp,
 
         "pack_db": pack_db,
         "db_path": db_path,
     }
+    if english_analyzer_engine() == "opennlp":
+        # Import lazily so a Stanza comparison run never starts Java.
+        from .opennlp_english import analyze_text
+        config["analyze_text"] = analyze_text
+    return config
 
 
 def unload():

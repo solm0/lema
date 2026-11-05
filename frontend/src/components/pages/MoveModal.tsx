@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 
 import type { Notebook } from "./PageLayout";
 import { ResponsiveModal } from "../util/ResponsiveModal";
-import Button from "../util/Button";
+import TextButton from "../util/Button";
 import { moveLocalPages } from "../../localLibrary";
 import { useI18n } from "../../i18n";
 
@@ -77,7 +77,7 @@ export default function MoveModal({
           ))}
         </select>
 
-        <Button
+        <TextButton
           text={t("Move")}
           onClick={() => movePages(selectedNotebook)}
           disabled={false}

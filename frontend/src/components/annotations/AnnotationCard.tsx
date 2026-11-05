@@ -7,7 +7,7 @@ import { useI18n } from "../../i18n";
 import type { TimelineItem } from "../../types";
 import AnnotationInput from "../pageview/AnnotationInput";
 import { isValidUrl } from "../pageview/AnnotationNew";
-import Button, { IconButtonEvent } from "../util/Button";
+import TextButton, { IconButtonEvent } from "../util/Button";
 import { MiniPopup } from "../util/MiniPopup";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import { formatRelative } from "../util/time";
@@ -114,7 +114,7 @@ export default function AnnotationCard({ item, onUpdate, onDelete, readonlySnaps
         {!readonlySnapshotActions && !editing ? (
           <div className={`absolute right-2 top-2 transition-opacity ${menuOpen ? "opacity-100" : "opacity-100 md:opacity-0 md:group-hover:opacity-100"}`}>
             <IconButtonEvent
-              icon={<Ellipsis size={14} />}
+              icon={<Ellipsis />}
               onClick={(event) => {
                 event.stopPropagation();
                 setMenuOpen((open) => !open);
@@ -129,7 +129,7 @@ export default function AnnotationCard({ item, onUpdate, onDelete, readonlySnaps
                     <span>{t("Edit")}</span>
                   </button>
                 ) : null}
-                <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-red-600 transition-colors hover:bg-red-50" onClick={() => { setDeleteOpen(true); setMenuOpen(false); }}>
+                <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-red-600 transition-colors hover:bg-red-200/30" onClick={() => { setDeleteOpen(true); setMenuOpen(false); }}>
                   <Trash2 size={13} />
                   <span>{t("Delete")}</span>
                 </button>
@@ -149,7 +149,7 @@ export default function AnnotationCard({ item, onUpdate, onDelete, readonlySnaps
       <ResponsiveModal open={deleteOpen} onClose={() => setDeleteOpen(false)}>
         <div className="flex flex-col gap-7 md:pb-3">
           <h2>{t("Delete this annotation?")}</h2>
-          <Button text={t("Delete")} onClick={() => void remove()} fit red />
+          <TextButton text={t("Delete")} onClick={() => void remove()} fit red />
         </div>
       </ResponsiveModal>
 

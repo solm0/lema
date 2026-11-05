@@ -5,7 +5,7 @@ import { Ellipsis, Pencil, Trash2 } from "lucide-react";
 import { createAnnotation, deleteAnnotation, updateAnnotation } from "../../api";
 import { useI18n } from "../../i18n";
 import type { Annotation } from "../pageTypes";
-import Button, { IconButtonEvent } from "../util/Button";
+import TextButton, { IconButtonEvent } from "../util/Button";
 import { MiniPopup } from "../util/MiniPopup";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import AnnotationInput from "./AnnotationInput";
@@ -167,7 +167,7 @@ export default function AnnotationOverlay({
             {currentMode === "view" ? (
               <div className={`absolute -right-1 -top-1 transition-opacity ${mobile || menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
                 <IconButtonEvent
-                  icon={<Ellipsis size={14} />}
+                  icon={<Ellipsis />}
                   onClick={(event) => {
                     event.stopPropagation();
                     setMenuOpen((open) => !open);
@@ -197,7 +197,7 @@ export default function AnnotationOverlay({
       <ResponsiveModal open={deleteOpen} onClose={() => setDeleteOpen(false)}>
         <div className="flex flex-col gap-7 md:pb-3">
           <h2>{t("Delete this annotation?")}</h2>
-          <Button text={t("Delete")} onClick={() => void remove()} fit red />
+          <TextButton text={t("Delete")} onClick={() => void remove()} fit red />
         </div>
       </ResponsiveModal>
     </div>

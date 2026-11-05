@@ -11,9 +11,10 @@ import type { SidePanelState } from "../pageview/PageView";
 import Desk from "../lemma_expansions/Desk";
 import ResponsiveSideLayout from "../util/ResponsiveSideLayout";
 import { getLookupMorph } from "../tokenLookup";
-import type { Annotation, LemmaData, TextBlock, Token } from "../pageTypes";
+import type { Annotation, KwicData, LemmaData, TextBlock, Token } from "../pageTypes";
 import { useLayout } from "../RootLayout";
 import { useSettings } from "../useSettings";
+import Revival from "../lemmas/Revival";
 
 type TodayExample = {
   lemma: string;
@@ -21,6 +22,14 @@ type TodayExample = {
   block: TextBlock;
   lemmaInfo: Record<string, LemmaData>;
 };
+
+const TODAY_EXAMPLE_CACHE_KEY = "today-example-cache";
+const MAX_TODAY_EXAMPLES = 5;
+
+function todayExampleCacheKey(languages: string[]) {
+  const now = new Date();
+  return JSON.stringify([now.getFullYear(), now.getMonth(), now.getDate(), [...languages].sort()]);
+}
 
 function keyParts(key: string) {
   const [lemma, pos, language] = key.split("/");
@@ -36,6 +45,7 @@ export function NewPage() {
   const [pasteText, setPasteText] = useState("");
   const [language, setLanguage] = useState<string | null>(null);
   const [todayExample, setTodayExample] = useState<TodayExample | null>(null);
+  const [todayExampleLoading, setTodayExampleLoading] = useState(true);
   const [panel, setPanel] = useState<SidePanelState>(null);
   const [todayAnnotations, setTodayAnnotations] = useState<Annotation[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,57 +61,89 @@ export function NewPage() {
   useEffect(() => {
     if (GRADSHOW_MODE) return;
     let cancelled = false;
+    const cacheKey = todayExampleCacheKey(settings.recap_languages);
+    try {
+      const cached = JSON.parse(localStorage.getItem(TODAY_EXAMPLE_CACHE_KEY) ?? "null");
+      if (cached?.key === cacheKey && Array.isArray(cached.examples) && cached.examples.length > 0 &&
+          cached.examples.every((example: TodayExample) => example?.block && example?.lemmaInfo)) {
+        const examples = cached.examples as TodayExample[];
+        const lastIndex = Number.isInteger(cached.lastIndex) ? cached.lastIndex : -1;
+        let index = Math.floor(Math.random() * examples.length);
+        if (examples.length > 1 && index === lastIndex) index = (index + 1) % examples.length;
+        setTodayExample(examples[index]);
+        setTodayExampleLoading(false);
+        try {
+          localStorage.setItem(TODAY_EXAMPLE_CACHE_KEY, JSON.stringify({ key: cacheKey, examples, lastIndex: index }));
+        } catch {
+          // Continue showing the cached example if storage is unavailable.
+        }
+        return;
+      }
+    } catch {
+      // Ignore unavailable or invalid cached data and fetch fresh examples.
+    }
+    setTodayExampleLoading(true);
+    setTodayExample(null);
     const loadTodayExample = async () => {
+      const examples: TodayExample[] = [];
+      const seen = new Set<string>();
       try {
         const recap = await getLemmaRecap(settings.recap_languages);
         const candidates = [...recap.showcase_items].sort(() => Math.random() - 0.5);
         for (const item of candidates) {
-        try {
-        const { lemma, pos, language: exampleLanguage } = keyParts(item.lemma_key);
-        const lookup = await lemmaLookupOne({ lemma, pos }, exampleLanguage);
-        const saved = await getUserLemmaExamples(item.lemma_key);
-        const savedExample = saved[Math.floor(Math.random() * saved.length)];
-        const block: TextBlock | null = savedExample
-          ? { text: savedExample.text, tokens: savedExample.tokens }
-          : (() => {
-              const kwic = lookup.kwic[Math.floor(Math.random() * lookup.kwic.length)];
-              return kwic
-                ? { text: kwic.tokens.map((token: { surface: string }) => token.surface).join(" "), tokens: kwic.tokens }
-                : null;
-            })();
-        if (!block) continue;
-        const lookupItems = (block.tokens ?? [])
-          .map((token: Token) => getLookupMorph(token, exampleLanguage))
-          .filter((candidate): candidate is { lemma: string; pos: string } => candidate !== null)
-          .filter((candidate, index, candidates) =>
-            candidates.findIndex((other) => other.lemma === candidate.lemma && other.pos === candidate.pos) === index
-          );
-        const lemmaInfo = await lemmaLookup(lookupItems, exampleLanguage);
-        if (savedExample) {
-          if (!cancelled) setTodayExample({
-            lemma,
-            language: exampleLanguage,
-            block,
-            lemmaInfo,
-          });
-          return;
+          if (cancelled || examples.length >= MAX_TODAY_EXAMPLES) break;
+          try {
+            const { lemma, pos, language: exampleLanguage } = keyParts(item.lemma_key);
+            const [lookup, saved] = await Promise.all([
+              lemmaLookupOne({ lemma, pos }, exampleLanguage),
+              getUserLemmaExamples(item.lemma_key),
+            ]);
+            const blocks: TextBlock[] = [
+              ...saved.map((example) => ({ text: example.text, tokens: example.tokens })),
+              ...lookup.kwic.map((kwic: KwicData) => ({
+                text: kwic.tokens.map((token) => token.surface).join(" "),
+                tokens: kwic.tokens,
+              })),
+            ].sort(() => Math.random() - 0.5);
+            for (const block of blocks) {
+              if (cancelled || examples.length >= MAX_TODAY_EXAMPLES) break;
+              const identity = `${exampleLanguage}:${block.text.trim()}`;
+              if (!block.text.trim() || seen.has(identity)) continue;
+              seen.add(identity);
+              try {
+                const lookupItems = (block.tokens ?? [])
+                  .map((token: Token) => getLookupMorph(token, exampleLanguage))
+                  .filter((candidate): candidate is { lemma: string; pos: string } => candidate !== null)
+                  .filter((candidate, index, all) =>
+                    all.findIndex((other) => other.lemma === candidate.lemma && other.pos === candidate.pos) === index
+                  );
+                const lemmaInfo = await lemmaLookup(lookupItems, exampleLanguage);
+                if (cancelled) return;
+                const example = { lemma, language: exampleLanguage, block, lemmaInfo };
+                examples.push(example);
+                if (examples.length === 1) {
+                  setTodayExample(example);
+                  setTodayExampleLoading(false);
+                }
+              } catch {
+                // Continue with another example if its word lookup fails.
+              }
+            }
+          } catch {
+            // Try another lemma if its examples or language pack are unavailable.
+          }
         }
-        if (cancelled) return;
-        setTodayExample({
-          lemma,
-          language: exampleLanguage,
-          block,
-          lemmaInfo,
-        });
-        return;
-        } catch {
-          // Try another showcase lemma when this device lacks its pack or it
-          // has no usable user/pack example.
-          continue;
-        }
+        if (!cancelled && examples.length > 0) {
+          try {
+            localStorage.setItem(TODAY_EXAMPLE_CACHE_KEY, JSON.stringify({ key: cacheKey, examples, lastIndex: 0 }));
+          } catch {
+            // The displayed example remains available if storage is unavailable.
+          }
         }
       } catch {
         // The home composer remains useful offline or without a matching pack.
+      } finally {
+        if (!cancelled) setTodayExampleLoading(false);
       }
     };
     void loadTodayExample();
@@ -138,78 +180,85 @@ export function NewPage() {
 
   return (
     <div className="flex h-full w-full min-w-0 bg-neutral-100">
-      <div className="relative flex min-w-0 flex-1 items-end justify-center p-6 pb-8 md:px-6 md:pb-6">
-        {todayExample ? (
-        <section className="absolute inset-x-6 top-35 md:top-24 text-left flex flex-col gap-4">
-          <p className="text-xs text-neutral-400 pl-1">{t("Today's example")}</p>
-          <div className="h-auto overflow-visible">
-            <PageContent
-              blocks={[todayExample.block]}
-              lemmaInfo={todayExample.lemmaInfo}
-              panelData={panel}
-              setPanelData={setPanel}
-              language={todayExample.language}
-              annotations={todayAnnotations}
-              setAnnotations={setTodayAnnotations}
-              horizontalAlign="left"
-              contentPaddingClass="p-0"
-              allowOverflow
-            />
-          </div>
-        </section>
-        ) : null}
-        <div className="flex w-[min(36rem,100%)] flex-col rounded-2xl bg-neutral-50 p-4 shadow-sm transition-shadow focus-within:shadow-2xl">
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={pasteText}
-          onChange={(event) => setPasteText(event.target.value)}
-          placeholder={t("Paste text")}
-          className="min-h-[1lh] max-h-[10lh] w-full resize-none bg-transparent px-1 text-base leading-6 outline-none placeholder:text-neutral-400"
-          spellCheck={false}
-          disabled={GRADSHOW_MODE}
-        />
+      <div className="relative flex min-w-0 flex-1 justify-center p-4 pb-8 md:px-4 md:pb-6">
+        {!GRADSHOW_MODE && (
+          <section className="overflow-y-auto mt-21 flex flex-col gap-3 max-w-200 flex w-[min(48rem,100%)]">
 
-        <div className="mt-3 flex items-end gap-3">
-          <LanguageSelect
-            language={language}
-            setLanguage={(nextLanguage) => setLanguage(nextLanguage?.lang ?? null)}
+            <div className={`relative isolate overflow-hidden min-h-32 bg-neutral-200 rounded-3xl px-4 py-5 ${todayExampleLoading ? "today-example-loading" : ""}`} aria-busy={todayExampleLoading}>
+              <p className="text-sm font-medium text-neutral-400 pb-3 pl-1">{t("Today's example")}</p>
+              {todayExample && (
+                <div className="h-auto overflow-visible">
+                  <PageContent
+                    blocks={[todayExample.block]}
+                    lemmaInfo={todayExample.lemmaInfo}
+                    panelData={panel}
+                    setPanelData={setPanel}
+                    language={todayExample.language}
+                    annotations={todayAnnotations}
+                    setAnnotations={setTodayAnnotations}
+                    horizontalAlign="left"
+                    textAlign="left"
+                    contentPaddingClass="p-0"
+                    allowOverflow
+                  />
+                </div>
+              )}
+            </div>
+            <Revival />
+          </section>
+        )}
+        <div className="absolute bottom-4 md:bottom-6 flex w-[min(48rem,100%-2rem)] flex-col rounded-3xl bg-neutral-50 p-4 shadow-none transition-shadow focus-within:shadow-lg">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={pasteText}
+            onChange={(event) => setPasteText(event.target.value)}
+            placeholder={t("Paste text")}
+            className="min-h-[1lh] max-h-[10lh] w-full resize-none bg-transparent px-1 text-base leading-6 outline-none placeholder:text-neutral-400"
+            spellCheck={false}
             disabled={GRADSHOW_MODE}
           />
-          <button
-            type="button"
-            onClick={() => navigate("/lyric")}
-            disabled={GRADSHOW_MODE}
-            className={`relative isolate ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
-              hasTrack
-                ? "bg-accent/15 text-accent"
-                : "bg-transparent hover:bg-neutral-100"
-            }`}
-            title={t("Get lyrics")}
-          >
-            {hasTrack ? (
-              <span
-                aria-hidden="true"
-                className="absolute -inset-2 z-0 rounded-full bg-accent/10 animate-ping motion-reduce:animate-none"
-                style={{ animationDuration: "2.4s" }}
-              />
-            ) : null}
-            <Music4 size={18} className="relative z-10" />
-          </button>
-          <button
-            type="button"
-            onClick={handleAnalyze}
-            disabled={GRADSHOW_MODE || !canAnalyze}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
-              canAnalyze
-                ? "bg-neutral-900 text-neutral-50 hover:bg-neutral-700"
-                : "cursor-default bg-neutral-200 text-neutral-400"
-            }`}
-            title={t("Done")}
-          >
-            <ArrowUp size={18} />
-          </button>
-        </div>
+
+          <div className="mt-3 flex items-end gap-3">
+            <LanguageSelect
+              language={language}
+              setLanguage={(nextLanguage) => setLanguage(nextLanguage?.lang ?? null)}
+              disabled={GRADSHOW_MODE}
+            />
+            <button
+              type="button"
+              onClick={() => navigate("/lyric")}
+              disabled={GRADSHOW_MODE}
+              className={`relative isolate ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${
+                hasTrack
+                  ? "bg-accent/15 text-accent"
+                  : "bg-transparent hover:bg-neutral-100"
+              }`}
+              title={t("Get lyrics")}
+            >
+              {hasTrack ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute -inset-2 z-0 rounded-full bg-accent/10 animate-ping motion-reduce:animate-none"
+                  style={{ animationDuration: "2.4s" }}
+                />
+              ) : null}
+              <Music4 size={18} className="relative z-10" />
+            </button>
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={GRADSHOW_MODE || !canAnalyze}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors ${
+                canAnalyze
+                  ? "bg-neutral-900 text-neutral-50 hover:bg-neutral-700"
+                  : "cursor-default bg-neutral-200 text-neutral-400"
+              }`}
+              title={t("Done")}
+            >
+              <ArrowUp size={18} />
+            </button>
+          </div>
         </div>
       </div>
       <ResponsiveSideLayout open={panel?.type === "lemma"} onClose={() => setPanel(null)}>

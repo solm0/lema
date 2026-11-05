@@ -1,0 +1,8 @@
+allprojects {
+    group = "com.solmi.lema"
+    version = "1.0.0"
+
+    repositories {
+        mavenCentral()
+    }
+}

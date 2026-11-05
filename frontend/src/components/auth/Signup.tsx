@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { signup } from "../../api"
-import Button, { LinkButton } from "../../components/util/Button"
+import TextButton, { LinkButton } from "../../components/util/Button"
 import SystemMessage from "./SystemMessage"
 import { useI18n } from "../../i18n"
 import { resolveAuthMessage } from "./errorMessages"
@@ -87,7 +87,7 @@ export default function Signup(){
 
         <div className="flex flex-col gap-2 w-full">
           <SystemMessage msg={msg} />
-          <Button text={submitting ? t("Creating account...") : t("Sign up")} onClick={submit} disabled={submitting} fit />
+          <TextButton text={submitting ? t("Creating account...") : t("Sign up")} onClick={submit} disabled={submitting} fit />
         </div>
       </div>
 

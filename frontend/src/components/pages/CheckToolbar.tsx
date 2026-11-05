@@ -1,5 +1,5 @@
 import { Trash2, X } from "lucide-react";
-import { IconButton } from "../util/Button";
+import { IconButtonEvent } from "../util/Button";
 import { useI18n } from "../../i18n";
 
 export default function CheckToolbar({
@@ -11,9 +11,9 @@ export default function CheckToolbar({
 }) {
   const { t } = useI18n();
   return (
-    <div className="flex h-8 md:h-6 select-none gap-1">
-      <IconButton icon={<X size={14} />} onClick={clear} title={t("Clear selection")} />
-      <IconButton icon={<Trash2 className="text-red-600" size={14} />} onClick={onDelete}/>
+    <div className="flex h-10 md:h-8 select-none gap-2 md:gap-0">
+      <IconButtonEvent icon={<X size={14} />} onClick={clear} title={t("Clear selection")} />
+      <IconButtonEvent icon={<Trash2 size={14} />} onClick={onDelete} red/>
     </div>
   );
 }

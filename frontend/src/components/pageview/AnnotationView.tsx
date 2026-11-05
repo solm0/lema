@@ -5,7 +5,7 @@ import { deleteAnnotation, updateAnnotation } from "../../api";
 import { isValidUrl } from "./AnnotationNew";
 import { ResponsiveModal } from "../util/ResponsiveModal";
 import { Pencil, Trash2 } from "lucide-react";
-import Button, { IconButton } from "../util/Button";
+import TextButton, { IconButton } from "../util/Button";
 import { useI18n } from "../../i18n";
 
 export default function AnnotationView({
@@ -121,6 +121,7 @@ export default function AnnotationView({
             <IconButton
               icon={<Trash2 className="text-red-600" size={14} />}
               onClick={()=>setOpenModal(true)}
+              red
             />
           </div>
         </div>
@@ -158,7 +159,7 @@ export default function AnnotationView({
         {msg && <p className={`text-sm ${msg !== t("Saved") ? "text-red-600" : ""}`}>{msg}</p>}
         {editing &&
           <div className="self-end flex gap-2 w-full">
-            <Button
+            <TextButton
               text={t("Revert changes")}
               onClick={()=>{
                 setEditing(false);
@@ -166,7 +167,7 @@ export default function AnnotationView({
               }}
               black fit
             />
-            <Button
+            <TextButton
               text={loading === "edit" ? t("Saving...") : t("Save changes")}
               onClick={handleSave}
               disabled={loading === "edit" || !canSave}
@@ -184,7 +185,7 @@ export default function AnnotationView({
       <ResponsiveModal open={openModal && canMutate} onClose={() => setOpenModal(false)}>
         <div className="flex flex-col gap-7">
           <h2 className="pr-6">{t("Delete this annotation?")}</h2>
-          <Button text={t("Delete")} onClick={handleDelete} fit red/>
+          <TextButton text={t("Delete")} onClick={handleDelete} fit red/>
         </div>
       </ResponsiveModal>
     </div>

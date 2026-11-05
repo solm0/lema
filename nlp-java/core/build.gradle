@@ -1,0 +1,14 @@
+plugins {
+    id 'java-library'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+dependencies {
+    // Android provides its API-24-compatible patched runtime; the desktop
+    // sidecar provides the same pinned OpenNLP runtime at execution time.
+    compileOnly 'org.apache.opennlp:opennlp-tools:2.5.3'
+}

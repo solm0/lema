@@ -508,6 +508,7 @@ export default function PageCore({
   interestKeys,
   wrapperStyle,
   horizontalAlign = "center",
+  textAlign = "justify",
   contentPaddingClass,
   allowOverflow = false,
 }: {
@@ -546,6 +547,7 @@ export default function PageCore({
   overlay?: ReactNode;
   wrapperStyle?: CSSProperties;
   horizontalAlign?: "left" | "right" | "center";
+  textAlign?: "left" | "justify";
   /** Override the compact non-page padding for embedded surfaces. */
   contentPaddingClass?: string;
   allowOverflow?: boolean;
@@ -912,7 +914,7 @@ export default function PageCore({
                 data-lyric-line={block.timestamp_ms != null ? "true" : "false"}
                 className={`
                   relative z-1 flex w-full max-w-[48em] flex-wrap content-start
-                  ${isLyricPage ? "justify-start" : "justify-between"}
+                  ${isLyricPage || textAlign === "left" ? "justify-start" : "justify-between"}
                   after:basis-0 after:flex-auto after:content-['']
                   transition-all duration-300 origin-left
                   ${language === "ko" || language === "ja" ? "leading-10" : ""}
