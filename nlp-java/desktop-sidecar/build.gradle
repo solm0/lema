@@ -14,6 +14,8 @@ application {
 dependencies {
     implementation project(':core')
     implementation 'org.apache.opennlp:opennlp-tools:2.5.3'
+    implementation 'com.worksap.nlp:sudachi:0.7.5'
+    implementation files('libs/kiwi-java.jar')
 }
 
 tasks.register('fatJar', Jar) {

@@ -1,85 +1,34 @@
-
 from pathlib import Path
-from .model_store import ensure_model_installed
+
+from .opennlp import analyze_text as sidecar_analyze
 from .sqlite_pack import LanguagePackDB, find_pack_db
 
 
-# =====================
-# LATIN -> CYRILLIC
-# =====================
 LATIN_TO_CYR = str.maketrans({
-    "a": "а", "A": "А",
-    "e": "е", "E": "Е",
-    "o": "о", "O": "О",
-    "p": "р", "P": "Р",
-    "c": "с", "C": "С",
-    "y": "у", "Y": "У",
-    "x": "х", "X": "Х",
-    "n": "п", "N": "П",
-    "u": "и", "U": "И",
-    "k": "к", "K": "К",
-    "m": "м", "M": "М",
-    "t": "т", "T": "Т",
-    "b": "в", "B": "В",
-    "h": "н", "H": "Н",
+    "a": "а", "A": "А", "e": "е", "E": "Е", "o": "о", "O": "О",
+    "p": "р", "P": "Р", "c": "с", "C": "С", "y": "у", "Y": "У",
+    "x": "х", "X": "Х", "n": "п", "N": "П", "u": "и", "U": "И",
+    "k": "к", "K": "К", "m": "м", "M": "М", "t": "т", "T": "Т",
+    "b": "в", "B": "В", "h": "н", "H": "Н",
 })
 
 
-# =====================
-# NORMALIZE
-# =====================
 def normalize(text: str):
     return text.translate(LATIN_TO_CYR)
 
 
-# =====================
-# LAZY LOADERS
-# =====================
-_nlp = None
-
-
-def get_nlp():
-
-    global _nlp
-
-    if _nlp is None:
-        import stanza
-
-        model_dir = ensure_model_installed("ru")
-        _nlp = stanza.Pipeline(
-            lang="ru",
-            processors="tokenize,pos,lemma",
-            use_gpu=False,
-            dir=str(model_dir),
-            download_method=None,
-        )
-
-    return _nlp
-
-
-# =====================
-# CONFIG
-# =====================
 def get_config(base_dir: Path):
-
-    lang_dir = base_dir / "ru"
-
     from .registry import get_latest_version_path
 
-    version_path = get_latest_version_path(lang_dir)
+    version_path = get_latest_version_path(base_dir / "ru")
     db_path = find_pack_db(version_path)
-    pack_db = LanguagePackDB(db_path) if db_path else None
-
     return {
         "normalize": normalize,
-        "get_nlp": get_nlp,
-
-        "pack_db": pack_db,
+        "analyze_text": lambda text: sidecar_analyze(text, "ru", db_path),
+        "pack_db": LanguagePackDB(db_path) if db_path else None,
         "db_path": db_path,
     }
 
 
 def unload():
-    global _nlp
-
-    _nlp = None
+    return None

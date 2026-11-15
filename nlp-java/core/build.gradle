@@ -11,4 +11,6 @@ dependencies {
     // Android provides its API-24-compatible patched runtime; the desktop
     // sidecar provides the same pinned OpenNLP runtime at execution time.
     compileOnly 'org.apache.opennlp:opennlp-tools:2.5.3'
+    compileOnly 'com.worksap.nlp:sudachi:0.7.5'
+    compileOnly files("${rootProject.projectDir}/desktop-sidecar/libs/kiwi-java.jar")
 }

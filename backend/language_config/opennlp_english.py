@@ -5,4 +5,4 @@ from sidecars.opennlp_english import sidecar
 
 
 def analyze_text(text: str) -> list[dict]:
-    return sidecar.analyze(text, get_opennlp_model_dir("en"))
+    return sidecar.analyze(text, get_opennlp_model_dir("en"), "en")

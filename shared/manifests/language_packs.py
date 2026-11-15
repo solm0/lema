@@ -3,35 +3,6 @@ from __future__ import annotations
 HF_PACK_REPO_ID = "solm0/nautilus-releases"
 HF_PACK_REPO_TYPE = "dataset"
 
-RUNTIME_PACKAGE_SPECS = {
-    "stanza": {
-        "project": "stanza",
-        "version": "1.11.1",
-        "install_mode": "pypi_wheel",
-    },
-    "udtools": {
-        "project": "udtools",
-        "version": "0.2.7",
-        "install_mode": "pypi_wheel",
-    },
-    "kiwipiepy_model": {
-        "project": "kiwipiepy-model",
-        "version": "0.23.0",
-        "install_mode": "pypi_wheel",
-    },
-    "udapi": {
-        "project": "udapi",
-        "version": "0.5.2",
-        "install_mode": "pypi_wheel",
-    },
-    "regex": {
-        "project": "regex",
-        "version": "2025.11.3",
-        "install_mode": "pypi_wheel",
-    },
-}
-
-
 def build_pack_download_url(lang: str, version: str, filename: str) -> str:
     return (
         f"https://huggingface.co/datasets/{HF_PACK_REPO_ID}/resolve/main/"
@@ -62,16 +33,16 @@ def build_pack(
 RUNTIME_MANIFESTS = {
     "de": {
         "lang": "de",
-        "runtime_version": 1,
-        "shared_dependencies": ["torch"],
-        "language_packages": ["stanza", "udtools", "udapi", "regex"],
-        "resource_packages": ["udtools"],
+        "runtime_version": 2,
+        "shared_dependencies": [],
+        "language_packages": [],
+        "resource_packages": [],
         "models": [
             {
-                "id": "stanza-de",
-                "provider": "stanza",
+                "id": "opennlp-de-ud-gsd",
+                "provider": "opennlp",
                 "lang": "de",
-                "resource_id": "stanza-model-de",
+                "resource_id": "opennlp-model-de",
             }
         ],
     },
@@ -94,46 +65,50 @@ RUNTIME_MANIFESTS = {
     },
     "ja": {
         "lang": "ja",
-        "runtime_version": 1,
-        "shared_dependencies": ["torch"],
-        "language_packages": ["stanza", "udtools", "udapi", "regex"],
-        "resource_packages": ["udtools"],
+        "runtime_version": 2,
+        # Sudachi code is in the bundled Java sidecar; the dictionary is
+        # downloaded with the pack and removed with its final uninstall.
+        "shared_dependencies": [],
+        "language_packages": [],
+        "resource_packages": [],
         "models": [
             {
-                "id": "stanza-ja",
-                "provider": "stanza",
+                "id": "sudachi-ja-core",
+                "provider": "sudachi",
                 "lang": "ja",
-                "resource_id": "stanza-model-ja",
+                "resource_id": "sudachi-dictionary-ja",
             }
         ],
     },
     "ko": {
         "lang": "ko",
-        "runtime_version": 1,
-        "shared_dependencies": ["torch"],
-        "language_packages": ["stanza", "udtools", "udapi", "regex", "kiwipiepy", "kiwipiepy_model"],
-        "resource_packages": ["udtools", "kiwipiepy", "kiwipiepy_model"],
+        "runtime_version": 2,
+        # Kiwi's Java/JNI binding is bundled with the platform sidecar. Its
+        # model is downloaded into user data with the language pack.
+        "shared_dependencies": [],
+        "language_packages": [],
+        "resource_packages": [],
         "models": [
             {
-                "id": "stanza-ko",
-                "provider": "stanza",
+                "id": "kiwi-ko-base",
+                "provider": "kiwi",
                 "lang": "ko",
-                "resource_id": "stanza-model-ko",
+                "resource_id": "kiwi-model-ko",
             }
         ],
     },
     "ru": {
         "lang": "ru",
-        "runtime_version": 1,
-        "shared_dependencies": ["torch"],
-        "language_packages": ["stanza", "udtools", "udapi", "regex"],
-        "resource_packages": ["udtools"],
+        "runtime_version": 2,
+        "shared_dependencies": [],
+        "language_packages": [],
+        "resource_packages": [],
         "models": [
             {
-                "id": "stanza-ru",
-                "provider": "stanza",
+                "id": "opennlp-ru-ud-gsd",
+                "provider": "opennlp",
                 "lang": "ru",
-                "resource_id": "stanza-model-ru",
+                "resource_id": "opennlp-model-ru",
             }
         ],
     },
@@ -363,7 +338,8 @@ def get_runtime_resource_plan(lang: str) -> dict[str, list[str]]:
 
 
 def get_runtime_package_spec(package_name: str) -> dict | None:
-    return RUNTIME_PACKAGE_SPECS.get(package_name)
+    # Language packs no longer install Python NLP dependencies at runtime.
+    return None
 
 
 def list_languages() -> list[str]:

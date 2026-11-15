@@ -1,5 +1,7 @@
 package com.solmi.lema;
 
+import com.solmi.lema.nlp.RussianOpenNlpAnalyzer;
+
 import java.io.File;
 import java.io.IOException;
 import java.text.Normalizer;
@@ -13,10 +15,10 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 final class RussianNlpAnalyzer {
-    static final String SENTENCE_MODEL = "opennlp-ru-ud-gsd-sentence-1.3-2.5.4.bin";
-    static final String TOKEN_MODEL = "opennlp-ru-ud-gsd-tokens-1.3-2.5.4.bin";
-    static final String POS_MODEL = "opennlp-ru-ud-gsd-pos-1.3-2.5.4.bin";
-    static final String LEMMA_MODEL = "opennlp-ru-ud-gsd-lemmas-1.3-2.5.4.bin";
+    static final String SENTENCE_MODEL = RussianOpenNlpAnalyzer.SENTENCE_MODEL;
+    static final String TOKEN_MODEL = RussianOpenNlpAnalyzer.TOKEN_MODEL;
+    static final String POS_MODEL = RussianOpenNlpAnalyzer.POS_MODEL;
+    static final String LEMMA_MODEL = RussianOpenNlpAnalyzer.LEMMA_MODEL;
 
     private static final OpenNlpAnalyzer.Models MODELS = new OpenNlpAnalyzer.Models(
         SENTENCE_MODEL,
@@ -52,6 +54,7 @@ final class RussianNlpAnalyzer {
     }
 
     private final OpenNlpAnalyzer analyzer;
+    private final RussianOpenNlpAnalyzer sharedAnalyzer;
     private final LemmaKeyLookup lemmaKeyLookup;
 
     RussianNlpAnalyzer(ClassLoader classLoader) throws IOException {
@@ -66,16 +69,15 @@ final class RussianNlpAnalyzer {
             (surface, modelSurface, lemma, pos) ->
                 adaptForPack(surface, modelSurface, lemma, pos, lemmaKeyLookup)
         );
+        sharedAnalyzer = null;
         this.lemmaKeyLookup = lemmaKeyLookup;
     }
 
     RussianNlpAnalyzer(File modelDirectory, LemmaKeyLookup lemmaKeyLookup) throws IOException {
-        analyzer = new OpenNlpAnalyzer(
+        analyzer = null;
+        sharedAnalyzer = new RussianOpenNlpAnalyzer(
             modelDirectory,
-            MODELS,
-            "Russian",
-            (surface, modelSurface, lemma, pos) ->
-                adaptForPack(surface, modelSurface, lemma, pos, lemmaKeyLookup)
+            lemmaKeyLookup == null ? null : lemmaKeyLookup::contains
         );
         this.lemmaKeyLookup = lemmaKeyLookup;
     }
@@ -85,11 +87,17 @@ final class RussianNlpAnalyzer {
     }
 
     static boolean modelsAvailable(File modelDirectory) {
-        return OpenNlpAnalyzer.modelsAvailable(modelDirectory, MODELS);
+        return RussianOpenNlpAnalyzer.modelsAvailable(modelDirectory);
     }
 
     List<Token> analyze(String rawText) {
         List<Token> output = new ArrayList<>();
+        if (sharedAnalyzer != null) {
+            for (RussianOpenNlpAnalyzer.Token token : sharedAnalyzer.analyze(rawText)) {
+                output.add(new Token(token.surface, token.lemma, token.pos));
+            }
+            return output;
+        }
         boolean sentenceStart = true;
         for (OpenNlpAnalyzer.Token token : analyzer.analyze(rawText)) {
             String pos = token.pos;

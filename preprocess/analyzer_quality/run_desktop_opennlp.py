@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
-"""Exercise the macOS English OpenNLP sidecar against the existing pack and Stanza."""
+"""Measure desktop Java analyzer compatibility with an existing language pack."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import sqlite3
 import statistics
 import sys
 import time
 from pathlib import Path
-from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -21,10 +19,8 @@ backend_path = ROOT / "backend"
 if str(backend_path) not in sys.path:
     sys.path.insert(0, str(backend_path))
 
-from language_config.model_store import (  # noqa: E402
-    ensure_opennlp_model_installed,
-    get_local_model_dir,
-)
+from language_config.model_store import ensure_model_installed  # noqa: E402
+from language_config.opennlp import analyze_text as sidecar_analyze  # noqa: E402
 from sidecars.opennlp_english import sidecar  # noqa: E402
 from preprocess.analyzer_quality.compare import (  # noqa: E402
     ComparisonConfig,
@@ -33,8 +29,13 @@ from preprocess.analyzer_quality.compare import (  # noqa: E402
 )
 
 
-EN_DB = ROOT / "releases/en/en-v1.1.2/lemma_pack.db"
-EN_CONFIG = ROOT / "preprocess/analyzer_quality/configs/en.json"
+LANGUAGES = {
+    "en": (ROOT / "releases/en/en-v1.1.2/lemma_pack.db", ROOT / "preprocess/analyzer_quality/configs/en.json"),
+    "de": (ROOT / "releases/de/de-v1.1.2/lemma_pack.db", ROOT / "preprocess/analyzer_quality/configs/de.json"),
+    "ru": (ROOT / "releases/ru/ru-v1.1.2/lemma_pack.db", ROOT / "preprocess/analyzer_quality/configs/ru.json"),
+    "ja": (ROOT / "releases/ja/ja-v1.1.2/lemma_pack.db", ROOT / "preprocess/analyzer_quality/configs/ja.json"),
+    "ko": (ROOT / "releases/ko/ko-v1.1.2/lemma_pack.db", ROOT / "preprocess/analyzer_quality/configs/ko.json"),
+}
 
 
 def sample_records(db_path: Path, sample_size: int) -> list[tuple[str, str]]:
@@ -66,50 +67,11 @@ def sample_records(db_path: Path, sample_size: int) -> list[tuple[str, str]]:
     return output
 
 
-def opennlp_records(samples: list[tuple[str, str]], model_dir: Path) -> dict[str, Record]:
+def opennlp_records(samples: list[tuple[str, str]], language: str, db_path: Path) -> dict[str, Record]:
     return {
-        record_id: Record(record_id, sidecar.analyze(text, model_dir))
+        record_id: Record(record_id, sidecar_analyze(text, language, db_path))
         for record_id, text in samples
     }
-
-
-def stanza_records(samples: list[tuple[str, str]]) -> tuple[dict[str, Record], float]:
-    import stanza
-
-    started = time.perf_counter()
-    pipeline = stanza.Pipeline(
-        lang="en",
-        processors="tokenize,pos,lemma",
-        use_gpu=False,
-        dir=str(get_local_model_dir("en")),
-        download_method=None,
-    )
-    load_ms = (time.perf_counter() - started) * 1000
-    output: dict[str, Record] = {}
-    for record_id, text in samples:
-        tokens: list[dict[str, Any]] = []
-        document = pipeline(text)
-        for sentence in document.sentences:
-            words = list(sentence.words)
-            word_index = 0
-            for surface in sentence.text.split():
-                matched = []
-                joined = ""
-                while word_index < len(words):
-                    word = words[word_index]
-                    word_index += 1
-                    joined += word.text
-                    matched.append(word)
-                    if joined == surface:
-                        break
-                main = matched[0] if joined == surface and matched else None
-                tokens.append({
-                    "surface": surface,
-                    "lemma": main.lemma.lower() if main and main.lemma else None,
-                    "pos": main.upos if main else None,
-                })
-        output[record_id] = Record(record_id, tokens)
-    return output, load_ms
 
 
 def time_engine(callable_engine, samples: list[tuple[str, str]], iterations: int) -> dict[str, float]:
@@ -136,6 +98,7 @@ def path_size(path: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--language", choices=sorted(LANGUAGES), default="en")
     parser.add_argument("--sample-size", type=int, default=1000)
     parser.add_argument("--iterations", type=int, default=5)
     parser.add_argument("--json-out", type=Path)
@@ -144,52 +107,37 @@ def main(argv: list[str] | None = None) -> int:
     if args.sample_size <= 0 or args.iterations <= 0:
         raise SystemExit("--sample-size and --iterations must be positive")
 
-    os.environ["LEMA_ENGLISH_ANALYZER"] = "opennlp"
-    model_dir = ensure_opennlp_model_installed("en")
-    samples = sample_records(EN_DB, args.sample_size)
-    config = ComparisonConfig.from_dict(json.loads(EN_CONFIG.read_text(encoding="utf-8")))
+    language = args.language
+    db_path, config_path = LANGUAGES[language]
+    if not db_path.is_file():
+        raise RuntimeError(f"Missing language-pack DB: {db_path}")
+    ensure_model_installed(language)
+    samples = sample_records(db_path, args.sample_size)
+    config = ComparisonConfig.from_dict(json.loads(config_path.read_text(encoding="utf-8")))
 
     sidecar.close()
     cold_started = time.perf_counter()
-    candidate = opennlp_records([samples[0]], model_dir)
+    candidate = opennlp_records([samples[0]], language, db_path)
     cold_load_ms = (time.perf_counter() - cold_started) * 1000
-    candidate.update(opennlp_records(samples[1:], model_dir))
+    candidate.update(opennlp_records(samples[1:], language, db_path))
 
     from preprocess.analyzer_quality.compare import load_pack_records
-    reference = load_pack_records(EN_DB, candidate)
-    pack_metrics, mismatches = compare_records(reference, candidate, config, lookup_db=EN_DB, max_examples=200)
+    reference = load_pack_records(db_path, candidate)
+    pack_metrics, mismatches = compare_records(reference, candidate, config, lookup_db=db_path, max_examples=200)
 
-    stanza, stanza_load_ms = stanza_records(samples)
-    agreement_metrics, _ = compare_records(stanza, candidate, config, lookup_db=EN_DB, max_examples=0)
-    opennlp_speed = time_engine(lambda text: sidecar.analyze(text, model_dir), samples, args.iterations)
-
-    # Stanza stays intentionally isolated to this evaluator; the production
-    # backend selects the OpenNLP sidecar by default.
-    import stanza as stanza_module
-    stanza_pipeline = stanza_module.Pipeline(
-        lang="en", processors="tokenize,pos,lemma", use_gpu=False,
-        dir=str(get_local_model_dir("en")), download_method=None,
-    )
-    stanza_speed = time_engine(lambda text: stanza_pipeline(text), samples, args.iterations)
-
+    opennlp_speed = time_engine(lambda text: sidecar_analyze(text, language, db_path), samples, args.iterations)
     sidecar_root = ROOT / "desktop-sidecar/dist"
     report = {
-        "language": "en",
+        "language": language,
         "sample_size": len(samples),
-        "result_agreement_with_stanza": agreement_metrics,
         "pack_compatibility": pack_metrics,
         "speed": {
-            "opennlp_cold_sidecar_and_first_analysis_ms": round(cold_load_ms, 4),
-            "stanza_cold_pipeline_load_ms": round(stanza_load_ms, 4),
-            "opennlp_warm": opennlp_speed,
-            "stanza_warm": stanza_speed,
+            "java_sidecar_cold_first_analysis_ms": round(cold_load_ms, 4),
+            "java_sidecar_warm": opennlp_speed,
         },
         "size": {
             "opennlp_sidecar_jar_bytes": path_size(sidecar_root / "lema-opennlp-sidecar.jar"),
             "opennlp_trimmed_runtime_bytes": path_size(sidecar_root / "runtime"),
-            "torch_python_package_bytes": path_size(
-                ROOT / "backend/venv/lib/python3.12/site-packages/torch"
-            ),
         },
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))

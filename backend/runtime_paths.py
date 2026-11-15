@@ -65,15 +65,6 @@ def get_runtime_package_root() -> Path:
     return get_runtime_root() / "site-packages"
 
 
-def get_stanza_model_root() -> Path:
-    override = _resolve_override("LEMA_STANZA_MODEL_ROOT", "NAUTILUS_STANZA_MODEL_ROOT")
-
-    if override is not None:
-        return override
-
-    return get_backend_root() / "models"
-
-
 def get_opennlp_model_root() -> Path:
     override = _resolve_override("LEMA_OPENNLP_MODEL_ROOT", "NAUTILUS_OPENNLP_MODEL_ROOT")
 
@@ -81,6 +72,20 @@ def get_opennlp_model_root() -> Path:
         return override
 
     return get_runtime_root() / "opennlp-models"
+
+
+def get_kiwi_model_root() -> Path:
+    """Return the user-owned Kiwi model location.
+
+    The Java bindings are part of the platform sidecar, while the Korean
+    language model follows the install lifetime of a language pack.
+    """
+    override = _resolve_override("LEMA_KIWI_MODEL_ROOT", "NAUTILUS_KIWI_MODEL_ROOT")
+
+    if override is not None:
+        return override
+
+    return get_runtime_root() / "kiwi-models"
 
 
 def get_frontend_dist_dir() -> Path | None:

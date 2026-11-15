@@ -1,5 +1,7 @@
 package com.solmi.lema;
 
+import com.solmi.lema.nlp.GermanOpenNlpAnalyzer;
+
 import java.io.File;
 import java.io.IOException;
 import java.text.Normalizer;
@@ -13,10 +15,10 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 final class GermanNlpAnalyzer {
-    static final String SENTENCE_MODEL = "opennlp-de-ud-gsd-sentence-1.3-2.5.4.bin";
-    static final String TOKEN_MODEL = "opennlp-de-ud-gsd-tokens-1.3-2.5.4.bin";
-    static final String POS_MODEL = "opennlp-de-ud-gsd-pos-1.3-2.5.4.bin";
-    static final String LEMMA_MODEL = "opennlp-de-ud-gsd-lemmas-1.3-2.5.4.bin";
+    static final String SENTENCE_MODEL = GermanOpenNlpAnalyzer.SENTENCE_MODEL;
+    static final String TOKEN_MODEL = GermanOpenNlpAnalyzer.TOKEN_MODEL;
+    static final String POS_MODEL = GermanOpenNlpAnalyzer.POS_MODEL;
+    static final String LEMMA_MODEL = GermanOpenNlpAnalyzer.LEMMA_MODEL;
 
     private static final OpenNlpAnalyzer.Models MODELS = new OpenNlpAnalyzer.Models(
         SENTENCE_MODEL,
@@ -51,6 +53,7 @@ final class GermanNlpAnalyzer {
     }
 
     private final OpenNlpAnalyzer analyzer;
+    private final GermanOpenNlpAnalyzer sharedAnalyzer;
 
     GermanNlpAnalyzer(ClassLoader classLoader) throws IOException {
         this(classLoader, null);
@@ -64,15 +67,14 @@ final class GermanNlpAnalyzer {
             (surface, modelSurface, lemma, pos) ->
                 adaptForPack(surface, modelSurface, lemma, pos, lemmaKeyLookup)
         );
+        sharedAnalyzer = null;
     }
 
     GermanNlpAnalyzer(File modelDirectory, LemmaKeyLookup lemmaKeyLookup) throws IOException {
-        analyzer = new OpenNlpAnalyzer(
+        analyzer = null;
+        sharedAnalyzer = new GermanOpenNlpAnalyzer(
             modelDirectory,
-            MODELS,
-            "German",
-            (surface, modelSurface, lemma, pos) ->
-                adaptForPack(surface, modelSurface, lemma, pos, lemmaKeyLookup)
+            lemmaKeyLookup == null ? null : lemmaKeyLookup::contains
         );
     }
 
@@ -81,11 +83,17 @@ final class GermanNlpAnalyzer {
     }
 
     static boolean modelsAvailable(File modelDirectory) {
-        return OpenNlpAnalyzer.modelsAvailable(modelDirectory, MODELS);
+        return GermanOpenNlpAnalyzer.modelsAvailable(modelDirectory);
     }
 
     List<Token> analyze(String rawText) {
         List<Token> output = new ArrayList<>();
+        if (sharedAnalyzer != null) {
+            for (GermanOpenNlpAnalyzer.Token token : sharedAnalyzer.analyze(rawText)) {
+                output.add(new Token(token.surface, token.lemma, token.pos));
+            }
+            return output;
+        }
         for (OpenNlpAnalyzer.Token token : analyzer.analyze(rawText)) {
             output.add(new Token(token.surface, token.lemma, token.pos));
         }

@@ -26,8 +26,12 @@
     "SCONJ",
     "PART",
     "PRON",
-    "ADP"
+    "ADP",
+    "X"
   ],
+  "exclude_punctuation_surfaces": true,
+  "exclude_numeric_surfaces": true,
+  "exclude_x_pos_tokens": true,
   "exclude_lemmas": [
     "be",
     "have",

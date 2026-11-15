@@ -117,6 +117,37 @@ class AnalyzerQualityTest(unittest.TestCase):
         self.assertEqual(100.0, metrics["annotation"]["exact_content_rate"])
         self.assertEqual(1, metrics["database"]["candidate_lookup_occurrences"])
 
+    def test_excludes_punctuation_numeric_surfaces_and_x_pos(self):
+        reference = {
+            "1": Record("1", [
+                {"surface": "Dogs", "lemma": "dog", "pos": "NOUN"},
+                {"surface": "(", "lemma": "(", "pos": "NOUN"},
+                {"surface": "2026", "lemma": "2026", "pos": "NUM"},
+                {"surface": "unknown", "lemma": "unknown", "pos": "X"},
+            ])
+        }
+        candidate = {
+            "1": Record("1", [
+                {"surface": "Dogs", "lemma": "dog", "pos": "NOUN"},
+                {"surface": "[", "lemma": "[", "pos": "PUNCT"},
+                {"surface": "7", "lemma": "7", "pos": "NUM"},
+                {"surface": "different", "lemma": "different", "pos": "X"},
+            ])
+        }
+        config = ComparisonConfig.from_dict({
+            "exclude_punctuation_surfaces": True,
+            "exclude_numeric_surfaces": True,
+            "exclude_pos": ["X"],
+            "exclude_x_pos_tokens": True,
+        })
+
+        metrics, examples = compare_records(reference, candidate, config)
+
+        self.assertEqual(100.0, metrics["surface"]["exact_record_rate"])
+        self.assertEqual(1, metrics["annotation"]["reference_content_tokens"])
+        self.assertEqual(100.0, metrics["annotation"]["exact_content_rate"])
+        self.assertEqual([], examples)
+
     def test_loads_pack_rows_for_candidate_ids(self):
         with tempfile.TemporaryDirectory() as directory:
             db_path = Path(directory) / "lemma_pack.db"

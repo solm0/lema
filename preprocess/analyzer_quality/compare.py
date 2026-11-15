@@ -32,6 +32,9 @@ class ComparisonConfig:
     candidate_lemma_map: dict[str, str] | None = None
     exclude_pos: frozenset[str] = frozenset()
     exclude_lemmas: frozenset[str] = frozenset()
+    exclude_punctuation_surfaces: bool = False
+    exclude_numeric_surfaces: bool = False
+    exclude_x_pos_tokens: bool = False
 
     @classmethod
     def from_dict(cls, value: dict[str, Any] | None) -> "ComparisonConfig":
@@ -50,6 +53,9 @@ class ComparisonConfig:
             candidate_lemma_map=_string_map(value.get("candidate_lemma_map")),
             exclude_pos=frozenset(_string_list(value.get("exclude_pos"))),
             exclude_lemmas=frozenset(_string_list(value.get("exclude_lemmas"))),
+            exclude_punctuation_surfaces=bool(value.get("exclude_punctuation_surfaces", False)),
+            exclude_numeric_surfaces=bool(value.get("exclude_numeric_surfaces", False)),
+            exclude_x_pos_tokens=bool(value.get("exclude_x_pos_tokens", False)),
         )
 
 
@@ -160,6 +166,22 @@ def _surface(token: dict[str, Any], config: ComparisonConfig) -> str:
     return _normalized_text(token.get("surface"), config)
 
 
+def _include_token(token: dict[str, Any], config: ComparisonConfig) -> bool:
+    """Whether a token participates in surface, annotation, and DB metrics."""
+    surface = _surface(token, config)
+    if not surface:
+        return False
+    if config.exclude_numeric_surfaces and surface.isdecimal():
+        return False
+    if config.exclude_x_pos_tokens and _normalized_text(token.get("pos"), config) == "X":
+        return False
+    if config.exclude_punctuation_surfaces and all(
+        unicodedata.category(character).startswith("P") for character in surface
+    ):
+        return False
+    return True
+
+
 def _lookup_units(
     token: dict[str, Any],
     side: str,
@@ -240,8 +262,14 @@ def compare_records(
     for record_id in shared_ids:
         reference_record = reference[record_id]
         candidate_record = candidate[record_id]
-        reference_surfaces = [_surface(token, config) for token in reference_record.tokens]
-        candidate_surfaces = [_surface(token, config) for token in candidate_record.tokens]
+        reference_tokens = [
+            token for token in reference_record.tokens if _include_token(token, config)
+        ]
+        candidate_tokens = [
+            token for token in candidate_record.tokens if _include_token(token, config)
+        ]
+        reference_surfaces = [_surface(token, config) for token in reference_tokens]
+        candidate_surfaces = [_surface(token, config) for token in candidate_tokens]
         reference_token_count += len(reference_surfaces)
 
         if reference_surfaces == candidate_surfaces:
@@ -266,10 +294,10 @@ def compare_records(
                 candidate_index = match.b + offset
                 aligned_token_count += 1
                 reference_units = _lookup_units(
-                    reference_record.tokens[reference_index], "reference", config
+                    reference_tokens[reference_index], "reference", config
                 )
                 candidate_units = _lookup_units(
-                    candidate_record.tokens[candidate_index], "candidate", config
+                    candidate_tokens[candidate_index], "candidate", config
                 )
                 if not reference_units:
                     continue
@@ -285,7 +313,7 @@ def compare_records(
                         "candidate": candidate_units,
                     })
 
-        for token in candidate_record.tokens:
+        for token in candidate_tokens:
             for lemma, pos in _lookup_units(token, "candidate", config):
                 candidate_key_counts[f"{lemma}_{pos}"] += 1
 

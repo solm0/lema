@@ -384,8 +384,8 @@ async function startBackend() {
   const runtimeRoot = path.join(userDataRoot, "runtime");
   const runtimePackageRoot = path.join(runtimeRoot, "site-packages");
   const dataStaticRoot = path.join(userDataRoot, "language-data", "static");
-  const stanzaModelRoot = path.join(userDataRoot, "language-models", "stanza");
   const openNlpModelRoot = path.join(userDataRoot, "language-models", "opennlp");
+  const kiwiModelRoot = path.join(userDataRoot, "language-models", "kiwi");
   const bundledSidecarJava = path.join(
     process.resourcesPath,
     "analyzer",
@@ -405,8 +405,8 @@ async function startBackend() {
           LEMA_RUNTIME_ROOT: runtimeRoot,
           LEMA_RUNTIME_PACKAGE_ROOT: runtimePackageRoot,
           LEMA_DATA_STATIC_ROOT: dataStaticRoot,
-          LEMA_STANZA_MODEL_ROOT: stanzaModelRoot,
           LEMA_OPENNLP_MODEL_ROOT: openNlpModelRoot,
+          LEMA_KIWI_MODEL_ROOT: kiwiModelRoot,
           LEMA_OPENNLP_SIDECAR_JAR: path.join(
             process.resourcesPath, "analyzer", "lema-opennlp-sidecar.jar"
           ),
@@ -414,8 +414,8 @@ async function startBackend() {
           NAUTILUS_RUNTIME_ROOT: runtimeRoot,
           NAUTILUS_RUNTIME_PACKAGE_ROOT: runtimePackageRoot,
           NAUTILUS_DATA_STATIC_ROOT: dataStaticRoot,
-          NAUTILUS_STANZA_MODEL_ROOT: stanzaModelRoot,
           NAUTILUS_OPENNLP_MODEL_ROOT: openNlpModelRoot,
+          NAUTILUS_KIWI_MODEL_ROOT: kiwiModelRoot,
         }
       : {
           LEMA_OPENNLP_SIDECAR_JAR: path.join(

@@ -41,6 +41,7 @@ dist-ssr
 *.sw?
 
 .build/
+nlp-java/desktop-sidecar/libs/
 backend-dist
 dist-electron
 .build-check/

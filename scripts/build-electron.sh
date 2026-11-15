@@ -72,17 +72,18 @@ PYINSTALLER_ARGS=(
 )
 
 PYINSTALLER_DATA_PACKAGES=(
+)
+
+# Keep the desktop bundle lean by excluding ML packages that are present in
+# the venv but not used by the packaged backend entrypoints.
+PYINSTALLER_EXCLUDES=(
+  torch
   stanza
   udtools
   udapi
   regex
   kiwipiepy
   kiwipiepy_model
-)
-
-# Keep the desktop bundle lean by excluding ML packages that are present in
-# the venv but not used by the packaged backend entrypoints.
-PYINSTALLER_EXCLUDES=(
   torchvision
   onnxruntime
   pandas
@@ -94,11 +95,10 @@ for module_name in "${PYINSTALLER_EXCLUDES[@]}"; do
   PYINSTALLER_ARGS+=(--exclude-module "$module_name")
 done
 
-for package_name in "${PYINSTALLER_DATA_PACKAGES[@]}"; do
+for package_name in "${PYINSTALLER_DATA_PACKAGES[@]-}"; do
+  [[ -n "$package_name" ]] || continue
   PYINSTALLER_ARGS+=(--collect-data "$package_name")
 done
-
-PYINSTALLER_ARGS+=(--hidden-import kiwipiepy_model)
 
 OPTIONAL_DATA_DIRS=()
 
@@ -121,7 +121,7 @@ node "$ROOT_DIR/scripts/sync-app-version.mjs"
 (cd "$ROOT_DIR/frontend" && APP_VERSION_OVERRIDE="$DESKTOP_VERSION" npm run build)
 
 echo "[2/4] Building shared OpenNLP desktop sidecar"
-bash "$ROOT_DIR/scripts/build-opennlp-sidecar.sh"
+bash "$ROOT_DIR/scripts/build-opennlp-sidecar.sh" "$TARGET"
 
 echo "[3/4] Packaging backend into backend-dist"
 rm -rf "$BACKEND_TEMP_DIST" "$PYINSTALLER_WORK_DIR" "$FINAL_BACKEND_DIST"
