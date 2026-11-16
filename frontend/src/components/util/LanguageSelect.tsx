@@ -8,6 +8,7 @@ export type InstalledPack = {
   version: string;
   installed: boolean;
   lemma_installed: boolean;
+  lemma_data_installed?: boolean;
   model_installed?: boolean;
 };
 

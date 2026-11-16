@@ -49,6 +49,9 @@ def get_install_state(lang: str, version: str):
     )
     lemma_installed = lemma_data_ready and model_ready
     return {
+        # The lemma database belongs to this exact pack version, while the
+        # analyzer model is shared by every version of the same language.
+        "lemma_data_installed": lemma_data_ready,
         "lemma_installed": lemma_installed,
         "model_installed": model_ready,
         "installed": lemma_installed and model_ready,

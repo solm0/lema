@@ -56,6 +56,9 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
           "Desktop": "48.7 MB",
           "Mobile": "48.7 MB"
         }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -137,6 +140,9 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
           "Desktop": "37.4 MB",
           "Mobile": "37.4 MB"
         }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -218,6 +224,9 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
           "Desktop": "119.3 MB",
           "Mobile": "119.3 MB"
         }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -245,6 +254,9 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
           "Desktop": "118.7 MB",
           "Mobile": "118.7 MB"
         }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -326,6 +338,9 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
           "Desktop": "142.4 MB",
           "Mobile": "142.4 MB"
         }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -407,6 +422,9 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
           "Desktop": "51.7 MB",
           "Mobile": "51.7 MB"
         }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },

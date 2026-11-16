@@ -128,8 +128,12 @@ function AppVersionSection() {
 
 function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
   const { t } = useI18n();
+  const localLibraryAvailable = isCapacitorApp() || isElectronApp();
   const [busy, setBusy] = useState<"export" | "import" | null>(null);
   const [message, setMessage] = useState("");
+  const [openResetLibraryModal, setOpenResetLibraryModal] = useState(false);
+  const [resetLibraryError, setResetLibraryError] = useState("");
+  const [resettingLibrary, setResettingLibrary] = useState(false);
 
   async function handleExport() {
     setBusy("export");
@@ -159,6 +163,23 @@ function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
     }
   }
 
+  async function handleResetLocalLibrary() {
+    setResettingLibrary(true);
+    setResetLibraryError("");
+
+    try {
+      await clearLocalLibrary();
+      window.dispatchEvent(new Event("lema:library-changed"));
+      setOpenResetLibraryModal(false);
+    } catch (error) {
+      setResetLibraryError(
+        error instanceof Error ? error.message : "Could not reset the local library.",
+      );
+    } finally {
+      setResettingLibrary(false);
+    }
+  }
+
   return (
     <section className="w-full flex flex-col gap-6 items-start">
       <h3 className="sticky top-0 bg-neutral-50 z-10 w-full pb-1">
@@ -185,6 +206,38 @@ function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
         />
       </div>
       {message ? <p className="text-sm text-neutral-700">{message}</p> : null}
+      {localLibraryAvailable ? (
+        <TextButton
+          text={t("Reset local library")}
+          onClick={() => {
+            setResetLibraryError("");
+            setOpenResetLibraryModal(true);
+          }}
+          disabled={disabled || resettingLibrary}
+          red
+        />
+      ) : null}
+      <ResponsiveModal
+        open={openResetLibraryModal}
+        onClose={() => setOpenResetLibraryModal(false)}
+      >
+        <div className="flex flex-col gap-7 md:pb-3">
+          <h2>{t("Reset local library?")}</h2>
+          <p className="pr-8 text-sm text-neutral-500">
+            {t("This deletes every page, analysis result, notebook, annotation, and page metadata stored for this account on this device. Your account, vocabulary records, app settings, downloaded language packs, and local libraries on other devices will remain.")}
+          </p>
+          {resetLibraryError && (
+            <p className="text-sm text-red-600">{resetLibraryError}</p>
+          )}
+          <TextButton
+            text={resettingLibrary ? t("Resetting...") : t("Reset local library")}
+            onClick={handleResetLocalLibrary}
+            disabled={resettingLibrary}
+            fit
+            red
+          />
+        </div>
+      </ResponsiveModal>
     </section>
   );
 }
@@ -192,20 +245,16 @@ function LocalLibrarySection({ disabled = false }: { disabled?: boolean }) {
 export function UserProfile() {
   const { t } = useI18n();
   const mobileApp = isCapacitorApp();
-  const localLibraryAvailable = mobileApp || isElectronApp();
   const [editing, setEditing] = useState(false);
   const [user, setUser] = useState<User | null>(GRADSHOW_MODE ? GRADSHOW_USER : null);
   const [value, setValue] = useState("");
   const [openLogoutModal, setOpenLogoutModal] = useState(false);
   const [openDeleteModal, setOpenDeleteModal] = useState(false);
   const [openResetVocabularyModal, setOpenResetVocabularyModal] = useState(false);
-  const [openResetLibraryModal, setOpenResetLibraryModal] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [resetVocabularyError, setResetVocabularyError] = useState("");
-  const [resetLibraryError, setResetLibraryError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [resettingVocabulary, setResettingVocabulary] = useState(false);
-  const [resettingLibrary, setResettingLibrary] = useState(false);
   const [offline, setOffline] = useState(
     mobileApp && !GRADSHOW_MODE && typeof navigator !== "undefined" ? !navigator.onLine : false,
   );
@@ -304,23 +353,6 @@ export function UserProfile() {
     }
   }
 
-  async function handleResetLocalLibrary() {
-    setResettingLibrary(true);
-    setResetLibraryError("");
-
-    try {
-      await clearLocalLibrary();
-      window.dispatchEvent(new Event("lema:library-changed"));
-      setOpenResetLibraryModal(false);
-    } catch (error) {
-      setResetLibraryError(
-        error instanceof Error ? error.message : "Could not reset the local library.",
-      );
-    } finally {
-      setResettingLibrary(false);
-    }
-  }
-
   return (
     <>
       {mobileApp && offline && !GRADSHOW_MODE ? (
@@ -367,37 +399,28 @@ export function UserProfile() {
           <TextButton onClick={() => setOpenLogoutModal(true)} text={t("Logout")} />
         </div>
 
-        <TextButton
-          onClick={() => {
-            setResetVocabularyError("");
-            setOpenResetVocabularyModal(true);
-          }}
-          text={t("Reset vocabulary records")}
-          disabled={resettingVocabulary}
-          red
-        />
+        <div className="flex flex-wrap gap-2">
 
-        {localLibraryAvailable && (
           <TextButton
             onClick={() => {
-              setResetLibraryError("");
-              setOpenResetLibraryModal(true);
+              setResetVocabularyError("");
+              setOpenResetVocabularyModal(true);
             }}
-            text={t("Reset local library")}
-            disabled={resettingLibrary}
+            text={t("Reset vocabulary records")}
+            disabled={resettingVocabulary}
             red
           />
-        )}
+          <TextButton
+            onClick={() => {
+              setDeleteError("");
+              setOpenDeleteModal(true);
+            }}
+            text={t("Delete account")}
+            disabled={deleting}
+            red
+          />
+        </div>
 
-        <TextButton
-          onClick={() => {
-            setDeleteError("");
-            setOpenDeleteModal(true);
-          }}
-          text={t("Delete account")}
-          disabled={deleting}
-          red
-        />
       </div>
 
       <ResponsiveModal open={openLogoutModal} onClose={() => setOpenLogoutModal(false)}>
@@ -471,27 +494,6 @@ export function UserProfile() {
         </div>
       </ResponsiveModal>
 
-      <ResponsiveModal
-        open={openResetLibraryModal}
-        onClose={() => setOpenResetLibraryModal(false)}
-      >
-        <div className="flex flex-col gap-7 md:pb-3">
-          <h2>{t("Reset local library?")}</h2>
-          <p className="pr-8 text-sm text-neutral-500">
-            {t("This deletes every page, analysis result, notebook, annotation, and page metadata stored for this account on this device. Your account, vocabulary records, app settings, downloaded language packs, and local libraries on other devices will remain.")}
-          </p>
-          {resetLibraryError && (
-            <p className="text-sm text-red-600">{resetLibraryError}</p>
-          )}
-          <TextButton
-            text={resettingLibrary ? t("Resetting...") : t("Reset local library")}
-            onClick={handleResetLocalLibrary}
-            disabled={resettingLibrary}
-            fit
-            red
-          />
-        </div>
-      </ResponsiveModal>
       </>
       )}
     </>

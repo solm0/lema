@@ -88,7 +88,7 @@ export default function PackTable() {
     const cached = readPackCatalogSnapshot() as Pack[];
     const installedKeys = new Set(
       installedPacks
-        .filter((pack) => pack.lemma_installed || pack.model_installed || pack.installed)
+        .filter(hasInstalledPackFiles)
         .map((pack) => `${pack.lang}:${pack.version}`),
     );
 
@@ -97,7 +97,7 @@ export default function PackTable() {
     );
 
     const missingInstalled = installedPacks
-      .filter((pack) => pack.lemma_installed || pack.model_installed || pack.installed)
+      .filter(hasInstalledPackFiles)
       .filter(
         (pack) =>
           !cachedInstalled.some(
@@ -149,6 +149,7 @@ export default function PackTable() {
         version: pack.version,
         installed: false,
         lemma_installed: false,
+        lemma_data_installed: false,
         model_installed: false,
       }
     );
@@ -236,6 +237,10 @@ export default function PackTable() {
     return pack.corpus.some((entry) => entry.Hidden === "true");
   }
 
+  function hasInstalledPackFiles(state: InstalledPack) {
+    return state.lemma_data_installed ?? (state.lemma_installed || state.installed);
+  }
+
   function renderPackInfo(pack: Pack) {
     const rows = [
       ["Data source", packValue(pack, "Data source")],
@@ -252,11 +257,10 @@ export default function PackTable() {
         <p key={label} className="break-words">
           <span className="text-neutral-400">{t(label)} </span>
           {typeof value === "string" ? value : (
-            <>
-              {value.Desktop ? <span>{t("Desktop")}: {value.Desktop}</span> : null}
-              {value.Desktop && value.Mobile ? <br /> : null}
-              {value.Mobile ? <span>{t("Mobile")}: {value.Mobile}</span> : null}
-            </>
+            <ul>
+              {value.Desktop ? <li className="list-disc list-inside marker:text-[10px] marker:text-neutral-400"><span className="text-neutral-400">{t("Desktop")}</span> {value.Desktop}</li> : null}
+              {value.Mobile ? <li className="list-disc list-inside marker:text-[10px] marker:text-neutral-400"><span className="text-neutral-400">{t("Mobile")}</span> {value.Mobile}</li> : null}
+            </ul>
           )}
         </p>
       );
@@ -313,9 +317,20 @@ export default function PackTable() {
         ) : null}
 
         {!loading && groupsToRender.map(([lang, langPacks]) => {
+          const visiblePacks = langPacks.filter((pack) => {
+            const state = getInstallState(pack);
+            const hasInstalledFiles = hasInstalledPackFiles(state);
+
+            return !isHidden(pack) || hasInstalledFiles;
+          });
+
+          if (visiblePacks.length === 0) {
+            return null;
+          }
+
           const open = expanded[lang];
           const label = t(LANG_MAP[lang] || lang);
-          const currentPack = langPacks[0];
+          const currentPack = visiblePacks[0];
           const currentState = currentPack ? getInstallState(currentPack) : null;
 
           return (
@@ -349,12 +364,12 @@ export default function PackTable() {
                   onPointerUp={handleExpandedPointerUp}
                   onClick={() => handleExpandedClick(lang)}
                 >
-                  {langPacks.map((pack) => {
+                  {visiblePacks.map((pack) => {
                     const state = getInstallState(pack);
                     const key = `${pack.lang}-${pack.version}`;
                     const isHiddenVersion = isHidden(pack);
                     const shouldDisableRemove =
-                      !(state.lemma_installed || state.model_installed || state.installed);
+                      !hasInstalledPackFiles(state);
 
                     return (
                       <div
