@@ -12,5 +12,33 @@ dependencies {
     // sidecar provides the same pinned OpenNLP runtime at execution time.
     compileOnly 'org.apache.opennlp:opennlp-tools:2.5.3'
     compileOnly 'com.worksap.nlp:sudachi:0.7.5'
-    compileOnly files("${rootProject.projectDir}/desktop-sidecar/libs/kiwi-java.jar")
+
+    // This module is shared by the desktop Gradle project and the Android
+    // Gradle project.  The desktop build consumes Kiwi's JVM JAR directly,
+    // while the Android binding is distributed as an AAR with its Java API in
+    // classes.jar.  javac cannot read a JAR nested inside an AAR, so extract
+    // that one entry before compiling the shared source from Android.
+    def androidKiwiAar = rootProject.file("app/libs/kiwi-android-v0.24.0.aar")
+    if (androidKiwiAar.isFile()) {
+        def androidKiwiClassesJar = layout.buildDirectory.file(
+            "generated/kiwi/kiwi-android-v0.24.0-classes.jar"
+        )
+        def extractAndroidKiwiClasses = tasks.register("extractAndroidKiwiClasses") {
+            inputs.file(androidKiwiAar)
+            outputs.file(androidKiwiClassesJar)
+            doLast {
+                copy {
+                    from zipTree(androidKiwiAar)
+                    include "classes.jar"
+                    into androidKiwiClassesJar.get().asFile.parentFile
+                    rename { "kiwi-android-v0.24.0-classes.jar" }
+                }
+            }
+        }
+        compileOnly files(androidKiwiClassesJar) {
+            builtBy extractAndroidKiwiClasses
+        }
+    } else {
+        compileOnly files("${rootProject.projectDir}/desktop-sidecar/libs/kiwi-java.jar")
+    }
 }
