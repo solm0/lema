@@ -73,13 +73,37 @@ case "$TARGET:$(uname -m)" in
     ;;
 esac
 
+verify_sha256() {
+  local expected_sha256="$1"
+  local file_path="$2"
+  local actual_sha256
+
+  # GitHub's Windows runners execute this script through Git Bash, which does
+  # not provide macOS's `shasum`. Use the Windows-native implementation there
+  # rather than making the package build depend on an extra Unix utility.
+  if [[ "$TARGET" == "win" ]]; then
+    powershell.exe -NoProfile -Command \
+      '$actual = (Get-FileHash -LiteralPath $args[0] -Algorithm SHA256).Hash; if ($actual.ToLowerInvariant() -ne $args[1].ToLowerInvariant()) { exit 1 }' \
+      "$file_path" "$expected_sha256"
+  elif command -v sha256sum >/dev/null 2>&1; then
+    actual_sha256="$(sha256sum "$file_path" | awk '{print $1}')"
+    [[ "$actual_sha256" == "$expected_sha256" ]]
+  elif command -v shasum >/dev/null 2>&1; then
+    actual_sha256="$(shasum -a 256 "$file_path" | awk '{print $1}')"
+    [[ "$actual_sha256" == "$expected_sha256" ]]
+  else
+    echo "No SHA-256 checksum utility found (need sha256sum or shasum)." >&2
+    return 1
+  fi
+}
+
 mkdir -p "$KIWI_DIR"
-if [[ ! -f "$KIWI_JAR" ]] || ! printf '%s  %s\n' "$KIWI_SHA256" "$KIWI_JAR" | shasum -a 256 -c - >/dev/null 2>&1; then
+if [[ ! -f "$KIWI_JAR" ]] || ! verify_sha256 "$KIWI_SHA256" "$KIWI_JAR" >/dev/null 2>&1; then
   temporary_kiwi="$KIWI_JAR.partial"
   rm -f "$temporary_kiwi"
   curl --fail --location --retry 3 --output "$temporary_kiwi" \
     "https://github.com/bab2min/Kiwi/releases/download/v${KIWI_VERSION}/${KIWI_ASSET}"
-  printf '%s  %s\n' "$KIWI_SHA256" "$temporary_kiwi" | shasum -a 256 -c -
+  verify_sha256 "$KIWI_SHA256" "$temporary_kiwi"
   mv "$temporary_kiwi" "$KIWI_JAR"
 fi
 
