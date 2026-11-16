@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { getLemmaRecap } from "../../api";
+import { getLocalLemmaRecap } from "../../localRecap";
 import { useI18n } from "../../i18n";
 import type { RecapState } from "../pageTypes";
 import { useSettings } from "../useSettings";
@@ -28,7 +28,7 @@ export default function Revival() {
   const { settings } = useSettings();
   const [recap, setRecap] = useState<RecapState | null>(null);
   const loadRecap = useCallback(() => {
-    void getLemmaRecap(settings.recap_languages).then(setRecap).catch(() => setRecap(null));
+    void getLocalLemmaRecap(settings.recap_languages).then(setRecap).catch(() => setRecap(null));
   }, [settings.recap_languages]);
 
   useEffect(() => { loadRecap(); }, [loadRecap]);

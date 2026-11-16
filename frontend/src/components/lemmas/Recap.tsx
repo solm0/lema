@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { answerLemmaRecapQuestion, getLemmaProfile, getUserLemmaExamples, lemmaLookupOne, saveLemmaRecapQuestion, startLemmaRecapSession } from "../../api";
-import type { KwicData, RecapItem, RecapQuestion, Token } from "../pageTypes";
+import { answerLocalLemmaRecapQuestion, startLocalLemmaRecapSession } from "../../localRecap";
+import type { RecapItem, RecapQuestion, Token } from "../pageTypes";
 import { useI18n } from "../../i18n";
 
 type Example = { text: string; tokens?: Token[]; match_indices?: number[] };
@@ -33,31 +33,6 @@ function ExampleLine({ example, exampleIndex, reveal, insertedWord }: { example:
   </p>;
 }
 
-async function makeQuestion(item: RecapItem): Promise<RecapQuestion & { answer_key: string }> {
-  const [lemma, pos, language] = keyParts(item.lemma_key);
-  const userExamples = await getUserLemmaExamples(item.lemma_key);
-  let examples: Example[] = userExamples.map((example) => ({ text: example.text, tokens: example.tokens, match_indices: example.match_indices }));
-  if (!examples.length) {
-    const lookup = await lemmaLookupOne({ lemma, pos }, language);
-    examples = (lookup.kwic as KwicData[]).slice(0, 3).map((kwic: KwicData) => ({
-      text: kwic.tokens.map((token: Token) => token.surface).join(" "), tokens: kwic.tokens, match_indices: kwic.match_indices,
-    }));
-  }
-  if (!examples.length) throw new Error("recap_example_unavailable");
-  const profile = await getLemmaProfile();
-  const distractors = Object.keys(profile).filter((key) => {
-    const [, candidatePos, candidateLanguage] = keyParts(key);
-    return key !== item.lemma_key && candidatePos === pos && candidateLanguage === language;
-  }).sort(() => Math.random() - 0.5).slice(0, 3);
-  if (distractors.length < 3) throw new Error("recap_distractors_unavailable");
-  return {
-    answer_key: item.lemma_key,
-    primary_example: examples[0],
-    extra_examples: examples.slice(1, 3),
-    options: [item.lemma_key, ...distractors].sort(() => Math.random() - 0.5).map((key) => ({ key, label: labelFor(key) })),
-  };
-}
-
 export function Recap({ onFinished, languages = [], renderTrigger }: {
   onFinished: () => void;
   languages?: string[];
@@ -84,7 +59,8 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
   const loadQuestion = async (nextItem: RecapItem) => {
     setLoading(true); setError(""); setQuestion(null); setDisabled([]); setWrongChoice(null); setFeedback(null); setReveal(null); setInsertedWord(""); setChecking(false); setFadeQuestion(false); setPhase("question"); setExtraShown(0);
     try {
-      setQuestion(await saveLemmaRecapQuestion(nextItem.id, await makeQuestion(nextItem)));
+      if (!nextItem.question) throw new Error("recap_question_unavailable");
+      setQuestion(nextItem.question);
     } catch {
       setError(t("Could not prepare this Revival question. Try again shortly."));
     } finally { setLoading(false); }
@@ -93,7 +69,7 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
   const start = async () => {
     setLoading(true); setError("");
     try {
-      const session = await startLemmaRecapSession(languages);
+      const session = await startLocalLemmaRecapSession(languages);
       const firstPendingIndex = session.items.findIndex((item) => item.status === "pending");
       if (firstPendingIndex < 0) throw new Error("recap_session_complete");
       setItems(session.items); setIndex(firstPendingIndex); setActive(true);
@@ -143,7 +119,7 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
   };
   const answer = async (choiceKey: string) => {
     if (!question || feedback || disabled.includes(choiceKey) || loading || checking) return;
-    const result = await answerLemmaRecapQuestion(items[index].id, choiceKey, disabled.length > 0);
+    const result = await answerLocalLemmaRecapQuestion(items[index].id, choiceKey, disabled.length > 0);
     await revealAnswer(result.correct ? "passed" : "failed", choiceKey, result.retry_available);
   };
   const next = async () => {

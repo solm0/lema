@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from db import Base, get_db
-from models import User, UserLemma, UserLemmaExample, UserLemmaMilestone
+from models import User, UserLemma, UserLemmaExample, UserLemmaMilestone, UserRecapResult
 from routers.auth_router import create_token, hash_password
 from routers.lemmas_router import router
 
@@ -43,11 +43,12 @@ class LemmaProfileResetTests(unittest.TestCase):
         db.commit()
         db.refresh(self.user)
         db.refresh(other_user)
+        self.user_id = self.user.id
 
         db.add_all([
-            UserLemma(user_id=self.user.id, lemma_key="run/VERB/en"),
+            UserLemma(user_id=self.user_id, lemma_key="run/VERB/en"),
             UserLemmaExample(
-                user_id=self.user.id,
+                user_id=self.user_id,
                 lemma_key="run/VERB/en",
                 language="en",
                 text="I run.",
@@ -55,7 +56,14 @@ class LemmaProfileResetTests(unittest.TestCase):
                 match_indices_json="[]",
                 content_hash="a" * 64,
             ),
-            UserLemmaMilestone(user_id=self.user.id, language="en", known_count=10),
+            UserLemmaMilestone(user_id=self.user_id, language="en", known_count=10),
+            UserRecapResult(
+                user_id=self.user_id,
+                event_id="result-1",
+                lemma_key="run/VERB/en",
+                result="passed",
+                answered_at="2026-11-16T10:00:00.000Z",
+            ),
             UserLemma(user_id=other_user.id, lemma_key="keep/VERB/en"),
         ])
         db.commit()
@@ -78,7 +86,7 @@ class LemmaProfileResetTests(unittest.TestCase):
         self.client.close()
 
     def test_reset_deletes_only_the_current_users_vocabulary_records(self):
-        token = create_token(self.user.id, self.user.auth_version or 0)
+        token = create_token(self.user_id, 0)
 
         response = self.client.delete(
             "/api/lemma/profile",
@@ -89,9 +97,10 @@ class LemmaProfileResetTests(unittest.TestCase):
         self.assertEqual(response.json(), {"ok": True})
 
         db = self.Session()
-        self.assertEqual(db.query(UserLemma).filter_by(user_id=self.user.id).count(), 0)
-        self.assertEqual(db.query(UserLemmaExample).filter_by(user_id=self.user.id).count(), 0)
-        self.assertEqual(db.query(UserLemmaMilestone).filter_by(user_id=self.user.id).count(), 0)
+        self.assertEqual(db.query(UserLemma).filter_by(user_id=self.user_id).count(), 0)
+        self.assertEqual(db.query(UserLemmaExample).filter_by(user_id=self.user_id).count(), 0)
+        self.assertEqual(db.query(UserLemmaMilestone).filter_by(user_id=self.user_id).count(), 0)
+        self.assertEqual(db.query(UserRecapResult).filter_by(user_id=self.user_id).count(), 0)
         self.assertEqual(db.query(UserLemma).filter_by(lemma_key="keep/VERB/en").count(), 1)
         db.close()
 

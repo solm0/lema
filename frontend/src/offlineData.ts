@@ -2,7 +2,7 @@ import { Preferences } from "@capacitor/preferences";
 import { getStoredToken, getStoredUser } from "./authSession";
 import { getAppPlatform, isCapacitorApp, isElectronApp } from "./platform";
 import { centralFetch } from "./network";
-import type { UserLemmaState } from "./components/pageTypes";
+import type { LocalRecapWeek, UserLemmaState } from "./components/pageTypes";
 import { GRADSHOW_MODE, GRADSHOW_USER } from "./gradshow/mode";
 
 type PendingInterestToggle = {
@@ -21,11 +21,20 @@ type PendingLemmaStateUpdate = {
   created_at: string;
 };
 
+type PendingRecapResult = {
+  id: string;
+  lemma_key: string;
+  result: "passed" | "failed";
+  answered_at: string;
+};
+
 type UserVocabularyState = {
   interestedSnapshot: string[];
   interestOutbox: PendingInterestToggle[];
   profileSnapshot: Record<string, UserLemmaState>;
   stateOutbox: PendingLemmaStateUpdate[];
+  recapWeek: LocalRecapWeek | null;
+  recapResultOutbox: PendingRecapResult[];
 };
 
 type VocabularySyncState = {
@@ -84,6 +93,8 @@ function emptyUserState(): UserVocabularyState {
     interestOutbox: [],
     profileSnapshot: {},
     stateOutbox: [],
+    recapWeek: null,
+    recapResultOutbox: [],
   };
 }
 
@@ -96,6 +107,8 @@ function normalizeUserState(value: unknown): UserVocabularyState {
     outbox?: PendingInterestToggle[];
     profileSnapshot?: Record<string, UserLemmaState>;
     stateOutbox?: PendingLemmaStateUpdate[];
+    recapWeek?: LocalRecapWeek | null;
+    recapResultOutbox?: PendingRecapResult[];
   };
   return {
     interestedSnapshot: Array.isArray(candidate.interestedSnapshot)
@@ -112,6 +125,12 @@ function normalizeUserState(value: unknown): UserVocabularyState {
         : {},
     stateOutbox: Array.isArray(candidate.stateOutbox)
       ? candidate.stateOutbox.map((item) => ({ ...item, id: String(item.id) }))
+      : [],
+    recapWeek: candidate.recapWeek && typeof candidate.recapWeek === "object"
+      ? clone(candidate.recapWeek)
+      : null,
+    recapResultOutbox: Array.isArray(candidate.recapResultOutbox)
+      ? candidate.recapResultOutbox.map((item) => ({ ...item, id: String(item.id) }))
       : [],
   };
 }
@@ -243,6 +262,40 @@ export async function getOfflineLemmaProfile() {
   return clone(userState(state, userId).profileSnapshot);
 }
 
+export async function getLocalRecapWeek() {
+  const userId = currentUserId();
+  if (!userId) return null;
+  const state = await loadState();
+  return clone(userState(state, userId).recapWeek);
+}
+
+export async function saveLocalRecapWeek(week: LocalRecapWeek | null) {
+  const userId = currentUserId();
+  if (!userId) throw new Error("not authenticated");
+  await mutateState((state) => {
+    userState(state, userId).recapWeek = week ? clone(week) : null;
+  });
+}
+
+export async function queueOfflineRecapResult(
+  lemmaKey: string,
+  result: "passed" | "failed",
+  answeredAt = new Date().toISOString(),
+) {
+  const userId = currentUserId();
+  if (!userId) throw new Error("not authenticated");
+  const event: PendingRecapResult = {
+    id: crypto.randomUUID(),
+    lemma_key: lemmaKey,
+    result,
+    answered_at: answeredAt,
+  };
+  await mutateState((state) => {
+    userState(state, userId).recapResultOutbox.push(event);
+  });
+  return event;
+}
+
 export async function getOfflineInterestedKeys() {
   const userId = currentUserId();
   if (!userId) return [];
@@ -335,7 +388,8 @@ async function syncVocabularyOutboxOnce() {
     const pendingVocabulary = userState(pendingState, userId);
     const toggles = [...pendingVocabulary.interestOutbox];
     const updates = [...pendingVocabulary.stateOutbox];
-    if (toggles.length === 0 && updates.length === 0) break;
+    const recapResults = [...pendingVocabulary.recapResultOutbox];
+    if (toggles.length === 0 && updates.length === 0 && recapResults.length === 0) break;
 
     for (const toggle of toggles) {
       const response = await centralFetch(`${CENTRAL_API}/lemma/interest`, {
@@ -402,6 +456,33 @@ async function syncVocabularyOutboxOnce() {
           (queued) => queued.id !== update.id,
         );
         if (!hasNewerUpdate) latestVocabulary.profileSnapshot[update.key] = item;
+      });
+      changed = true;
+    }
+
+    for (const result of recapResults) {
+      const response = await centralFetch(`${CENTRAL_API}/lemma/recap/results`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          event_id: result.id,
+          lemma_key: result.lemma_key,
+          result: result.result,
+          answered_at: result.answered_at,
+        }),
+      }).catch(() => null);
+      if (!response?.ok) return false;
+
+      const item = await response.json() as UserLemmaState & { duplicate?: boolean };
+      await mutateState((latestState) => {
+        const latestVocabulary = userState(latestState, userId);
+        latestVocabulary.recapResultOutbox = latestVocabulary.recapResultOutbox.filter(
+          (queued) => queued.id !== result.id,
+        );
+        if (item.key) latestVocabulary.profileSnapshot[item.key] = item;
       });
       changed = true;
     }

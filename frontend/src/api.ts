@@ -2,9 +2,6 @@ import type {
   Annotation,
   LemmaData,
   PageSource,
-  RecapItem,
-  RecapQuestion,
-  RecapState,
   TextAnalysisResult,
   Token,
   UserLemmaExample,
@@ -857,94 +854,6 @@ export async function getLemmaMilestones(): Promise<
     items?: Record<string, UserLemmaMilestone[]>;
   };
   return data.items && typeof data.items === "object" ? data.items : {};
-}
-
-function recapTimezone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-}
-
-function recapParams(languages: string[]) {
-  const params = new URLSearchParams({ timezone: recapTimezone() });
-  if (languages.length) params.set("languages", languages.join(","));
-  return params;
-}
-
-export async function getLemmaRecap(languages: string[] = []): Promise<RecapState> {
-  const headers = authHeaders();
-  if (!headers) throw new Error("not authenticated");
-  const params = recapParams(languages);
-  const response = await centralFetch(`${CENTRAL_API}/lemma/recap?${params}`, { headers });
-  if (!response.ok) throw new Error("recap request failed");
-  return response.json() as Promise<RecapState>;
-}
-
-export async function startLemmaRecapSession(languages: string[] = []): Promise<{ week_start: string; items: RecapItem[] }> {
-  const headers = authHeaders();
-  if (!headers) throw new Error("not authenticated");
-  const params = recapParams(languages);
-  const response = await centralFetch(`${CENTRAL_API}/lemma/recap/session?${params}`, {
-    method: "POST",
-    headers,
-  });
-  if (!response.ok) throw new Error("recap session request failed");
-  return response.json() as Promise<{ week_start: string; items: RecapItem[] }>;
-}
-
-export async function resetTodayLemmaRecapSession(languages: string[] = []): Promise<RecapItem[]> {
-  const headers = authHeaders();
-  if (!headers) throw new Error("not authenticated");
-  const response = await centralFetch(`${CENTRAL_API}/lemma/recap/session/reset?${recapParams(languages)}`, {
-    method: "POST",
-    headers,
-  });
-  if (!response.ok) throw new Error("recap session reset failed");
-  const data = (await response.json()) as { items?: RecapItem[] };
-  return Array.isArray(data.items) ? data.items : [];
-}
-
-export async function rerollLemmaRecapShowcase(languages: string[] = []): Promise<RecapItem[]> {
-  const headers = authHeaders();
-  if (!headers) throw new Error("not authenticated");
-  const response = await centralFetch(`${CENTRAL_API}/lemma/recap/showcase/reroll?${recapParams(languages)}`, {
-    method: "POST",
-    headers,
-  });
-  if (!response.ok) throw new Error("recap reroll failed");
-  const data = (await response.json()) as { items?: RecapItem[] };
-  return Array.isArray(data.items) ? data.items : [];
-}
-
-export async function saveLemmaRecapQuestion(
-  itemId: number,
-  question: RecapQuestion & { answer_key: string }
-): Promise<RecapQuestion> {
-  const headers = authHeaders();
-  if (!headers) throw new Error("not authenticated");
-  const response = await centralFetch(`${CENTRAL_API}/lemma/recap/items/${itemId}/question`, {
-    method: "PUT",
-    headers,
-    body: JSON.stringify({ question }),
-  });
-  if (!response.ok) throw new Error("recap question request failed");
-  return ((await response.json()) as { question: RecapQuestion }).question;
-}
-
-export async function answerLemmaRecapQuestion(itemId: number, choiceKey: string, finalAttempt: boolean) {
-  const headers = authHeaders();
-  if (!headers) throw new Error("not authenticated");
-  const response = await centralFetch(`${CENTRAL_API}/lemma/recap/items/${itemId}/answer`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ choice_key: choiceKey, final_attempt: finalAttempt }),
-  });
-  if (!response.ok) throw new Error("recap answer request failed");
-  return response.json() as Promise<{
-    correct: boolean;
-    retry_available: boolean;
-    status: "pending" | "passed" | "failed";
-    answer_key: string | null;
-    week_completed: boolean;
-  }>;
 }
 
 export async function deleteLemmaState(key: string): Promise<void> {

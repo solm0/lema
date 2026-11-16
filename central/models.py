@@ -112,47 +112,20 @@ class UserLemmaExample(Base):
     )
 
 
-class UserRecapWeek(Base):
-    """The immutable weekly showcase and its following week's test queue."""
+class UserRecapResult(Base):
+    """Idempotent result reported after a device grades a local Revival."""
 
-    __tablename__ = "user_recap_weeks"
+    __tablename__ = "user_recap_results"
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    # Monday in the user's device timezone, kept as a calendar value rather
-    # than a timestamp so a weekly group never moves with a clock conversion.
-    week_start = Column(String(10), nullable=False)
-    completed_at = Column(DateTime, nullable=True)
-    expired_at = Column(DateTime, nullable=True)
-    last_session_date = Column(String(10), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=utc_now_naive)
+    event_id = Column(String(64), nullable=False)
+    lemma_key = Column(String(600), nullable=False, index=True)
+    result = Column(String(12), nullable=False)
+    answered_at = Column(String(40), nullable=False)
+    received_at = Column(DateTime, nullable=False, default=utc_now_naive)
 
     __table_args__ = (
-        UniqueConstraint("user_id", "week_start"),
-        Index("ix_user_recap_weeks_user_week", "user_id", "week_start"),
-    )
-
-
-class UserRecapItem(Base):
-    __tablename__ = "user_recap_items"
-
-    id = Column(Integer, primary_key=True)
-    recap_week_id = Column(Integer, ForeignKey("user_recap_weeks.id"), nullable=False, index=True)
-    lemma_key = Column(String, nullable=False, index=True)
-    # showcase rows are displayed this week; test rows are copied from the
-    # previous week's showcase and may be answered this week.
-    kind = Column(String(12), nullable=False)
-    position = Column(Integer, nullable=False)
-    status = Column(String(12), nullable=False, default="pending")
-    session_date = Column(String(10), nullable=True)
-    # Retained for existing SQLite databases where this legacy column is
-    # NOT NULL. It is no longer used by the recap flow or exposed by the API.
-    attempt_count = Column(Integer, nullable=False, default=0)
-    question_json = Column(String, nullable=True)
-    answered_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, nullable=False, default=utc_now_naive)
-
-    __table_args__ = (
-        UniqueConstraint("recap_week_id", "kind", "lemma_key"),
-        Index("ix_user_recap_items_week_kind_position", "recap_week_id", "kind", "position"),
+        UniqueConstraint("user_id", "event_id"),
+        Index("ix_user_recap_results_user_received", "user_id", "received_at"),
     )

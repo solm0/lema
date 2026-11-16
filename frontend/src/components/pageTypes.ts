@@ -86,6 +86,8 @@ export type UserLemmaState = {
   created_at?: string | null;
   updated_at?: string | null;
   decay?: number;
+  last_recap_succeeded_at?: string | null;
+  last_recap_failed_at?: string | null;
 };
 
 export type UserLemmaDatabaseItem = UserLemmaState & {
@@ -101,10 +103,26 @@ export type UserLemmaMilestone = {
 };
 
 export type RecapItem = {
-  id: number;
+  id: string | number;
   lemma_key: string;
   position: number;
   status: "pending" | "passed" | "failed" | "expired";
+  session_date?: string | null;
+  question?: RecapQuestion;
+};
+
+export type LocalRecapItem = RecapItem & {
+  id: string;
+  answer_key: string;
+  question: RecapQuestion;
+};
+
+export type LocalRecapWeek = {
+  week_start: string;
+  languages: string[];
+  test_items: LocalRecapItem[];
+  showcase_items: RecapItem[];
+  created_at: string;
 };
 
 export type RecapState = {

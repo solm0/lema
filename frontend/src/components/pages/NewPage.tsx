@@ -5,7 +5,8 @@ import { useNowPlaying } from "../lyric/useNowPlaying";
 import { useI18n } from "../../i18n";
 import LanguageSelect from "../util/LanguageSelect";
 import { GRADSHOW_MODE } from "../../gradshow/mode";
-import { getLemmaRecap, getUserLemmaExamples, lemmaLookup, lemmaLookupOne, setInterest } from "../../api";
+import { getUserLemmaExamples, lemmaLookup, lemmaLookupOne, setInterest } from "../../api";
+import { getLocalLemmaRecap } from "../../localRecap";
 import PageContent from "../pageview/PageContent";
 import type { SidePanelState } from "../pageview/PageView";
 import Desk from "../lemma_expansions/Desk";
@@ -88,7 +89,7 @@ export function NewPage() {
       const examples: TodayExample[] = [];
       const seen = new Set<string>();
       try {
-        const recap = await getLemmaRecap(settings.recap_languages);
+        const recap = await getLocalLemmaRecap(settings.recap_languages);
         const candidates = [...recap.showcase_items].sort(() => Math.random() - 0.5);
         for (const item of candidates) {
           if (cancelled || examples.length >= MAX_TODAY_EXAMPLES) break;

@@ -3,15 +3,18 @@ import {
   deleteAccount,
   getLatestVersionInfo,
   getInstalled,
-  getLemmaRecap,
   isNewerVersion,
   resetLemmaProfile,
-  resetTodayLemmaRecapSession,
-  rerollLemmaRecapShowcase,
   type LatestVersionInfo,
   updateName,
   verifyToken,
 } from "../../api";
+import {
+  getLocalLemmaRecap,
+  rebuildLocalLemmaRecap,
+  rerollLocalLemmaRecap,
+  resetTodayLocalLemmaRecapSession,
+} from "../../localRecap";
 import { Check, Pencil } from "lucide-react";
 import { type User } from "../../types";
 import TextButton, { IconButtonEvent } from "../util/Button";
@@ -40,6 +43,10 @@ import { GRADSHOW_MODE, GRADSHOW_USER } from "../../gradshow/mode";
 import type { RecapState } from "../pageTypes";
 
 const APP_VERSION = __APP_VERSION__;
+
+function sameLanguageSet(left: string[], right: string[]) {
+  return JSON.stringify([...new Set(left)].sort()) === JSON.stringify([...new Set(right)].sort());
+}
 
 function AppVersionSection() {
   const { t } = useI18n();
@@ -507,7 +514,12 @@ export default function Setting() {
     toggleSetting,
     setSettings,
   } = useSettings();
+  const [draftRecapLanguages, setDraftRecapLanguages] = useState<string[]>(settings.recap_languages);
   const pendingLanguageChange = settings.system_language !== locale;
+  const pendingRecapLanguageChange = !sameLanguageSet(
+    draftRecapLanguages,
+    settings.recap_languages,
+  );
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -542,6 +554,7 @@ export default function Setting() {
             .map((pack) => pack.lang),
         )].sort();
         setRecapLanguages(languages);
+        setDraftRecapLanguages((previous) => previous.length ? previous : languages);
         setSettings((previous) => previous.recap_languages.length
           ? previous
           : { ...previous, recap_languages: languages });
@@ -551,7 +564,7 @@ export default function Setting() {
 
   const loadDebugRecap = useCallback(() => {
     if (GRADSHOW_MODE) return;
-    void getLemmaRecap(settings.recap_languages).then(setDebugRecap).catch(() => setDebugRecap(null));
+    void getLocalLemmaRecap(settings.recap_languages).then(setDebugRecap).catch(() => setDebugRecap(null));
   }, [settings.recap_languages]);
 
   useEffect(() => {
@@ -614,18 +627,34 @@ export default function Setting() {
   }
 
   function toggleRecapLanguage(language: string) {
-    setSettings((previous) => ({
-      ...previous,
-      recap_languages: previous.recap_languages.includes(language)
-        ? previous.recap_languages.filter((value) => value !== language)
-        : [...previous.recap_languages, language],
-    }));
+    setDraftRecapLanguages((previous) => previous.includes(language)
+      ? previous.filter((value) => value !== language)
+      : [...previous, language]);
+  }
+
+  async function saveAndRerollRecap() {
+    const nextLanguages = [...new Set(draftRecapLanguages)].sort();
+    setRerollingRecap(true);
+    try {
+      const recap = await rebuildLocalLemmaRecap(nextLanguages);
+      setSettings((previous) => ({ ...previous, recap_languages: nextLanguages }));
+      setDebugRecap({
+        week_start: recap.week_start,
+        available: recap.test_items.length > 0,
+        state: recap.test_items.length ? "ready" : "warming_up",
+        remaining_count: recap.test_items.length,
+        test_items: recap.test_items,
+        showcase_items: recap.showcase_items,
+      });
+    } finally {
+      setRerollingRecap(false);
+    }
   }
 
   async function rerollRecap() {
     setRerollingRecap(true);
     try {
-      await rerollLemmaRecapShowcase(settings.recap_languages);
+      await rerollLocalLemmaRecap(settings.recap_languages);
       loadDebugRecap();
     } finally {
       setRerollingRecap(false);
@@ -635,7 +664,7 @@ export default function Setting() {
   async function resetTodayRecap() {
     setResettingRecap(true);
     try {
-      await resetTodayLemmaRecapSession(settings.recap_languages);
+      await resetTodayLocalLemmaRecapSession(settings.recap_languages);
       loadDebugRecap();
     } finally {
       setResettingRecap(false);
@@ -705,14 +734,22 @@ export default function Setting() {
                     <label key={language} className="flex items-center gap-1.5">
                       <input
                         type="checkbox"
-                        checked={settings.recap_languages.includes(language)}
+                        checked={draftRecapLanguages.includes(language)}
                         onChange={() => toggleRecapLanguage(language)}
                       />
                       <span>{language}</span>
                     </label>
                   ))}
+                  {pendingRecapLanguageChange ? (
+                    <TextButton
+                      text={rerollingRecap ? t("Rerolling...") : t("Save and reroll")}
+                      onClick={() => void saveAndRerollRecap()}
+                      disabled={rerollingRecap || GRADSHOW_MODE}
+                      black
+                    />
+                  ) : null}
                 </div>
-                <p className="text-xs text-neutral-400">Choose the languages included when the next showcase is selected.</p>
+                <p className="text-xs text-neutral-400">Choose the languages included when Revival is rerolled on this device.</p>
               </div>
             </div>
           </div>

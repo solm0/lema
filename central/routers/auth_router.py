@@ -25,8 +25,7 @@ from models import (
   UserLemma,
   UserLemmaExample,
   UserLemmaMilestone,
-  UserRecapItem,
-  UserRecapWeek,
+  UserRecapResult,
 )
 from services.auth_rate_limits import (
   email_send_limiter,
@@ -836,11 +835,7 @@ def update_name(
 def delete_user_account(current_user: User, db: Session):
     user_id = current_user.id
 
-    recap_weeks = db.query(UserRecapWeek.id).filter(UserRecapWeek.user_id == user_id).subquery()
-    db.query(UserRecapItem).filter(
-        UserRecapItem.recap_week_id.in_(recap_weeks),
-    ).delete(synchronize_session=False)
-    db.query(UserRecapWeek).filter(UserRecapWeek.user_id == user_id).delete(synchronize_session=False)
+    db.query(UserRecapResult).filter(UserRecapResult.user_id == user_id).delete(synchronize_session=False)
     db.query(UserLemma).filter(UserLemma.user_id == user_id).delete(synchronize_session=False)
     db.query(UserLemmaExample).filter(UserLemmaExample.user_id == user_id).delete(synchronize_session=False)
     db.query(UserLemmaMilestone).filter(UserLemmaMilestone.user_id == user_id).delete(synchronize_session=False)
