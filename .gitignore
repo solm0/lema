@@ -42,6 +42,9 @@ dist-ssr
 
 .build/
 nlp-java/desktop-sidecar/libs/
+nlp-java/.gradle/
+nlp-java/build/
+nlp-java/**/build/
 backend-dist
 dist-electron
 .build-check/
