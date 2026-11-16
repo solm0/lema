@@ -7,8 +7,8 @@ import PackModal from "./PackModal";
 import type { InstalledPack } from "../util/LanguageSelect";
 import { invalidateInstalledLanguagesCache } from "../util/LanguageSelect";
 import { useI18n } from "../../i18n";
-
-export const HIDDEN_PACK_VERSIONS = new Set(["1.0.0"]);
+import { ResponsiveModal } from "../util/ResponsiveModal";
+import TextButton from "../util/Button";
 
 export type Pack = {
   lang: string;
@@ -16,11 +16,20 @@ export type Pack = {
   lemma_filename: string;
   lemma_download_url: string;
   tag: string;
-  corpus: {
+  corpus: Array<{
     "Data source"?: string;
     "Corpora used"?: string;
     "Note"?: string;
-  }[];
+    "Hidden"?: string;
+    "Models"?: {
+      Desktop?: string;
+      Mobile?: string;
+    };
+    "Size"?: {
+      Desktop?: string;
+      Mobile?: string;
+    };
+  }>;
 };
 
 type SelectedInstall = {
@@ -67,6 +76,7 @@ export default function PackTable() {
   const [offline, setOffline] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selectedInstall, setSelectedInstall] = useState<SelectedInstall | null>(null);
+  const [selectedUninstall, setSelectedUninstall] = useState<Pack | null>(null);
   const [errorMap, setErrorMap] = useState<Record<string, string>>({});
   const expandedPointerDownRef = useRef<{
     x: number;
@@ -171,6 +181,7 @@ export default function PackTable() {
       });
 
       await reload();
+      setSelectedUninstall(null);
     } catch {
       setErrorMap((prev) => ({
         ...prev,
@@ -210,6 +221,45 @@ export default function PackTable() {
       version: pack.version,
       filename: pack.lemma_filename,
       downloadUrl: pack.lemma_download_url,
+    });
+  }
+
+  function packValue(pack: Pack, key: "Data source" | "Corpora used" | "Note") {
+    return pack.corpus.find((entry) => entry[key])?.[key];
+  }
+
+  function packPlatformValue(pack: Pack, key: "Models" | "Size") {
+    return pack.corpus.find((entry) => entry[key])?.[key];
+  }
+
+  function isHidden(pack: Pack) {
+    return pack.corpus.some((entry) => entry.Hidden === "true");
+  }
+
+  function renderPackInfo(pack: Pack) {
+    const rows = [
+      ["Data source", packValue(pack, "Data source")],
+      ["Corpora used", packValue(pack, "Corpora used")],
+      ["Models", packPlatformValue(pack, "Models")],
+      ["Size", packPlatformValue(pack, "Size")],
+      ["Note", packValue(pack, "Note")],
+    ] as const;
+
+    return rows.map(([label, value]) => {
+      if (!value) return null;
+
+      return (
+        <p key={label} className="break-words">
+          <span className="text-neutral-400">{t(label)} </span>
+          {typeof value === "string" ? value : (
+            <>
+              {value.Desktop ? <span>{t("Desktop")}: {value.Desktop}</span> : null}
+              {value.Desktop && value.Mobile ? <br /> : null}
+              {value.Mobile ? <span>{t("Mobile")}: {value.Mobile}</span> : null}
+            </>
+          )}
+        </p>
+      );
     });
   }
 
@@ -302,10 +352,9 @@ export default function PackTable() {
                   {langPacks.map((pack) => {
                     const state = getInstallState(pack);
                     const key = `${pack.lang}-${pack.version}`;
-                    const isHiddenVersion = HIDDEN_PACK_VERSIONS.has(pack.version);
+                    const isHiddenVersion = isHidden(pack);
                     const shouldDisableRemove =
-                      isHiddenVersion
-                      || !(state.lemma_installed || state.model_installed || state.installed);
+                      !(state.lemma_installed || state.model_installed || state.installed);
 
                     return (
                       <div
@@ -320,8 +369,7 @@ export default function PackTable() {
                           </div>
 
                           <div className="text-sm flex-[2] flex flex-col">
-                            <p>{pack.corpus[0]["Data source"]}</p>
-                            <p>{pack.corpus[1]["Corpora used"]}</p>
+                            {renderPackInfo(pack)}
                           </div>
 
                           <div className="flex-1">
@@ -346,7 +394,7 @@ export default function PackTable() {
 
                               <button
                                 type="button"
-                                onClick={() => handleUninstall(pack)}
+                                onClick={() => setSelectedUninstall(pack)}
                                 disabled={shouldDisableRemove}
                                 className="rounded-sm p-2 text-neutral-600 transition-colors hover:bg-neutral-200 disabled:opacity-30 disabled:pointer-events-none disabled:hover:bg-transparent disabled:hover:text-neutral-600"
                                 title={t("Remove language pack")}
@@ -390,6 +438,34 @@ export default function PackTable() {
           }}
         />
       ) : null}
+
+      <ResponsiveModal
+        open={selectedUninstall !== null}
+        onClose={() => setSelectedUninstall(null)}
+      >
+        {selectedUninstall ? (
+          <div className="flex flex-col gap-5">
+            <div>
+              <h2 className="text-lg font-medium">
+                {t("Uninstall {language}?", {
+                  language: t(LANG_MAP[selectedUninstall.lang] || selectedUninstall.lang),
+                })}
+              </h2>
+              <p className="mt-2 text-sm text-neutral-500">
+                {t("This language won’t appear in Revival from next week.")}
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <TextButton text={t("Cancel")} onClick={() => setSelectedUninstall(null)} />
+              <TextButton
+                text={t("Uninstall")}
+                red
+                onClick={() => void handleUninstall(selectedUninstall)}
+              />
+            </div>
+          </div>
+        ) : null}
+      </ResponsiveModal>
     </>
   );
 }

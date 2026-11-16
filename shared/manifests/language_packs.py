@@ -13,9 +13,21 @@ def build_pack_download_url(lang: str, version: str, filename: str) -> str:
 def build_pack(
     lang: str,
     version: str,
-    corpus: list[dict[str, str]],
+    corpus: list[dict[str, object]],
+    *,
+    hidden: bool = False,
 ):
     lemma_filename = f"{lang}-v{version}-lemma.zip"
+    details = [*corpus]
+
+    if model_details := PACK_MODEL_DETAILS.get(lang):
+        details.append({"Models": model_details})
+
+    if size_details := PACK_DOWNLOAD_SIZES.get((lang, version)):
+        details.append({"Size": size_details})
+
+    if hidden:
+        details.append({"Hidden": "true"})
 
     return {
         "lang": lang,
@@ -23,7 +35,7 @@ def build_pack(
         "tag": f"v{version}",
         "lemma_filename": lemma_filename,
         "lemma_download_url": build_pack_download_url(lang, version, lemma_filename),
-        "corpus": corpus,
+        "corpus": details,
     }
 
 
@@ -115,6 +127,51 @@ RUNTIME_MANIFESTS = {
 }
 
 
+# These user-facing names deliberately cover both app targets. They are kept in
+# the pack catalogue so the settings UI does not need a separate platform map.
+PACK_MODEL_DETAILS = {
+    "de": {
+        "Desktop": "Apache OpenNLP 2.5.3 (UD GSD)",
+        "Mobile": "Apache OpenNLP 2.5.3 (UD GSD)",
+    },
+    "en": {
+        "Desktop": "Apache OpenNLP 2.5.3 (UD EWT)",
+        "Mobile": "Apache OpenNLP 2.5.3 (UD EWT)",
+    },
+    "ja": {
+        "Desktop": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)",
+        "Mobile": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)",
+    },
+    "ko": {
+        "Desktop": "Kiwi 0.24.0 base model",
+        "Mobile": "Kiwi 0.24.0 base model",
+    },
+    "ru": {
+        "Desktop": "Apache OpenNLP 2.5.3 (UD GSD)",
+        "Mobile": "Apache OpenNLP 2.5.3 (UD GSD)",
+    },
+}
+
+
+# Fresh-install download sizes, measured 2026-11-16 from the current lemma ZIP
+# and each runtime model artifact. They are the same for desktop and mobile at
+# present. A model is only downloaded once per language, so reinstallation can
+# use less data than this value.
+PACK_DOWNLOAD_SIZES = {
+    ("de", "1.1.2"): {"Desktop": "46.5 MB", "Mobile": "46.5 MB"},
+    ("de", "1.1.0"): {"Desktop": "48.7 MB", "Mobile": "48.7 MB"},
+    ("en", "1.1.2"): {"Desktop": "36.5 MB", "Mobile": "36.5 MB"},
+    ("en", "1.1.0"): {"Desktop": "37.4 MB", "Mobile": "37.4 MB"},
+    ("ja", "1.1.2"): {"Desktop": "116.7 MB", "Mobile": "116.7 MB"},
+    ("ja", "1.1.1"): {"Desktop": "119.3 MB", "Mobile": "119.3 MB"},
+    ("ja", "1.1.0"): {"Desktop": "118.7 MB", "Mobile": "118.7 MB"},
+    ("ko", "1.1.2"): {"Desktop": "141.5 MB", "Mobile": "141.5 MB"},
+    ("ko", "1.1.0"): {"Desktop": "142.4 MB", "Mobile": "142.4 MB"},
+    ("ru", "1.1.2"): {"Desktop": "49.8 MB", "Mobile": "49.8 MB"},
+    ("ru", "1.1.0"): {"Desktop": "51.7 MB", "Mobile": "51.7 MB"},
+}
+
+
 PACK_RELEASES = {
     "ru": [
         build_pack(
@@ -122,7 +179,7 @@ PACK_RELEASES = {
             "1.1.2",
             [
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "rus_wikipedia_2021_300K, rus-ru_web-public_2019_1M"},
+                {"Corpora used": "rus_wikipedia_2021_300K"},
                 {"Note": "deleted related words"},
             ],
         ),
@@ -133,6 +190,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "rus_wikipedia_2021_300K, rus-ru_web-public_2019_1M"},
             ],
+            hidden=True,
         ),
         build_pack(
             "ru",
@@ -141,6 +199,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "rus_wikipedia_2021_300K, rus-ru_web-public_2019_1M"},
             ],
+            hidden=True,
         ),
     ],
     "de": [
@@ -149,7 +208,7 @@ PACK_RELEASES = {
             "1.1.2",
             [
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "deu_wikipedia_2021_300K, deu-de_web_2021_1M"},
+                {"Corpora used": "deu_wikipedia_2021_300K"},
                 {"Note": "deleted related words"},
             ],
         ),
@@ -160,6 +219,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "deu_wikipedia_2021_300K, deu-de_web_2021_1M"},
             ],
+            hidden=True,
         ),
         build_pack(
             "de",
@@ -168,6 +228,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "deu_wikipedia_2021_300K, deu-de_web_2021_1M"},
             ],
+            hidden=True,
         ),
     ],
     "en": [
@@ -176,7 +237,7 @@ PACK_RELEASES = {
             "1.1.2",
             [
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "eng-simple_wikipedia_2021_300K, eng-uk_web-public_2018_1M"},
+                {"Corpora used": "eng-simple_wikipedia_2021_300K"},
                 {"Note": "deleted related words"},
             ],
         ),
@@ -187,6 +248,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "eng-simple_wikipedia_2021_300K, eng-uk_web-public_2018_1M"},
             ],
+            hidden=True,
         ),
         build_pack(
             "en",
@@ -195,6 +257,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "eng-simple_wikipedia_2021_300K, eng-uk_web-public_2018_1M"},
             ],
+            hidden=True,
         ),
     ],
     "ko": [
@@ -203,7 +266,7 @@ PACK_RELEASES = {
             "1.1.2",
             [
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "kor_wikipedia_2021_300K, kor-kr_web_2020_1M"},
+                {"Corpora used": "kor_wikipedia_2021_300K"},
                 {"Note": "deleted related words"},
             ],
         ),
@@ -214,6 +277,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "kor_wikipedia_2021_300K, kor-kr_web_2020_1M"},
             ],
+            hidden=True,
         ),
         build_pack(
             "ko",
@@ -222,6 +286,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "kor_wikipedia_2021_300K, kor-kr_web_2020_1M"},
             ],
+            hidden=True,
         ),
     ],
     "ja": [
@@ -230,7 +295,7 @@ PACK_RELEASES = {
             "1.1.2",
             [
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
-                {"Corpora used": "jpn_wikipedia_2021_300K, jpn-jp_web_2020_1M"},
+                {"Corpora used": "jpn_wikipedia_2021_300K"},
                 {"Note": "deleted related words"},
             ],
         ),
@@ -241,6 +306,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "jpn_wikipedia_2021_300K, jpn-jp_web_2020_1M"},
             ],
+            hidden=True,
         ),
         build_pack(
             "ja",
@@ -249,6 +315,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "jpn_wikipedia_2021_300K, jpn-jp_web_2020_1M"},
             ],
+            hidden=True,
         ),
         build_pack(
             "ja",
@@ -257,6 +324,7 @@ PACK_RELEASES = {
                 {"Data source": "Leipzig Corpora Collection, University of Leipzig"},
                 {"Corpora used": "jpn_wikipedia_2021_300K, jpn-jp_web_2020_1M"},
             ],
+            hidden=True,
         ),
     ],
 }

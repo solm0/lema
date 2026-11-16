@@ -13,10 +13,22 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
         "Data source": "Leipzig Corpora Collection, University of Leipzig"
       },
       {
-        "Corpora used": "deu_wikipedia_2021_300K, deu-de_web_2021_1M"
+        "Corpora used": "deu_wikipedia_2021_300K"
       },
       {
         "Note": "deleted related words"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD GSD)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD GSD)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "46.5 MB",
+          "Mobile": "46.5 MB"
+        }
       }
     ]
   },
@@ -32,6 +44,18 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "deu_wikipedia_2021_300K, deu-de_web_2021_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD GSD)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD GSD)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "48.7 MB",
+          "Mobile": "48.7 MB"
+        }
       }
     ]
   },
@@ -47,6 +71,15 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "deu_wikipedia_2021_300K, deu-de_web_2021_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD GSD)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD GSD)"
+        }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -61,10 +94,22 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
         "Data source": "Leipzig Corpora Collection, University of Leipzig"
       },
       {
-        "Corpora used": "eng-simple_wikipedia_2021_300K, eng-uk_web-public_2018_1M"
+        "Corpora used": "eng-simple_wikipedia_2021_300K"
       },
       {
         "Note": "deleted related words"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD EWT)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD EWT)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "36.5 MB",
+          "Mobile": "36.5 MB"
+        }
       }
     ]
   },
@@ -80,6 +125,18 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "eng-simple_wikipedia_2021_300K, eng-uk_web-public_2018_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD EWT)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD EWT)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "37.4 MB",
+          "Mobile": "37.4 MB"
+        }
       }
     ]
   },
@@ -95,6 +152,15 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "eng-simple_wikipedia_2021_300K, eng-uk_web-public_2018_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD EWT)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD EWT)"
+        }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -109,10 +175,22 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
         "Data source": "Leipzig Corpora Collection, University of Leipzig"
       },
       {
-        "Corpora used": "jpn_wikipedia_2021_300K, jpn-jp_web_2020_1M"
+        "Corpora used": "jpn_wikipedia_2021_300K"
       },
       {
         "Note": "deleted related words"
+      },
+      {
+        "Models": {
+          "Desktop": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)",
+          "Mobile": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "116.7 MB",
+          "Mobile": "116.7 MB"
+        }
       }
     ]
   },
@@ -128,6 +206,18 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "jpn_wikipedia_2021_300K, jpn-jp_web_2020_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)",
+          "Mobile": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "119.3 MB",
+          "Mobile": "119.3 MB"
+        }
       }
     ]
   },
@@ -143,6 +233,18 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "jpn_wikipedia_2021_300K, jpn-jp_web_2020_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)",
+          "Mobile": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "118.7 MB",
+          "Mobile": "118.7 MB"
+        }
       }
     ]
   },
@@ -158,6 +260,15 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "jpn_wikipedia_2021_300K, jpn-jp_web_2020_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)",
+          "Mobile": "Sudachi 0.7.5 + SudachiDict small (2024-04-09)"
+        }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -172,10 +283,22 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
         "Data source": "Leipzig Corpora Collection, University of Leipzig"
       },
       {
-        "Corpora used": "kor_wikipedia_2021_300K, kor-kr_web_2020_1M"
+        "Corpora used": "kor_wikipedia_2021_300K"
       },
       {
         "Note": "deleted related words"
+      },
+      {
+        "Models": {
+          "Desktop": "Kiwi 0.24.0 base model",
+          "Mobile": "Kiwi 0.24.0 base model"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "141.5 MB",
+          "Mobile": "141.5 MB"
+        }
       }
     ]
   },
@@ -191,6 +314,18 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "kor_wikipedia_2021_300K, kor-kr_web_2020_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Kiwi 0.24.0 base model",
+          "Mobile": "Kiwi 0.24.0 base model"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "142.4 MB",
+          "Mobile": "142.4 MB"
+        }
       }
     ]
   },
@@ -206,6 +341,15 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "kor_wikipedia_2021_300K, kor-kr_web_2020_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Kiwi 0.24.0 base model",
+          "Mobile": "Kiwi 0.24.0 base model"
+        }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   },
@@ -220,10 +364,22 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
         "Data source": "Leipzig Corpora Collection, University of Leipzig"
       },
       {
-        "Corpora used": "rus_wikipedia_2021_300K, rus-ru_web-public_2019_1M"
+        "Corpora used": "rus_wikipedia_2021_300K"
       },
       {
         "Note": "deleted related words"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD GSD)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD GSD)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "49.8 MB",
+          "Mobile": "49.8 MB"
+        }
       }
     ]
   },
@@ -239,6 +395,18 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "rus_wikipedia_2021_300K, rus-ru_web-public_2019_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD GSD)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD GSD)"
+        }
+      },
+      {
+        "Size": {
+          "Desktop": "51.7 MB",
+          "Mobile": "51.7 MB"
+        }
       }
     ]
   },
@@ -254,6 +422,15 @@ export const PACK_CATALOG: PackCatalogEntry[] = [
       },
       {
         "Corpora used": "rus_wikipedia_2021_300K, rus-ru_web-public_2019_1M"
+      },
+      {
+        "Models": {
+          "Desktop": "Apache OpenNLP 2.5.3 (UD GSD)",
+          "Mobile": "Apache OpenNLP 2.5.3 (UD GSD)"
+        }
+      },
+      {
+        "Hidden": "true"
       }
     ]
   }

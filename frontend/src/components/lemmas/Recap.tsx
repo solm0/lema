@@ -47,7 +47,7 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
   const [wrongChoice, setWrongChoice] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<"passed" | "failed" | null>(null);
   const [reveal, setReveal] = useState<RevealState | null>(null);
-  const [insertedWord, setInsertedWord] = useState("");
+  const [insertedWords, setInsertedWords] = useState<string[]>([]);
   const [checking, setChecking] = useState(false);
   const [fadeQuestion, setFadeQuestion] = useState(false);
   const [phase, setPhase] = useState<Phase>("question");
@@ -57,7 +57,7 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
   const [error, setError] = useState("");
 
   const loadQuestion = async (nextItem: RecapItem) => {
-    setLoading(true); setError(""); setQuestion(null); setDisabled([]); setWrongChoice(null); setFeedback(null); setReveal(null); setInsertedWord(""); setChecking(false); setFadeQuestion(false); setPhase("question"); setExtraShown(0);
+    setLoading(true); setError(""); setQuestion(null); setDisabled([]); setWrongChoice(null); setFeedback(null); setReveal(null); setInsertedWords([]); setChecking(false); setFadeQuestion(false); setPhase("question"); setExtraShown(0);
     try {
       if (!nextItem.question) throw new Error("recap_question_unavailable");
       setQuestion(nextItem.question);
@@ -88,12 +88,14 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
     const examples = [question.primary_example, ...(question.extra_examples ?? [])];
     const answerIndex = examples.findIndex((example) => targetSurface(example));
     setChecking(true);
-    setInsertedWord(labelFor(choiceKey));
+    const fallback = labelFor(choiceKey);
+    const words = examples.map((example) => result === "passed" ? targetSurface(example) || fallback : fallback);
+    setInsertedWords(words);
     setExtraShown(question.extra_examples?.length ?? 0);
     setReveal({ stage: "circle", exampleIndex: Math.max(0, answerIndex), characters: 0 });
     await new Promise((resolve) => window.setTimeout(resolve, 250));
     for (let exampleIndex = 0; exampleIndex < examples.length; exampleIndex += 1) {
-      const word = labelFor(choiceKey);
+      const word = words[exampleIndex] ?? fallback;
       for (let characters = 0; characters <= word.length; characters += 1) {
         setReveal({ stage: "typing", exampleIndex, characters });
         await new Promise((resolve) => window.setTimeout(resolve, 90));
@@ -151,8 +153,8 @@ export function Recap({ onFinished, languages = [], renderTrigger }: {
       {question && !loading && phase === "question" && (
         <div className={`flex flex-col gap-14 transition-opacity duration-300 ${fadeQuestion ? "opacity-0" : "opacity-100"}`}>
           <div className="flex flex-col gap-4">
-            <ExampleLine example={question.primary_example} exampleIndex={0} reveal={reveal} insertedWord={insertedWord} />
-            {extraShown > 0 && question.extra_examples?.slice(0, extraShown).map((example, extraIndex) => <ExampleLine key={extraIndex} example={example} exampleIndex={extraIndex + 1} reveal={reveal} insertedWord={insertedWord} />)}
+            <ExampleLine example={question.primary_example} exampleIndex={0} reveal={reveal} insertedWord={insertedWords[0] ?? ""} />
+            {extraShown > 0 && question.extra_examples?.slice(0, extraShown).map((example, extraIndex) => <ExampleLine key={extraIndex} example={example} exampleIndex={extraIndex + 1} reveal={reveal} insertedWord={insertedWords[extraIndex + 1] ?? ""} />)}
             {question.extra_examples?.[extraShown] && <button type="button" onClick={() => setExtraShown((current) => current + 1)} className="self-start text-sm text-neutral-500 opacity-80 hover:opacity-100 font-medium transition-opacity">{t("See another example")}</button>}
           </div>
           <div className="flex flex-wrap gap-2">

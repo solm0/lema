@@ -329,7 +329,7 @@ export function UserProfile() {
         />
       ) : (
       <>
-      <div className="flex flex-col gap-7 mb-14 items-start">
+      <div className="flex flex-col gap-7 items-start">
         <div className="flex flex-col gap-2 items-start">
           <div className="w-full flex items-center gap-3 text-lg font-medium">
 
@@ -825,6 +825,17 @@ export default function Setting() {
 
         <LocalLibrarySection disabled={GRADSHOW_MODE} />
 
+
+        <section className="w-full flex flex-col gap-6 items-start">
+          <h3 className="sticky top-0 bg-neutral-50 z-10 w-full">{t("Profile")}</h3>
+          <fieldset
+            disabled={GRADSHOW_MODE}
+            className={GRADSHOW_MODE ? "min-w-0 border-0 p-0 opacity-45 pointer-events-none" : "min-w-0 border-0 p-0"}
+          >
+            <UserProfile />
+          </fieldset>
+        </section>
+
          <section className="w-full flex flex-col gap-6 items-start">
           <h3 className="sticky top-0 bg-neutral-50 z-10 w-full">{t("Debug")}</h3>
           <div className="flex flex-col items-start text-sm gap-3">
@@ -852,16 +863,6 @@ export default function Setting() {
               <TextButton text={resettingRecap ? t("Resetting...") : t("Reset today's Revival")} onClick={() => void resetTodayRecap()} disabled={resettingRecap || GRADSHOW_MODE} />
             </div>
           </div>
-        </section>
-
-        <section className="w-full flex flex-col gap-6 items-start">
-          <h3 className="sticky top-0 bg-neutral-50 z-10 w-full pb-1">{t("Profile")}</h3>
-          <fieldset
-            disabled={GRADSHOW_MODE}
-            className={GRADSHOW_MODE ? "min-w-0 border-0 p-0 opacity-45 pointer-events-none" : "min-w-0 border-0 p-0"}
-          >
-            <UserProfile />
-          </fieldset>
         </section>
       </div>
 

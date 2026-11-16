@@ -4,11 +4,20 @@ export type PackCatalogEntry = {
   lemma_filename: string;
   lemma_download_url: string;
   tag: string;
-  corpus: {
+  corpus: Array<{
     "Data source"?: string;
     "Corpora used"?: string;
     "Note"?: string;
-  }[];
+    "Hidden"?: string;
+    "Models"?: {
+      Desktop?: string;
+      Mobile?: string;
+    };
+    "Size"?: {
+      Desktop?: string;
+      Mobile?: string;
+    };
+  }>;
 };
 
 const PACK_CATALOG_SNAPSHOT_KEY = "pack-catalog-snapshot-v1";
